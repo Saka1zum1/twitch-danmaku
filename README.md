@@ -1,6 +1,6 @@
 # Twitch Danmaku
 
-[English](README.md) | [简体中文](README.zh-CN.md)
+[English](README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md)
 
 A Tampermonkey userscript that turns Twitch live chat into scrolling video danmaku — with interactive pause, optional real-time translation, and zero external dependencies.
 
@@ -26,7 +26,7 @@ A Tampermonkey userscript that turns Twitch live chat into scrolling video danma
 Or build from source:
 
 ```bash
-git clone https://github.com/your-username/twitch-danmaku.git
+git clone https://github.com/saka1zum1/twitch-danmaku.git
 cd twitch-danmaku
 npm run build
 ```

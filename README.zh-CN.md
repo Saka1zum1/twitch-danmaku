@@ -1,6 +1,6 @@
 # Twitch 弹幕
 
-[English](README.md) | [简体中文](README.zh-CN.md)
+[English](README.md) | [简体中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md)
 
 将 Twitch 直播聊天实时转换为视频弹幕的油猴脚本。支持交互暂停、可选实时翻译，零外部依赖。
 
@@ -26,7 +26,7 @@
 或从源码构建：
 
 ```bash
-git clone https://github.com/your-username/twitch-danmaku.git
+git clone https://github.com/saka1zum1/twitch-danmaku.git
 cd twitch-danmaku
 npm run build
 ```
