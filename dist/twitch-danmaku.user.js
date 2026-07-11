@@ -3,7 +3,7 @@
 // @name:zh-CN   Twitch 弹幕
 // @name:zh-TW   Twitch 弹幕
 // @namespace    https://github.com/saka1zum1/twitch-danmaku
-// @version      1.0.0
+// @version      1.1.0
 // @description  Convert Twitch live chat to video danmaku with real-time translation
 // @description:zh-CN  将 Twitch 直播评论转换为视频弹幕，支持实时翻译
 // @description:zh-TW  將聊天室中的新訊息轉換成影片上的滾動彈幕，支持即時翻譯
@@ -16,6 +16,8 @@
 // @grant        GM_getValue
 // @grant        GM_xmlhttpRequest
 // @connect      translate.googleapis.com
+// @connect      edge.microsoft.com
+// @connect      api-edge.cognitive.microsofttranslator.com
 // @run-at       document-idle
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=twitch.com
 // ==/UserScript==
@@ -35,6 +37,9 @@ const LOCALES = {
     fontFamily: '字体',
     scrollArea: '滚动区域',
     translateEnable: '启用翻译',
+    translateProvider: '翻译引擎',
+    translateProviderMicrosoft: 'Microsoft 翻译',
+    translateProviderGoogle: 'Google 翻译',
     translateTarget: '目标语言',
     translateSpeed: '翻译速度',
     translateSpeedUnit: '条/秒',
@@ -69,6 +74,7 @@ const LOCALES = {
     langDe: 'Deutsch',
     langRu: 'Русский',
     langPt: 'Português',
+    tooltipCopy: '复制到聊天框',
   },
   en: {
     danmakuToggle: 'Danmaku toggle',
@@ -82,6 +88,9 @@ const LOCALES = {
     fontFamily: 'Font',
     scrollArea: 'Scroll area',
     translateEnable: 'Enable translation',
+    translateProvider: 'Translation engine',
+    translateProviderMicrosoft: 'Microsoft Translator',
+    translateProviderGoogle: 'Google Translate',
     translateTarget: 'Target language',
     translateSpeed: 'Translation speed',
     translateSpeedUnit: '/sec',
@@ -116,6 +125,7 @@ const LOCALES = {
     langDe: 'German',
     langRu: 'Russian',
     langPt: 'Portuguese',
+    tooltipCopy: 'Copy to chat',
   },
 };
 
@@ -165,6 +175,13 @@ function getScrollAreaOptions() {
   ];
 }
 
+function getTranslateProviderOptions() {
+  return [
+    { label: t('translateProviderMicrosoft'), value: 'microsoft' },
+    { label: t('translateProviderGoogle'), value: 'google' },
+  ];
+}
+
 function getTranslateLangOptions() {
   return [
     { label: t('langZhCN'), value: 'zh-CN' },
@@ -191,8 +208,9 @@ const DEFAULT_SETTINGS = {
   fontFamily: 'system-ui, sans-serif',
   scrollArea: 'full',
   translateEnabled: false,
+  translateProvider: 'microsoft',
   translateTargetLang: getDefaultTranslateTargetLang(),
-  translateSpeed: 3,
+  translateSpeed: 5,
 };
 
 const SELECTORS = {
@@ -203,11 +221,14 @@ const SELECTORS = {
   videoPlayer: '.video-player__container',
   videoOverlay: '.video-player__overlay',
   playerControls: '.player-controls__right-control-group',
+  chatInput: 'textarea[data-a-target="chat-input"]',
+  chatInputSlate: '[data-a-target="chat-input"][contenteditable="true"], .chat-wysiwyg-input__editor[contenteditable="true"]',
+  chatInputEditable: '[data-a-target="chat-input"][contenteditable="true"], [data-a-target="chat-input-text"]',
 };
 
 const STORAGE_KEY = 'tbc_settings_v1';
 
-const LIVE_MESSAGE_TAIL = 5;
+const LIVE_MESSAGE_TAIL = 10;
 const WARMUP_MS = 2500;
 const MAX_DANMAKU_QUEUE = 24;
 const MAX_TRANSLATE_QUEUE = 32;
@@ -282,6 +303,150 @@ function getFullscreenElement() {
     document.mozFullScreenElement;
 }
 
+function getDanmakuMount(item) {
+  return item.closest('.tbc-danmaku-layer')?.parentElement || null;
+}
+
+function getEditorPlainText(editor) {
+  return (editor.innerText || editor.textContent || '')
+    .replace(/\u200B/g, '')
+    .replace(/\uFEFF/g, '')
+    .trim();
+}
+
+function selectAllInEditor(editor) {
+  editor.focus();
+  const range = document.createRange();
+  range.selectNodeContents(editor);
+  const selection = window.getSelection();
+  selection?.removeAllRanges();
+  selection?.addRange(range);
+}
+
+function dispatchEditorBeforeInput(editor, inputType, data) {
+  editor.dispatchEvent(new InputEvent('beforeinput', {
+    bubbles: true,
+    cancelable: true,
+    inputType,
+    data: data ?? null,
+  }));
+}
+
+function tryPasteIntoEditor(editor, text) {
+  selectAllInEditor(editor);
+
+  try {
+    const dataTransfer = new DataTransfer();
+    dataTransfer.setData('text/plain', text);
+    editor.dispatchEvent(new ClipboardEvent('paste', {
+      bubbles: true,
+      cancelable: true,
+      clipboardData: dataTransfer,
+    }));
+    if (getEditorPlainText(editor) === text) return true;
+  } catch (_) {
+    /* ignore */
+  }
+
+  selectAllInEditor(editor);
+  dispatchEditorBeforeInput(editor, 'insertReplacementText', text);
+  if (getEditorPlainText(editor) === text) return true;
+
+  selectAllInEditor(editor);
+  document.execCommand('delete', false, null);
+  dispatchEditorBeforeInput(editor, 'insertText', text);
+  if (getEditorPlainText(editor) === text) return true;
+
+  selectAllInEditor(editor);
+  document.execCommand('insertText', false, text);
+  return getEditorPlainText(editor) === text;
+}
+
+function findSlateChatEditor() {
+  return document.querySelector(SELECTORS.chatInputSlate);
+}
+
+function findLegacyChatInput() {
+  const direct = document.querySelector(SELECTORS.chatInput);
+  if (direct) return direct;
+
+  const host = document.querySelector('[data-a-target="chat-input"]');
+  if (!host) return null;
+  if (host.tagName === 'TEXTAREA' || host.tagName === 'INPUT') return host;
+  return host.querySelector('textarea, input[type="text"]');
+}
+
+function dispatchReactInput(element, value) {
+  const tracker = element._valueTracker;
+  if (tracker) {
+    tracker.setValue(element.value);
+  }
+
+  const prototype = element instanceof HTMLTextAreaElement
+    ? HTMLTextAreaElement.prototype
+    : HTMLInputElement.prototype;
+  const setter = Object.getOwnPropertyDescriptor(prototype, 'value')?.set;
+  if (setter) {
+    setter.call(element, value);
+  } else {
+    element.value = value;
+  }
+
+  element.dispatchEvent(new InputEvent('input', {
+    bubbles: true,
+    cancelable: true,
+    inputType: 'insertText',
+    data: value,
+  }));
+}
+
+function setLegacyChatInputText(textarea, text) {
+  textarea.focus();
+  textarea.setSelectionRange(0, textarea.value.length);
+
+  if (document.execCommand('insertText', false, text)) {
+    textarea.setSelectionRange(text.length, text.length);
+  } else {
+    dispatchReactInput(textarea, text);
+    textarea.setSelectionRange(text.length, text.length);
+  }
+
+  textarea.dispatchEvent(new Event('change', { bubbles: true }));
+  return true;
+}
+
+async function setChatInputText(text) {
+  if (!text) return false;
+
+  const slateEditor = findSlateChatEditor();
+  if (slateEditor) {
+    slateEditor.focus();
+    selectAllInEditor(slateEditor);
+
+    try {
+      if (typeof GM_setClipboard === 'function') {
+        GM_setClipboard(text, 'text');
+      } else {
+        await navigator.clipboard.writeText(text);
+      }
+      document.execCommand('paste', false, null);
+      if (getEditorPlainText(slateEditor) === text) return true;
+    } catch (_) {
+      /* clipboard API unavailable */
+    }
+
+    if (tryPasteIntoEditor(slateEditor, text)) return true;
+    return getEditorPlainText(slateEditor).length > 0;
+  }
+
+  const textarea = findLegacyChatInput();
+  if (textarea) {
+    return setLegacyChatInputText(textarea, text);
+  }
+
+  return false;
+}
+
 class LaneManager {
   constructor() {
     this.lanes = [];
@@ -334,6 +499,10 @@ class DanmakuEngine {
     this.layer.setAttribute('aria-hidden', 'true');
     this.overlayEl.appendChild(this.layer);
 
+    if (getComputedStyle(this.overlayEl).position === 'static') {
+      this.overlayEl.style.position = 'relative';
+    }
+
     this.resizeObserver = new ResizeObserver(this.boundUpdate);
     this.resizeObserver.observe(this.playerEl);
 
@@ -368,6 +537,48 @@ class DanmakuEngine {
     }
   }
 
+  migrateDanmakuItems(items, oldRect, newWidth, newHeight) {
+    const oldWidth = oldRect.width || 1;
+    const oldHeight = oldRect.height || 1;
+
+    for (const item of items) {
+      if (!item.isConnected) continue;
+
+      const top = parseFloat(item.style.top) || 0;
+      item.style.top = `${(top / oldHeight) * newHeight}px`;
+
+      const oldTravel = parseFloat(item.style.getPropertyValue('--tbc-travel')) || oldWidth;
+      const oldDuration = parseFloat(item.style.getPropertyValue('--tbc-duration')) || 8000;
+      const matrix = new DOMMatrixReadOnly(getComputedStyle(item).transform);
+      const progress = oldTravel > 0 ? clamp(-matrix.m41 / oldTravel, 0, 1) : 0;
+
+      const itemWidth = item.offsetWidth;
+      const newTravel = newWidth + itemWidth;
+      const newDuration = (newTravel / oldTravel) * oldDuration;
+      const remaining = Math.max(0, newDuration * (1 - progress));
+
+      item._tbcClearRemoveTimer?.();
+
+      const wasPaused = item.classList.contains('tbc-paused');
+      if (wasPaused) {
+        item.classList.remove('tbc-paused');
+      }
+
+      item.style.setProperty('--tbc-travel', `${newTravel}px`);
+      item.style.setProperty('--tbc-start', `${-progress * newTravel}px`);
+      item.style.setProperty('--tbc-duration', `${remaining}ms`);
+      item.style.animation = 'none';
+      void item.offsetWidth;
+      item.style.animation = '';
+
+      if (wasPaused) {
+        item.classList.add('tbc-paused');
+      }
+
+      item._tbcScheduleRemove?.(remaining);
+    }
+  }
+
   updateLayout() {
     if (!this.layer || !this.playerEl) return;
 
@@ -376,6 +587,15 @@ class DanmakuEngine {
     const anchor = fsEl || this.playerEl;
     const rect = anchor.getBoundingClientRect();
     const area = this.getScrollAreaRect(rect);
+
+    const oldParent = this.layer.parentElement;
+    const oldRect = this.layer.getBoundingClientRect();
+    const items = [...this.layer.querySelectorAll('.tbc-danmaku-item')];
+    const shouldMigrate = items.length > 0;
+
+    if (shouldMigrate) {
+      hideDanmakuTooltip();
+    }
 
     if (fsEl && fsEl.contains(this.playerEl)) {
       if (this.layer.parentElement !== fsEl) {
@@ -403,8 +623,19 @@ class DanmakuEngine {
       });
     }
 
+    const newWidth = this.layer.clientWidth;
+    const newHeight = this.layer.clientHeight;
+
+    if (shouldMigrate && (
+      oldParent !== this.layer.parentElement
+      || Math.abs(oldRect.width - newWidth) > 1
+      || Math.abs(oldRect.height - newHeight) > 1
+    )) {
+      this.migrateDanmakuItems(items, oldRect, newWidth, newHeight);
+    }
+
     const laneHeight = settings.fontSize + 6;
-    const laneCount = Math.floor(area.height / laneHeight);
+    const laneCount = Math.floor(newHeight / laneHeight);
     this.laneManager.reset(laneCount, laneHeight);
     this.layer.style.display = settings.enabled ? 'block' : 'none';
   }
@@ -415,35 +646,50 @@ class DanmakuEngine {
 
     const layerWidth = this.layer.clientWidth || 800;
     const speed = clamp(settings.speed, 1, 10);
-    const baseDuration = 20000;
-    const durationMs = baseDuration / speed;
-    const lane = this.laneManager.acquire(durationMs);
+    const baseDuration = 30000;
     const laneHeight = settings.fontSize + 6;
-    const top = lane * laneHeight;
 
     const item = document.createElement('div');
     item.className = 'tbc-danmaku-item';
     item.textContent = message;
     item.style.cssText = `
-      top: ${top}px;
+      top: 0;
       color: ${usernameColor || '#efeff1'};
       font-size: ${settings.fontSize}px;
       font-family: ${settings.fontFamily};
-      --tbc-travel: ${layerWidth + 200}px;
-      --tbc-duration: ${durationMs}ms;
+      visibility: hidden;
+      animation: none;
     `;
+
+    this.layer.appendChild(item);
+    const itemWidth = item.offsetWidth;
+    const travel = layerWidth + itemWidth;
+    const durationMs = Math.round((travel / layerWidth) * (baseDuration / speed));
+    const lane = this.laneManager.acquire(durationMs);
+    const top = lane * laneHeight;
+
+    item.style.top = `${top}px`;
+    item.style.visibility = '';
+    item.style.setProperty('--tbc-travel', `${travel}px`);
+    item.style.setProperty('--tbc-start', '0px');
+    item.style.setProperty('--tbc-duration', `${durationMs}ms`);
+    void item.offsetWidth;
+    item.style.animation = '';
 
     const startAt = Date.now();
     let pausedAt = 0;
     let totalPaused = 0;
     let removeTimer = null;
 
-    const scheduleRemove = () => {
+    const scheduleRemove = (remainingMs = durationMs) => {
       const elapsed = Date.now() - startAt - totalPaused;
-      const remaining = Math.max(0, durationMs - elapsed);
+      const remaining = remainingMs ?? Math.max(0, durationMs - elapsed);
       clearTimeout(removeTimer);
       removeTimer = setTimeout(() => item.remove(), remaining + 500);
     };
+
+    item._tbcClearRemoveTimer = () => clearTimeout(removeTimer);
+    item._tbcScheduleRemove = scheduleRemove;
 
     const onPause = () => {
       pausedAt = Date.now();
@@ -466,7 +712,6 @@ class DanmakuEngine {
       onPause,
       onResume,
     });
-    this.layer.appendChild(item);
     scheduleRemove();
 
     item.addEventListener('animationend', () => {
@@ -476,70 +721,279 @@ class DanmakuEngine {
   }
 }
 
-let activeTooltip = null;
+const MAX_DANMAKU_PAUSE_MS = 15000;
+const RESUME_DELAY_MS = 300;
 
-function hideDanmakuTooltip() {
-  activeTooltip?.remove();
-  activeTooltip = null;
+let activeTooltip = null;
+let activeTooltipItem = null;
+let hoverPausedItem = null;
+let clickLockBackdrop = null;
+let tooltipRepositionHandler = null;
+let tooltipDismissBound = false;
+
+function removeClickLockBackdrop() {
+  clickLockBackdrop?.remove();
+  clickLockBackdrop = null;
 }
 
-function positionDanmakuTooltip(item, tooltip) {
-  const rect = item.getBoundingClientRect();
+function showClickLockBackdrop(mount) {
+  removeClickLockBackdrop();
+  if (!mount) return;
+
+  if (getComputedStyle(mount).position === 'static') {
+    mount.style.position = 'relative';
+  }
+
+  clickLockBackdrop = document.createElement('div');
+  clickLockBackdrop.className = 'tbc-click-lock-backdrop';
+  clickLockBackdrop.addEventListener('pointerdown', (e) => {
+    const otherDanmaku = document.elementsFromPoint(e.clientX, e.clientY)
+      .find((el) => el.classList?.contains('tbc-danmaku-item') && el !== activeTooltipItem);
+
+    hideDanmakuTooltip();
+
+    if (otherDanmaku) {
+      requestAnimationFrame(() => {
+        otherDanmaku.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+      });
+    }
+  }, true);
+
+  mount.appendChild(clickLockBackdrop);
+}
+
+function hideDanmakuTooltip() {
+  if (tooltipRepositionHandler) {
+    window.removeEventListener('resize', tooltipRepositionHandler);
+    document.removeEventListener('fullscreenchange', tooltipRepositionHandler);
+    document.removeEventListener('webkitfullscreenchange', tooltipRepositionHandler);
+    tooltipRepositionHandler = null;
+  }
+
+  removeClickLockBackdrop();
+
+  const resumeFn = activeTooltipItem?._tbcResume;
+  activeTooltipItem?.classList.remove('tbc-click-locked');
+  activeTooltip?.remove();
+  activeTooltip = null;
+  activeTooltipItem = null;
+  resumeFn?.();
+}
+
+function ensureTooltipDismissListener() {
+  if (tooltipDismissBound) return;
+  tooltipDismissBound = true;
+  document.addEventListener('pointerdown', (e) => {
+    if (!activeTooltip) return;
+    if (activeTooltip.contains(e.target)) return;
+    if (e.target.closest('.tbc-danmaku-item') === activeTooltipItem) return;
+    if (clickLockBackdrop?.contains(e.target)) return;
+    hideDanmakuTooltip();
+  }, true);
+}
+
+function positionDanmakuTooltip(item, tooltip, mount) {
+  if (!mount) return;
+
+  const margin = 8;
+  const gap = 6;
+  const bounds = mount.getBoundingClientRect();
+  const itemRect = item.getBoundingClientRect();
   const tipRect = tooltip.getBoundingClientRect();
-  const left = clamp(rect.left + rect.width / 2 - tipRect.width / 2, 8, window.innerWidth - tipRect.width - 8);
-  const top = rect.top - tipRect.height - 6;
+  const tipHeight = tipRect.height;
+  const tipWidth = tipRect.width;
+
+  const spaceAbove = itemRect.top - bounds.top - margin;
+  const spaceBelow = bounds.bottom - itemRect.bottom - margin;
+  const needed = tipHeight + gap;
+
+  let placement = 'above';
+  if (spaceAbove < needed && spaceBelow >= needed) {
+    placement = 'below';
+  } else if (spaceAbove < needed && spaceBelow < needed) {
+    placement = spaceBelow > spaceAbove ? 'below' : 'above';
+  }
+
+  tooltip.classList.toggle('tbc-danmaku-tooltip--above', placement === 'above');
+  tooltip.classList.toggle('tbc-danmaku-tooltip--below', placement === 'below');
+
+  let left = itemRect.left - bounds.left + itemRect.width / 2 - tipWidth / 2;
+  left = clamp(left, margin, Math.max(margin, bounds.width - tipRect.width - margin));
+
+  let top;
+  if (placement === 'below') {
+    top = itemRect.bottom - bounds.top + gap;
+  } else {
+    top = itemRect.top - bounds.top - tipHeight - gap;
+  }
 
   Object.assign(tooltip.style, {
-    position: 'fixed',
+    position: 'absolute',
     left: `${left}px`,
-    top: `${Math.max(8, top)}px`,
+    top: `${top}px`,
     zIndex: '100001',
   });
 }
 
-function attachDanmakuInteraction(item, { username, usernameColor, originalMessage, translated, onPause, onResume }) {
-  let resumeTimer = null;
+function bindTooltipReposition(item, tooltip, mount) {
+  tooltipRepositionHandler = () => positionDanmakuTooltip(item, tooltip, mount);
+  window.addEventListener('resize', tooltipRepositionHandler);
+  document.addEventListener('fullscreenchange', tooltipRepositionHandler);
+  document.addEventListener('webkitfullscreenchange', tooltipRepositionHandler);
+}
 
-  const pause = () => {
-    clearTimeout(resumeTimer);
-    item.classList.add('tbc-paused');
-    onPause?.();
+function attachDanmakuInteraction(item, { username, usernameColor, originalMessage, translated, onPause, onResume }) {
+  let hoverResumeTimer = null;
+  let maxPauseTimer = null;
+  let pauseReason = null;
+
+  const clearHoverResumeTimer = () => {
+    clearTimeout(hoverResumeTimer);
+    hoverResumeTimer = null;
   };
 
-  const resume = () => {
-    item.classList.remove('tbc-paused');
-    if (activeTooltip?.dataset.itemId === item.dataset.tbcId) {
-      hideDanmakuTooltip();
+  const clearMaxPauseTimer = () => {
+    clearTimeout(maxPauseTimer);
+    maxPauseTimer = null;
+  };
+
+  const armMaxPauseTimer = () => {
+    clearMaxPauseTimer();
+    maxPauseTimer = setTimeout(() => {
+      if (item.classList.contains('tbc-paused')) doResume();
+    }, MAX_DANMAKU_PAUSE_MS);
+  };
+
+  const doResume = () => {
+    clearHoverResumeTimer();
+    clearMaxPauseTimer();
+    if (!item.classList.contains('tbc-paused')) {
+      pauseReason = null;
+      item.classList.remove('tbc-click-locked');
+      return;
+    }
+
+    pauseReason = null;
+    item.classList.remove('tbc-paused', 'tbc-click-locked');
+    if (hoverPausedItem === item) hoverPausedItem = null;
+    if (activeTooltipItem === item) {
+      removeClickLockBackdrop();
+      activeTooltip?.remove();
+      activeTooltip = null;
+      activeTooltipItem = null;
     }
     onResume?.();
   };
 
-  const scheduleResume = () => {
-    clearTimeout(resumeTimer);
-    resumeTimer = setTimeout(resume, 500);
+  item._tbcResume = () => doResume();
+
+  item._tbcResumeHover = () => {
+    if (pauseReason !== 'hover') return;
+    doResume();
+  };
+
+  const scheduleHoverResume = () => {
+    if (pauseReason === 'click') return;
+    clearHoverResumeTimer();
+    hoverResumeTimer = setTimeout(() => {
+      if (pauseReason === 'hover') doResume();
+    }, RESUME_DELAY_MS);
+  };
+
+  const pauseForHover = () => {
+    if (activeTooltipItem) return;
+    if (pauseReason === 'click') return;
+
+    clearHoverResumeTimer();
+
+    if (hoverPausedItem && hoverPausedItem !== item) {
+      hoverPausedItem._tbcResumeHover?.();
+    }
+    hoverPausedItem = item;
+
+    if (!item.classList.contains('tbc-paused')) {
+      pauseReason = 'hover';
+      item.classList.add('tbc-paused');
+      onPause?.();
+    } else if (pauseReason !== 'hover') {
+      pauseReason = 'hover';
+    }
+
+    armMaxPauseTimer();
+  };
+
+  const pauseForClick = () => {
+    clearHoverResumeTimer();
+
+    if (hoverPausedItem && hoverPausedItem !== item) {
+      hoverPausedItem._tbcResumeHover?.();
+    }
+    hoverPausedItem = null;
+
+    pauseReason = 'click';
+    item.classList.add('tbc-click-locked');
+    if (!item.classList.contains('tbc-paused')) {
+      item.classList.add('tbc-paused');
+      onPause?.();
+    }
+
+    armMaxPauseTimer();
   };
 
   const showTooltip = () => {
+    const messageText = originalMessage || item.textContent;
     const showOriginal = translated && originalMessage && originalMessage !== item.textContent;
-    if (!username && !showOriginal) return;
+    if (!username && !showOriginal && !messageText) return;
 
+    ensureTooltipDismissListener();
     hideDanmakuTooltip();
+    pauseForClick();
+
     item.dataset.tbcId = item.dataset.tbcId || String(Date.now() + Math.random());
 
+    const mount = getDanmakuMount(item);
+    if (!mount) {
+      doResume();
+      return;
+    }
+
+    showClickLockBackdrop(mount);
+
     const tooltip = document.createElement('div');
-    tooltip.className = 'tbc-danmaku-tooltip';
+    tooltip.className = 'tbc-danmaku-tooltip tbc-danmaku-tooltip--above';
     tooltip.dataset.itemId = item.dataset.tbcId;
 
     const bubble = document.createElement('div');
     bubble.className = 'tbc-danmaku-tooltip-bubble';
+
+    const header = document.createElement('div');
+    header.className = 'tbc-danmaku-tooltip-header';
 
     if (username) {
       const nameRow = document.createElement('div');
       nameRow.className = 'tbc-danmaku-tooltip-name';
       nameRow.style.color = usernameColor || '#a970ff';
       nameRow.textContent = username;
-      bubble.appendChild(nameRow);
+      header.appendChild(nameRow);
+    } else {
+      header.classList.add('tbc-danmaku-tooltip-header--solo');
     }
+
+    if (messageText) {
+      const copyBtn = document.createElement('button');
+      copyBtn.type = 'button';
+      copyBtn.className = 'tbc-danmaku-tooltip-copy';
+      copyBtn.setAttribute('aria-label', t('tooltipCopy'));
+      copyBtn.innerHTML = ICON_COPY;
+      copyBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await setChatInputText(messageText);
+        hideDanmakuTooltip();
+      });
+      header.appendChild(copyBtn);
+    }
+
+    bubble.appendChild(header);
 
     if (showOriginal) {
       const originalRow = document.createElement('div');
@@ -552,29 +1006,37 @@ function attachDanmakuInteraction(item, { username, usernameColor, originalMessa
     tail.className = 'tbc-danmaku-tooltip-tail';
 
     tooltip.append(bubble, tail);
+    tooltip.addEventListener('click', (e) => e.stopPropagation());
 
-    const mountTarget = getFullscreenElement() || document.body;
-    mountTarget.appendChild(tooltip);
-    positionDanmakuTooltip(item, tooltip);
+    mount.appendChild(tooltip);
+    positionDanmakuTooltip(item, tooltip, mount);
+    bindTooltipReposition(item, tooltip, mount);
     activeTooltip = tooltip;
+    activeTooltipItem = item;
+
+    requestAnimationFrame(() => {
+      if (activeTooltip === tooltip) positionDanmakuTooltip(item, tooltip, mount);
+    });
   };
 
-  item.addEventListener('mouseenter', pause);
-  item.addEventListener('mouseleave', scheduleResume);
+  item.addEventListener('mouseenter', () => {
+    pauseForHover();
+  });
+
+  item.addEventListener('mouseleave', () => {
+    if (pauseReason === 'click') return;
+    scheduleHoverResume();
+  });
+
   item.addEventListener('click', (e) => {
     e.stopPropagation();
-    pause();
     showTooltip();
-    requestAnimationFrame(() => {
-      if (activeTooltip) positionDanmakuTooltip(item, activeTooltip);
-    });
   });
 
   item.addEventListener('animationend', () => {
-    clearTimeout(resumeTimer);
-    if (activeTooltip?.dataset.itemId === item.dataset.tbcId) {
-      hideDanmakuTooltip();
-    }
+    clearHoverResumeTimer();
+    clearMaxPauseTimer();
+    if (activeTooltipItem === item) hideDanmakuTooltip();
   }, { once: true });
 }
 
@@ -620,85 +1082,292 @@ class DanmakuEmitter {
   }
 }
 
-async function googleTranslate(text, targetLang) {
-  if (!text.trim() || text.length > 500) return '';
+function dictEntry(zhCN, zhTW, en) {
+  return { 'zh-CN': zhCN, 'zh-TW': zhTW, en };
+}
 
-  return new Promise((resolve) => {
+// Case-sensitive keys — emotes and slang must match exact casing.
+const TWITCH_DICTIONARY = {
+  PogChamp: dictEntry('（神操作）', '（神操作）', 'PogChamp'),
+  PepeHands: dictEntry('（哭哭）', '（哭哭）', 'PepeHands'),
+  OMEGALUL: dictEntry('（笑死）', '（笑死）', 'OMEGALUL'),
+  PepeLaugh: dictEntry('（大笑）', '（大笑）', 'PepeLaugh'),
+  PauseChamp: dictEntry('（等等）', '（等等）', 'PauseChamp'),
+  monkaS: dictEntry('（紧张）', '（緊張）', 'monkaS'),
+  monkaW: dictEntry('（紧张）', '（緊張）', 'monkaW'),
+  KEKW: dictEntry('（爆笑）', '（爆笑）', 'KEKW'),
+  LULW: dictEntry('（笑）', '（笑）', 'LULW'),
+  LUL: dictEntry('（笑）', '（笑）', 'LUL'),
+  Sadge: dictEntry('（难受）', '（難受）', 'Sadge'),
+  Pepega: dictEntry('（有点蠢）', '（有點蠢）', 'Pepega'),
+  Kappa: dictEntry('（反讽）', '（反諷）', 'Kappa'),
+  Copium: dictEntry('自我安慰', '自我安慰', 'Copium'),
+  Hopium: dictEntry('抱有幻想', '抱有幻想', 'Hopium'),
+  Based: dictEntry('真敢说', '真敢說', 'Based'),
+  Cringe: dictEntry('尴尬', '尷尬', 'Cringe'),
+  PogU: dictEntry('（太神了）', '（太神了）', 'PogU'),
+  Pog: dictEntry('（太神了）', '（太神了）', 'Pog'),
+  EZ: dictEntry('轻松', '輕鬆', 'EZ'),
+  Clap: dictEntry('（鼓掌）', '（鼓掌）', 'Clap'),
+  NPC: dictEntry('工具人', '工具人', 'NPC'),
+  W: dictEntry('神', '神', 'W'),
+  L: dictEntry('拉胯', '拉胯', 'L'),
+  F: dictEntry('F', 'F', 'F'),
+  o7: dictEntry('o7', 'o7', 'o7'),
+  lol: dictEntry('哈哈', '哈哈', 'lol'),
+  lmao: dictEntry('笑死我了', '笑死我了', 'lmao'),
+  lmfao: dictEntry('笑死我了', '笑死我了', 'lmfao'),
+  rofl: dictEntry('笑翻', '笑翻', 'rofl'),
+  kek: dictEntry('笑', '笑', 'kek'),
+  gg: dictEntry('GG', 'GG', 'gg'),
+  ggs: dictEntry('GG', 'GG', 'ggs'),
+  wp: dictEntry('打得不错', '打得不错', 'wp'),
+  gl: dictEntry('祝好运', '祝好運', 'gl'),
+  hf: dictEntry('玩得开心', '玩得開心', 'hf'),
+  nt: dictEntry('好尝试', '好嘗試', 'nt'),
+  ns: dictEntry('好枪', '好槍', 'ns'),
+  brb: dictEntry('马上回来', '馬上回來', 'brb'),
+  afk: dictEntry('离开了', '離開了', 'afk'),
+  bbl: dictEntry('待会儿回来', '待會兒回來', 'bbl'),
+  gtg: dictEntry('得走了', '得走了', 'gtg'),
+  ty: dictEntry('谢谢', '謝謝', 'ty'),
+  thx: dictEntry('谢谢', '謝謝', 'thx'),
+  np: dictEntry('不客气', '不客氣', 'np'),
+  nw: dictEntry('不客气', '不客氣', 'nw'),
+  imo: dictEntry('我觉得', '我覺得', 'imo'),
+  imho: dictEntry('依我看', '依我看', 'imho'),
+  tbh: dictEntry('老实说', '老實說', 'tbh'),
+  ngl: dictEntry('说实话', '說實話', 'ngl'),
+  rn: dictEntry('现在', '現在', 'rn'),
+  idk: dictEntry('不知道', '不知道', 'idk'),
+  ikr: dictEntry('确实', '確實', 'ikr'),
+  smh: dictEntry('无语', '無語', 'smh'),
+  omg: dictEntry('天呐', '天呐', 'omg'),
+  omfg: dictEntry('我的天', '我的天', 'omfg'),
+  wtf: dictEntry('什么鬼', '什麼鬼', 'wtf'),
+  rip: dictEntry('RIP', 'RIP', 'rip'),
+  ez: dictEntry('轻松', '輕鬆', 'ez'),
+  diff: dictEntry('差距', '差距', 'diff')
+};
+
+const PLACEHOLDER_PREFIX = '⟦T';
+const PLACEHOLDER_SUFFIX = '⟧';
+
+let dictionaryPattern = null;
+
+function escapeRegExp(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function getDictionaryPattern() {
+  if (dictionaryPattern) return dictionaryPattern;
+
+  const keys = Object.keys(TWITCH_DICTIONARY).sort((a, b) => b.length - a.length);
+  const body = keys.map(escapeRegExp).join('|');
+  dictionaryPattern = new RegExp(`(?<![\\w])(${body})(?![\\w])`, 'g');
+  return dictionaryPattern;
+}
+
+function lookupDictionary(term, targetLang) {
+  const entry = TWITCH_DICTIONARY[term];
+  if (!entry) return null;
+  return entry[targetLang] || entry.en || term;
+}
+
+function collectDictionaryMatches(text) {
+  const pattern = getDictionaryPattern();
+  const matches = [];
+  let match;
+
+  pattern.lastIndex = 0;
+  while ((match = pattern.exec(text)) !== null) {
+    matches.push({
+      start: match.index,
+      end: match.index + match[0].length,
+      term: match[1],
+    });
+  }
+
+  if (matches.length === 0) return [];
+
+  matches.sort((a, b) => a.start - b.start || b.end - a.end);
+
+  const selected = [];
+  let cursor = 0;
+  for (const item of matches) {
+    if (item.start < cursor) continue;
+    selected.push(item);
+    cursor = item.end;
+  }
+  return selected;
+}
+
+function prepareDictionaryText(text, targetLang) {
+  const matches = collectDictionaryMatches(text);
+  if (matches.length === 0) {
+    return { preparedText: text, placeholders: [], fullyMapped: false };
+  }
+
+  const placeholders = [];
+  let preparedText = '';
+  let cursor = 0;
+
+  for (let i = 0; i < matches.length; i += 1) {
+    const { start, end, term } = matches[i];
+    preparedText += text.slice(cursor, start);
+
+    const token = `${PLACEHOLDER_PREFIX}${i}${PLACEHOLDER_SUFFIX}`;
+    const replacement = lookupDictionary(term, targetLang) || term;
+    placeholders.push({ token, replacement });
+    preparedText += token;
+    cursor = end;
+  }
+
+  preparedText += text.slice(cursor);
+
+  const withoutPlaceholders = preparedText.replace(
+    new RegExp(`${escapeRegExp(PLACEHOLDER_PREFIX)}\\d+${escapeRegExp(PLACEHOLDER_SUFFIX)}`, 'g'),
+    '',
+  );
+
+  const fullyMapped = matches.length > 0 && !withoutPlaceholders.trim();
+
+  return { preparedText, placeholders, fullyMapped };
+}
+
+function restoreDictionaryText(text, placeholders) {
+  if (!text || placeholders.length === 0) return text;
+
+  let restored = text;
+  for (const { token, replacement } of placeholders) {
+    restored = restored.split(token).join(replacement);
+  }
+  return restored;
+}
+
+const MS_LANG_MAP = {
+  'zh-CN': 'zh-Hans',
+  'zh-TW': 'zh-Hant',
+  en: 'en',
+  ja: 'ja',
+  ko: 'ko',
+  es: 'es',
+  fr: 'fr',
+  de: 'de',
+  ru: 'ru',
+  pt: 'pt',
+};
+
+const TRANSLATE_TIMEOUT_MS = 8000;
+
+let msAuthCache = { token: '', expiresAt: 0, inflight: null };
+
+function gmRequest(options) {
+  return new Promise((resolve, reject) => {
     GM_xmlhttpRequest({
-      method: 'GET',
-      url: `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${encodeURIComponent(targetLang)}&dt=t&q=${encodeURIComponent(text)}`,
-      onload(res) {
-        try {
-          const json = JSON.parse(
-            res.responseText.replace(/,\s*,/g, ',null,').replace(/,\s*]/g, ',null]')
-          );
-          resolve(json[0].map((x) => x[0]).join(''));
-        } catch {
-          resolve('');
-        }
-      },
-      onerror: () => resolve(''),
+      timeout: TRANSLATE_TIMEOUT_MS,
+      ...options,
+      onload: (res) => resolve(res),
+      onerror: () => reject(new Error('network error')),
+      ontimeout: () => reject(new Error('timeout')),
     });
   });
 }
 
-const PHRASE_MAP = {
-  lol: { 'zh-CN': '哈哈', 'zh-TW': '哈哈', en: 'lol' },
-  lo: { 'zh-CN': '哈哈', 'zh-TW': '哈哈', en: 'lo' },
-  lmao: { 'zh-CN': '笑死我了', 'zh-TW': '笑死我了', en: 'lmao' },
-  lmfao: { 'zh-CN': '笑死我了', 'zh-TW': '笑死我了', en: 'lmfao' },
-  rofl: { 'zh-CN': '笑翻', 'zh-TW': '笑翻', en: 'rofl' },
-  kekw: { 'zh-CN': '笑死', 'zh-TW': '笑死', en: 'kekw' },
-  kek: { 'zh-CN': '笑', 'zh-TW': '笑', en: 'kek' },
-  gg: { 'zh-CN': 'GG', 'zh-TW': 'GG', en: 'gg' },
-  ggs: { 'zh-CN': 'GG', 'zh-TW': 'GG', en: 'ggs' },
-  wp: { 'zh-CN': '打得不错', 'zh-TW': '打得不错', en: 'wp' },
-  gl: { 'zh-CN': '祝好运', 'zh-TW': '祝好運', en: 'gl' },
-  hf: { 'zh-CN': '玩得开心', 'zh-TW': '玩得開心', en: 'hf' },
-  nt: { 'zh-CN': '好尝试', 'zh-TW': '好嘗試', en: 'nt' },
-  ns: { 'zh-CN': '好枪', 'zh-TW': '好槍', en: 'ns' },
-  pog: { 'zh-CN': '强啊', 'zh-TW': '強啊', en: 'pog' },
-  pogchamp: { 'zh-CN': '太强了', 'zh-TW': '太強了', en: 'pogchamp' },
-  pepega: { 'zh-CN': '有点蠢', 'zh-TW': '有點蠢', en: 'pepega' },
-  monkas: { 'zh-CN': '紧张', 'zh-TW': '緊張', en: 'monkas' },
-  sadge: { 'zh-CN': 'Sad', 'zh-TW': 'Sad', en: 'sadge' },
-  copium: { 'zh-CN': '做梦呢', 'zh-TW': '做夢呢', en: 'copium' },
-  o7: { 'zh-CN': 'o7', 'zh-TW': 'o7', en: 'o7' },
-  brb: { 'zh-CN': '马上回来', 'zh-TW': '馬上回來', en: 'brb' },
-  afk: { 'zh-CN': '离开了', 'zh-TW': '離開了', en: 'afk' },
-  bbl: { 'zh-CN': '待会儿回来', 'zh-TW': '待會兒回來', en: 'bbl' },
-  gtg: { 'zh-CN': '得走了', 'zh-TW': '得走了', en: 'gtg' },
-  ty: { 'zh-CN': '谢谢', 'zh-TW': '謝謝', en: 'ty' },
-  thx: { 'zh-CN': '谢谢', 'zh-TW': '謝謝', en: 'thx' },
-  np: { 'zh-CN': '不客气', 'zh-TW': '不客氣', en: 'np' },
-  nw: { 'zh-CN': '不客气', 'zh-TW': '不客氣', en: 'nw' },
-  imo: { 'zh-CN': '我觉得', 'zh-TW': '我覺得', en: 'imo' },
-  imho: { 'zh-CN': '依我看', 'zh-TW': '依我看', en: 'imho' },
-  tbh: { 'zh-CN': '老实说', 'zh-TW': '老實說', en: 'tbh' },
-  ngl: { 'zh-CN': '说实话', 'zh-TW': '說實話', en: 'ngl' },
-  rn: { 'zh-CN': '现在', 'zh-TW': '現在', en: 'rn' },
-  idk: { 'zh-CN': '不知道', 'zh-TW': '不知道', en: 'idk' },
-  ikr: { 'zh-CN': '确实', 'zh-TW': '確實', en: 'ikr' },
-  smh: { 'zh-CN': '无语', 'zh-TW': '無語', en: 'smh' },
-  omg: { 'zh-CN': '天呐', 'zh-TW': '天呐', en: 'omg' },
-  omfg: { 'zh-CN': '我的天', 'zh-TW': '我的天', en: 'omfg' },
-  wtf: { 'zh-CN': '什么鬼', 'zh-TW': '什麼鬼', en: 'wtf' },
-  f: { 'zh-CN': 'F', 'zh-TW': 'F', en: 'f' },
-  rip: { 'zh-CN': 'RIP', 'zh-TW': 'RIP', en: 'rip' },
-  hi: { 'zh-CN': '嗨', 'zh-TW': '嗨', en: 'hi' },
-  hello: { 'zh-CN': '你好', 'zh-TW': '你好', en: 'hello' },
-  bye: { 'zh-CN': '再见', 'zh-TW': '再見', en: 'bye' },
-  ez: { 'zh-CN': '轻松', 'zh-TW': '輕鬆', en: 'ez' },
-  diff: { 'zh-CN': '差距', 'zh-TW': '差距', en: 'diff' },
-  based: { 'zh-CN': '真不错', 'zh-TW': '真不錯', en: 'based' },
-  cringe: { 'zh-CN': '尬', 'zh-TW': '尬', en: 'cringe' },
-};
+function parseJwtExp(token) {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    return payload.exp * 1000;
+  } catch {
+    return Date.now() + 9 * 60 * 1000;
+  }
+}
+
+function toMicrosoftLang(code) {
+  return MS_LANG_MAP[code] || code;
+}
+
+async function getMicrosoftAuthToken() {
+  const now = Date.now();
+  if (msAuthCache.token && msAuthCache.expiresAt > now + 30000) {
+    return msAuthCache.token;
+  }
+
+  if (msAuthCache.inflight) return msAuthCache.inflight;
+
+  msAuthCache.inflight = (async () => {
+    try {
+      const res = await gmRequest({
+        method: 'GET',
+        url: 'https://edge.microsoft.com/translate/auth',
+      });
+      const token = res.responseText?.trim();
+      if (!token) throw new Error('empty auth token');
+      msAuthCache.token = token;
+      msAuthCache.expiresAt = parseJwtExp(token);
+      return token;
+    } finally {
+      msAuthCache.inflight = null;
+    }
+  })();
+
+  return msAuthCache.inflight;
+}
+
+async function microsoftTranslate(text, targetLang) {
+  if (!text.trim() || text.length > 500) return '';
+
+  try {
+    const token = await getMicrosoftAuthToken();
+    const to = toMicrosoftLang(targetLang);
+    const url = `https://api-edge.cognitive.microsofttranslator.com/translate?api-version=3.0&to=${encodeURIComponent(to)}`;
+
+    const res = await gmRequest({
+      method: 'POST',
+      url,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      data: JSON.stringify([{ Text: text }]),
+    });
+
+    const json = JSON.parse(res.responseText);
+    return json?.[0]?.translations?.[0]?.text?.trim() || '';
+  } catch {
+    return '';
+  }
+}
+
+async function googleTranslate(text, targetLang) {
+  if (!text.trim() || text.length > 500) return '';
+
+  try {
+    const res = await gmRequest({
+      method: 'GET',
+      url: `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${encodeURIComponent(targetLang)}&dt=t&q=${encodeURIComponent(text)}`,
+    });
+
+    const json = JSON.parse(
+      res.responseText.replace(/,\s*,/g, ',null,').replace(/,\s*]/g, ',null]'),
+    );
+    return json[0].map((x) => x[0]).join('').trim();
+  } catch {
+    return '';
+  }
+}
+
+async function translateWithProvider(text, targetLang, provider) {
+  const primary = provider === 'google' ? googleTranslate : microsoftTranslate;
+  const fallback = provider === 'google' ? microsoftTranslate : googleTranslate;
+
+  const result = await primary(text, targetLang);
+  if (result) return result;
+
+  return fallback(text, targetLang);
+}
 
 const TOOLTIP_ORIGINAL_MAX = 64;
-
-function normalizePhraseKey(text) {
-  return text.trim().toLowerCase().replace(/[!?.,"'`~]+$/g, '').replace(/^[!?.,"'`~]+/g, '');
-}
 
 function shouldSkipTranslation(text) {
   const trimmed = text.trim();
@@ -708,14 +1377,9 @@ function shouldSkipTranslation(text) {
   return false;
 }
 
-function lookupPhrase(text, targetLang) {
-  const key = normalizePhraseKey(text);
-  if (!key || key.includes(' ')) return null;
-
-  const entry = PHRASE_MAP[key];
-  if (!entry) return null;
-
-  return entry[targetLang] || entry.en || null;
+function needsMachineTranslation(text) {
+  const stripped = text.replace(/⟦T\d+⟧/g, '').trim();
+  return !!stripped;
 }
 
 function truncateText(text, max = TOOLTIP_ORIGINAL_MAX) {
@@ -723,14 +1387,22 @@ function truncateText(text, max = TOOLTIP_ORIGINAL_MAX) {
   return `${text.slice(0, max - 1)}…`;
 }
 
-async function translateMessage(text, targetLang) {
+async function translateMessage(text, targetLang, provider = 'microsoft') {
   if (shouldSkipTranslation(text)) return text;
 
-  const mapped = lookupPhrase(text, targetLang);
-  if (mapped) return mapped;
+  const { preparedText, placeholders, fullyMapped } = prepareDictionaryText(text, targetLang);
+  if (fullyMapped) {
+    return restoreDictionaryText(preparedText, placeholders);
+  }
 
-  const translated = await googleTranslate(text, targetLang);
-  return translated?.trim() || text;
+  let machineText = preparedText;
+  if (needsMachineTranslation(preparedText)) {
+    machineText = await translateWithProvider(preparedText, targetLang, provider);
+    if (!machineText?.trim()) machineText = preparedText;
+  }
+
+  const restored = restoreDictionaryText(machineText, placeholders);
+  return restored?.trim() || text;
 }
 
 class TranslateQueue {
@@ -776,7 +1448,11 @@ class TranslateQueue {
     const original = job.text;
 
     try {
-      const translated = await translateMessage(original, settings.translateTargetLang);
+      const translated = await translateMessage(
+        original,
+        settings.translateTargetLang,
+        settings.translateProvider,
+      );
       if (this.isActive()) {
         job.callback(translated, original);
       }
@@ -798,13 +1474,112 @@ class TranslateQueue {
   }
 }
 
+const MAX_REPEAT_SEGMENTS = 3;
+
+function dedupeRepeatedMessage(text) {
+  const trimmed = text.trim();
+  if (!trimmed) return text;
+
+  const tokens = trimmed.split(/\s+/);
+  if (tokens.length <= MAX_REPEAT_SEGMENTS) return text;
+
+  const maxUnitLen = Math.floor(tokens.length / (MAX_REPEAT_SEGMENTS + 1));
+
+  for (let unitLen = 1; unitLen <= maxUnitLen; unitLen += 1) {
+    if (tokens.length % unitLen !== 0) continue;
+
+    const repeatCount = tokens.length / unitLen;
+    if (repeatCount <= MAX_REPEAT_SEGMENTS) continue;
+
+    const unit = tokens.slice(0, unitLen);
+    let matched = true;
+
+    for (let i = 1; i < repeatCount; i += 1) {
+      for (let j = 0; j < unitLen; j += 1) {
+        if (tokens[i * unitLen + j] !== unit[j]) {
+          matched = false;
+          break;
+        }
+      }
+      if (!matched) break;
+    }
+
+    if (matched) {
+      const kept = [];
+      for (let i = 0; i < MAX_REPEAT_SEGMENTS; i += 1) {
+        kept.push(...unit);
+      }
+      return kept.join(' ');
+    }
+  }
+
+  return text;
+}
+
+function extractEmoteName(node) {
+  return node.alt
+    || node.getAttribute('title')
+    || node.getAttribute('aria-label')
+    || node.dataset?.alt
+    || '';
+}
+
+function extractMessageContent(msgEl) {
+  const root = msgEl.querySelector('[data-a-target="chat-message-text"]')
+    || msgEl.querySelector('.chat-line__message-body')
+    || msgEl;
+
+  const parts = [];
+
+  const walk = (node) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      parts.push(node.textContent);
+      return;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+
+    if (node.matches('[data-a-target="chat-message-username"], .chat-author__display-name, .chat-line__username')) {
+      return;
+    }
+
+    if (node.tagName === 'IMG') {
+      const name = extractEmoteName(node);
+      if (name) parts.push(name);
+      return;
+    }
+
+    if (node.matches('[data-a-target="chat-message-emote"], .chat-line__message--emote, .chat-line__message--emote-button')) {
+      const img = node.querySelector('img');
+      const name = extractEmoteName(img || node);
+      if (name) parts.push(name);
+      return;
+    }
+
+    if (node.matches('span[data-a-target="chat-message-text"], span.text-fragment')) {
+      for (const child of node.childNodes) walk(child);
+      return;
+    }
+
+    for (const child of node.childNodes) walk(child);
+  };
+
+  if (root.matches('[data-a-target="chat-message-text"], .chat-line__message-body')) {
+    for (const child of root.childNodes) walk(child);
+  } else {
+    walk(root);
+  }
+
+  return parts.join('').trim();
+}
+
 function parseChatMessage(msgEl) {
   if (msgEl.classList.contains('tbc-processed')) return null;
   if (msgEl.closest('.tbc-processed')) return null;
 
-  const textSpans = msgEl.querySelectorAll(SELECTORS.chatText);
-  const message = Array.from(textSpans).map((s) => s.textContent).join('').trim();
-  if (!message) return null;
+  const rawMessage = extractMessageContent(msgEl);
+  if (!rawMessage) return null;
+
+  const message = dedupeRepeatedMessage(rawMessage);
 
   const usernameEl = msgEl.querySelector(SELECTORS.chatUsername);
   const username = usernameEl?.textContent?.trim() || '';
@@ -962,30 +1737,90 @@ function injectStyles() {
       animation-play-state: paused;
       z-index: 20;
       cursor: pointer;
+      pointer-events: auto;
+    }
+
+    .tbc-danmaku-item.tbc-paused.tbc-click-locked {
+      z-index: 100002;
+    }
+
+    .tbc-click-lock-backdrop {
+      position: absolute;
+      inset: 0;
+      z-index: 100000;
+      pointer-events: auto;
+      background: transparent;
     }
 
     .tbc-danmaku-tooltip {
-      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      pointer-events: auto;
       filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.4));
+      max-width: calc(100% - 16px);
     }
 
     .tbc-danmaku-tooltip-bubble {
       background: rgba(24, 24, 27, 0.95);
       border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 6px;
-      padding: 4px 8px;
-      max-width: 160px;
+      padding: 6px 8px;
+      max-width: min(280px, 100%);
+      max-height: min(40vh, 240px);
+      overflow-y: auto;
+    }
+
+    .tbc-danmaku-tooltip-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    .tbc-danmaku-tooltip-header--solo {
+      justify-content: flex-end;
     }
 
     .tbc-danmaku-tooltip-name {
+      flex: 1;
+      min-width: 0;
       font-size: 12px;
       font-weight: 600;
       line-height: 1.3;
       word-break: break-word;
     }
 
+    .tbc-danmaku-tooltip-copy {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      width: clamp(24px, 6vw, 28px);
+      height: clamp(24px, 6vw, 28px);
+      padding: 0;
+      border: none;
+      border-radius: 4px;
+      background: transparent;
+      color: #adadb8;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .tbc-danmaku-tooltip-copy:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #efeff1;
+    }
+
+    .tbc-danmaku-tooltip-copy svg {
+      width: clamp(14px, 3.5vw, 16px);
+      height: clamp(14px, 3.5vw, 16px);
+      fill: currentColor;
+      display: block;
+    }
+
     .tbc-danmaku-tooltip-original {
-      margin-top: 2px;
+      margin-top: 4px;
       color: #adadb8;
       font-size: 11px;
       line-height: 1.3;
@@ -995,15 +1830,30 @@ function injectStyles() {
     .tbc-danmaku-tooltip-tail {
       width: 6px;
       height: 6px;
-      margin: -3px auto 0;
+      flex-shrink: 0;
       background: rgba(24, 24, 27, 0.95);
-      border-right: 1px solid rgba(255, 255, 255, 0.1);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
       transform: rotate(45deg);
     }
 
+    .tbc-danmaku-tooltip--above .tbc-danmaku-tooltip-tail {
+      margin: -3px auto 0;
+      border-right: 1px solid rgba(255, 255, 255, 0.1);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .tbc-danmaku-tooltip--below .tbc-danmaku-tooltip-bubble {
+      order: 2;
+    }
+
+    .tbc-danmaku-tooltip--below .tbc-danmaku-tooltip-tail {
+      order: 1;
+      margin: 0 auto -3px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      border-left: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
     @keyframes tbc-scroll {
-      from { transform: translateX(0); }
+      from { transform: translateX(var(--tbc-start, 0)); }
       to { transform: translateX(calc(-1 * var(--tbc-travel, 100vw))); }
     }
 
@@ -1205,6 +2055,8 @@ const ICON_DANMAKU_ON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24
 const ICON_DANMAKU_OFF = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="m8.085 4.891-.999-1.499a1.008 1.008 0 0 1 1.679-1.118l1.709 2.566c.54-.008 1.045-.012 1.515-.012h.13c.345 0 .707.003 1.088.007l1.862-2.59a1.008 1.008 0 0 1 1.637 1.177l-1.049 1.46c.788.02 1.631.046 2.53.078 1.958.069 3.468 1.6 3.74 3.507.088.613.13 2.158.16 3.276l.001.027c.01.333.017.63.025.856a.987.987 0 0 1-1.974.069c-.008-.23-.016-.539-.025-.881v-.002c-.028-1.103-.066-2.541-.142-3.065-.143-1.004-.895-1.78-1.854-1.813-2.444-.087-4.466-.13-6.064-.131-1.598 0-3.619.044-6.063.13a2.037 2.037 0 0 0-1.945 1.748c-.15 1.04-.225 2.341-.225 3.904 0 1.874.11 3.474.325 4.798.154.949.95 1.66 1.91 1.708a97.58 97.58 0 0 0 5.416.139.988.988 0 0 1 0 1.975c-2.196 0-3.61-.047-5.513-.141A4.012 4.012 0 0 1 2.197 17.7c-.236-1.446-.351-3.151-.351-5.116 0-1.64.08-3.035.245-4.184A4.013 4.013 0 0 1 5.92 4.96c.761-.027 1.483-.05 2.164-.069Zm4.436 4.707h-1.32v4.63h2.222v.848h-2.618v1.078h2.431a5.01 5.01 0 0 1 3.575-3.115V9.598h-1.276a8.59 8.59 0 0 0 .748-1.42l-1.089-.384a14.232 14.232 0 0 1-.814 1.804h-1.518l.693-.308a8.862 8.862 0 0 0-.814-1.408l-1.045.352c.297.396.572.847.825 1.364Zm-4.18 3.564.154-1.485h1.98V8.289h-3.2v.979h2.067v1.43H7.483l-.308 3.454h2.277c0 1.166-.044 1.925-.12 2.277-.078.352-.386.528-.936.528-.308 0-.616-.022-.902-.055l.297 1.067.062.004c.285.02.551.04.818.04 1.001-.066 1.562-.418 1.694-1.056.11-.638.176-1.903.176-3.795h-2.2Zm7.458.11v-.858h-1.254v.858H15.8Zm-2.376-.858v.858h-1.199v-.858h1.2Zm-1.199-.946h1.2v-.902h-1.2v.902Zm2.321 0v-.902H15.8v.902h-1.254Zm3.517 10.594a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-.002-1.502a2.5 2.5 0 0 1-2.217-3.657l3.326 3.398a2.49 2.49 0 0 1-1.109.259Zm2.5-2.5c0 .42-.103.815-.286 1.162l-3.328-3.401a2.5 2.5 0 0 1 3.614 2.239Z" clip-rule="evenodd"/></svg>`;
 
 const ICON_SETTINGS = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="m15.645 4.881 1.06-1.473a.998.998 0 1 0-1.622-1.166L13.22 4.835a110.67 110.67 0 0 0-1.1-.007h-.131c-.47 0-.975.004-1.515.012L8.783 2.3A.998.998 0 0 0 7.12 3.408l.988 1.484c-.688.019-1.418.042-2.188.069a4.013 4.013 0 0 0-3.83 3.44c-.165 1.15-.245 2.545-.245 4.185 0 1.965.115 3.67.35 5.116a4.012 4.012 0 0 0 3.763 3.363c1.903.094 3.317.141 5.513.141a.988.988 0 0 0 0-1.975 97.58 97.58 0 0 1-5.416-.139 2.037 2.037 0 0 1-1.91-1.708c-.216-1.324-.325-2.924-.325-4.798 0-1.563.076-2.864.225-3.904.14-.977.96-1.713 1.945-1.747 2.444-.087 4.465-.13 6.063-.131 1.598 0 3.62.044 6.064.13.96.034 1.71.81 1.855 1.814.075.524.113 1.962.141 3.065v.002c.005.183.01.07.014-.038.004-.096.008-.189.011-.081a.987.987 0 1 0 1.974-.069c-.004-.105-.007-.009-.011.09-.002.056-.004.112-.007.135l-.002.01a.574.574 0 0 1-.005-.091v-.027c-.03-1.118-.073-2.663-.16-3.276-.273-1.906-1.783-3.438-3.74-3.507-.905-.032-1.752-.058-2.543-.079Zm-3.113 4.703h-1.307v4.643h2.2v.04l.651-1.234c.113-.215.281-.389.482-.509v-.11h.235c.137-.049.283-.074.433-.074h1.553V9.584h-1.264a8.5 8.5 0 0 0 .741-1.405l-1.078-.381c-.24.631-.501 1.23-.806 1.786h-1.503l.686-.305c-.228-.501-.5-.959-.806-1.394l-1.034.348c.294.392.566.839.817 1.35Zm-1.7 5.502h2.16l-.564 1.068h-1.595v-1.068Zm-2.498-1.863.152-1.561h1.96V8.289H7.277v.969h2.048v1.435h-1.84l-.306 3.51h2.254c0 1.155-.043 1.906-.12 2.255-.076.348-.38.523-.925.523-.305 0-.61-.022-.893-.055l.294 1.056.061.005c.282.02.546.039.81.039.991-.065 1.547-.414 1.677-1.046.11-.631.175-1.883.175-3.757H8.334Zm5.09-.8v.85h-1.188v-.85h1.187Zm-1.188-.955h1.187v-.893h-1.187v.893Zm2.322.007v-.893h1.241v.893h-1.241Zm.528 2.757a1.26 1.26 0 0 1 1.087-.627l4.003-.009a1.26 1.26 0 0 1 1.094.63l1.721 2.982c.226.39.225.872-.001 1.263l-1.743 3a1.26 1.26 0 0 1-1.086.628l-4.003.009a1.26 1.26 0 0 1-1.094-.63l-1.722-2.982a1.26 1.26 0 0 1 .002-1.263l1.742-3Zm1.967.858a1.26 1.26 0 0 0-1.08.614l-.903 1.513a1.26 1.26 0 0 0-.002 1.289l.885 1.492c.227.384.64.62 1.086.618l2.192-.005a1.26 1.26 0 0 0 1.08-.615l.904-1.518a1.26 1.26 0 0 0 .001-1.288l-.884-1.489a1.26 1.26 0 0 0-1.086-.616l-2.193.005Zm2.517 2.76a1.4 1.4 0 1 1-2.8 0 1.4 1.4 0 0 1 2.8 0Z" clip-rule="evenodd"/></svg>`;
+
+const ICON_COPY = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>`;
 
 class SettingsPanel {
   constructor({ settings, onChange, onClose }) {
@@ -1427,6 +2279,7 @@ class SettingsPanel {
       this.createSelect(t('scrollArea'), 'scrollArea', getScrollAreaOptions()),
       this.createDivider(),
       this.createToggle(t('translateEnable'), 'translateEnabled'),
+      this.createSelect(t('translateProvider'), 'translateProvider', getTranslateProviderOptions()),
       this.createSelect(t('translateTarget'), 'translateTargetLang', getTranslateLangOptions()),
       this.createRange(t('translateSpeed'), 'translateSpeed', 1, 10, 1, (v) => `${v} ${t('translateSpeedUnit')}`),
     );

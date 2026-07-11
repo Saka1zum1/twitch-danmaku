@@ -11,6 +11,9 @@ const LOCALES = {
     fontFamily: '字体',
     scrollArea: '滚动区域',
     translateEnable: '启用翻译',
+    translateProvider: '翻译引擎',
+    translateProviderMicrosoft: 'Microsoft 翻译',
+    translateProviderGoogle: 'Google 翻译',
     translateTarget: '目标语言',
     translateSpeed: '翻译速度',
     translateSpeedUnit: '条/秒',
@@ -46,6 +49,7 @@ const LOCALES = {
     langRu: 'Русский',
     langPt: 'Português',
     senderLabel: '发送者',
+    tooltipCopy: '复制到聊天框',
   },
   en: {
     danmakuToggle: 'Danmaku toggle',
@@ -59,6 +63,9 @@ const LOCALES = {
     fontFamily: 'Font',
     scrollArea: 'Scroll area',
     translateEnable: 'Enable translation',
+    translateProvider: 'Translation engine',
+    translateProviderMicrosoft: 'Microsoft Translator',
+    translateProviderGoogle: 'Google Translate',
     translateTarget: 'Target language',
     translateSpeed: 'Translation speed',
     translateSpeedUnit: '/sec',
@@ -94,6 +101,7 @@ const LOCALES = {
     langRu: 'Russian',
     langPt: 'Portuguese',
     senderLabel: 'Sender',
+    tooltipCopy: 'Copy to chat',
   },
 };
 
@@ -140,6 +148,13 @@ function getScrollAreaOptions() {
     { label: t('scrollAreaFull'), value: 'full' },
     { label: t('scrollAreaTopHalf'), value: 'top-half' },
     { label: t('scrollAreaTopQuarter'), value: 'top-quarter' },
+  ];
+}
+
+function getTranslateProviderOptions() {
+  return [
+    { label: t('translateProviderMicrosoft'), value: 'microsoft' },
+    { label: t('translateProviderGoogle'), value: 'google' },
   ];
 }
 

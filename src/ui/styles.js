@@ -24,30 +24,90 @@ function injectStyles() {
       animation-play-state: paused;
       z-index: 20;
       cursor: pointer;
+      pointer-events: auto;
+    }
+
+    .tbc-danmaku-item.tbc-paused.tbc-click-locked {
+      z-index: 100002;
+    }
+
+    .tbc-click-lock-backdrop {
+      position: absolute;
+      inset: 0;
+      z-index: 100000;
+      pointer-events: auto;
+      background: transparent;
     }
 
     .tbc-danmaku-tooltip {
-      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      pointer-events: auto;
       filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.4));
+      max-width: calc(100% - 16px);
     }
 
     .tbc-danmaku-tooltip-bubble {
       background: rgba(24, 24, 27, 0.95);
       border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 6px;
-      padding: 4px 8px;
-      max-width: 160px;
+      padding: 6px 8px;
+      max-width: min(280px, 100%);
+      max-height: min(40vh, 240px);
+      overflow-y: auto;
+    }
+
+    .tbc-danmaku-tooltip-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    .tbc-danmaku-tooltip-header--solo {
+      justify-content: flex-end;
     }
 
     .tbc-danmaku-tooltip-name {
+      flex: 1;
+      min-width: 0;
       font-size: 12px;
       font-weight: 600;
       line-height: 1.3;
       word-break: break-word;
     }
 
+    .tbc-danmaku-tooltip-copy {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      width: clamp(24px, 6vw, 28px);
+      height: clamp(24px, 6vw, 28px);
+      padding: 0;
+      border: none;
+      border-radius: 4px;
+      background: transparent;
+      color: #adadb8;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .tbc-danmaku-tooltip-copy:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #efeff1;
+    }
+
+    .tbc-danmaku-tooltip-copy svg {
+      width: clamp(14px, 3.5vw, 16px);
+      height: clamp(14px, 3.5vw, 16px);
+      fill: currentColor;
+      display: block;
+    }
+
     .tbc-danmaku-tooltip-original {
-      margin-top: 2px;
+      margin-top: 4px;
       color: #adadb8;
       font-size: 11px;
       line-height: 1.3;
@@ -57,15 +117,30 @@ function injectStyles() {
     .tbc-danmaku-tooltip-tail {
       width: 6px;
       height: 6px;
-      margin: -3px auto 0;
+      flex-shrink: 0;
       background: rgba(24, 24, 27, 0.95);
-      border-right: 1px solid rgba(255, 255, 255, 0.1);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
       transform: rotate(45deg);
     }
 
+    .tbc-danmaku-tooltip--above .tbc-danmaku-tooltip-tail {
+      margin: -3px auto 0;
+      border-right: 1px solid rgba(255, 255, 255, 0.1);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .tbc-danmaku-tooltip--below .tbc-danmaku-tooltip-bubble {
+      order: 2;
+    }
+
+    .tbc-danmaku-tooltip--below .tbc-danmaku-tooltip-tail {
+      order: 1;
+      margin: 0 auto -3px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      border-left: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
     @keyframes tbc-scroll {
-      from { transform: translateX(0); }
+      from { transform: translateX(var(--tbc-start, 0)); }
       to { transform: translateX(calc(-1 * var(--tbc-travel, 100vw))); }
     }
 

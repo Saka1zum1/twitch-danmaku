@@ -41,7 +41,11 @@ class TranslateQueue {
     const original = job.text;
 
     try {
-      const translated = await translateMessage(original, settings.translateTargetLang);
+      const translated = await translateMessage(
+        original,
+        settings.translateTargetLang,
+        settings.translateProvider,
+      );
       if (this.isActive()) {
         job.callback(translated, original);
       }

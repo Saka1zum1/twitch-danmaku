@@ -1,10 +1,67 @@
+function extractEmoteName(node) {
+  return node.alt
+    || node.getAttribute('title')
+    || node.getAttribute('aria-label')
+    || node.dataset?.alt
+    || '';
+}
+
+function extractMessageContent(msgEl) {
+  const root = msgEl.querySelector('[data-a-target="chat-message-text"]')
+    || msgEl.querySelector('.chat-line__message-body')
+    || msgEl;
+
+  const parts = [];
+
+  const walk = (node) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      parts.push(node.textContent);
+      return;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+
+    if (node.matches('[data-a-target="chat-message-username"], .chat-author__display-name, .chat-line__username')) {
+      return;
+    }
+
+    if (node.tagName === 'IMG') {
+      const name = extractEmoteName(node);
+      if (name) parts.push(name);
+      return;
+    }
+
+    if (node.matches('[data-a-target="chat-message-emote"], .chat-line__message--emote, .chat-line__message--emote-button')) {
+      const img = node.querySelector('img');
+      const name = extractEmoteName(img || node);
+      if (name) parts.push(name);
+      return;
+    }
+
+    if (node.matches('span[data-a-target="chat-message-text"], span.text-fragment')) {
+      for (const child of node.childNodes) walk(child);
+      return;
+    }
+
+    for (const child of node.childNodes) walk(child);
+  };
+
+  if (root.matches('[data-a-target="chat-message-text"], .chat-line__message-body')) {
+    for (const child of root.childNodes) walk(child);
+  } else {
+    walk(root);
+  }
+
+  return parts.join('').trim();
+}
+
 function parseChatMessage(msgEl) {
   if (msgEl.classList.contains('tbc-processed')) return null;
   if (msgEl.closest('.tbc-processed')) return null;
 
-  const textSpans = msgEl.querySelectorAll(SELECTORS.chatText);
-  const message = Array.from(textSpans).map((s) => s.textContent).join('').trim();
-  if (!message) return null;
+  const rawMessage = extractMessageContent(msgEl);
+  if (!rawMessage) return null;
+
+  const message = dedupeRepeatedMessage(rawMessage);
 
   const usernameEl = msgEl.querySelector(SELECTORS.chatUsername);
   const username = usernameEl?.textContent?.trim() || '';

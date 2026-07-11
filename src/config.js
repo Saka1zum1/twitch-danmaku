@@ -5,6 +5,7 @@ const DEFAULT_SETTINGS = {
   fontFamily: 'system-ui, sans-serif',
   scrollArea: 'full',
   translateEnabled: false,
+  translateProvider: 'microsoft',
   translateTargetLang: getDefaultTranslateTargetLang(),
   translateSpeed: 3,
 };
@@ -17,6 +18,9 @@ const SELECTORS = {
   videoPlayer: '.video-player__container',
   videoOverlay: '.video-player__overlay',
   playerControls: '.player-controls__right-control-group',
+  chatInput: 'textarea[data-a-target="chat-input"]',
+  chatInputSlate: '[data-a-target="chat-input"][contenteditable="true"], .chat-wysiwyg-input__editor[contenteditable="true"]',
+  chatInputEditable: '[data-a-target="chat-input"][contenteditable="true"], [data-a-target="chat-input-text"]',
 };
 
 const STORAGE_KEY = 'tbc_settings_v1';

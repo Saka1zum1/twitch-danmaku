@@ -18,6 +18,10 @@ class DanmakuEngine {
     this.layer.setAttribute('aria-hidden', 'true');
     this.overlayEl.appendChild(this.layer);
 
+    if (getComputedStyle(this.overlayEl).position === 'static') {
+      this.overlayEl.style.position = 'relative';
+    }
+
     this.resizeObserver = new ResizeObserver(this.boundUpdate);
     this.resizeObserver.observe(this.playerEl);
 
@@ -52,6 +56,48 @@ class DanmakuEngine {
     }
   }
 
+  migrateDanmakuItems(items, oldRect, newWidth, newHeight) {
+    const oldWidth = oldRect.width || 1;
+    const oldHeight = oldRect.height || 1;
+
+    for (const item of items) {
+      if (!item.isConnected) continue;
+
+      const top = parseFloat(item.style.top) || 0;
+      item.style.top = `${(top / oldHeight) * newHeight}px`;
+
+      const oldTravel = parseFloat(item.style.getPropertyValue('--tbc-travel')) || oldWidth;
+      const oldDuration = parseFloat(item.style.getPropertyValue('--tbc-duration')) || 8000;
+      const matrix = new DOMMatrixReadOnly(getComputedStyle(item).transform);
+      const progress = oldTravel > 0 ? clamp(-matrix.m41 / oldTravel, 0, 1) : 0;
+
+      const itemWidth = item.offsetWidth;
+      const newTravel = newWidth + itemWidth;
+      const newDuration = (newTravel / oldTravel) * oldDuration;
+      const remaining = Math.max(0, newDuration * (1 - progress));
+
+      item._tbcClearRemoveTimer?.();
+
+      const wasPaused = item.classList.contains('tbc-paused');
+      if (wasPaused) {
+        item.classList.remove('tbc-paused');
+      }
+
+      item.style.setProperty('--tbc-travel', `${newTravel}px`);
+      item.style.setProperty('--tbc-start', `${-progress * newTravel}px`);
+      item.style.setProperty('--tbc-duration', `${remaining}ms`);
+      item.style.animation = 'none';
+      void item.offsetWidth;
+      item.style.animation = '';
+
+      if (wasPaused) {
+        item.classList.add('tbc-paused');
+      }
+
+      item._tbcScheduleRemove?.(remaining);
+    }
+  }
+
   updateLayout() {
     if (!this.layer || !this.playerEl) return;
 
@@ -60,6 +106,15 @@ class DanmakuEngine {
     const anchor = fsEl || this.playerEl;
     const rect = anchor.getBoundingClientRect();
     const area = this.getScrollAreaRect(rect);
+
+    const oldParent = this.layer.parentElement;
+    const oldRect = this.layer.getBoundingClientRect();
+    const items = [...this.layer.querySelectorAll('.tbc-danmaku-item')];
+    const shouldMigrate = items.length > 0;
+
+    if (shouldMigrate) {
+      hideDanmakuTooltip();
+    }
 
     if (fsEl && fsEl.contains(this.playerEl)) {
       if (this.layer.parentElement !== fsEl) {
@@ -87,8 +142,19 @@ class DanmakuEngine {
       });
     }
 
+    const newWidth = this.layer.clientWidth;
+    const newHeight = this.layer.clientHeight;
+
+    if (shouldMigrate && (
+      oldParent !== this.layer.parentElement
+      || Math.abs(oldRect.width - newWidth) > 1
+      || Math.abs(oldRect.height - newHeight) > 1
+    )) {
+      this.migrateDanmakuItems(items, oldRect, newWidth, newHeight);
+    }
+
     const laneHeight = settings.fontSize + 6;
-    const laneCount = Math.floor(area.height / laneHeight);
+    const laneCount = Math.floor(newHeight / laneHeight);
     this.laneManager.reset(laneCount, laneHeight);
     this.layer.style.display = settings.enabled ? 'block' : 'none';
   }
@@ -100,34 +166,49 @@ class DanmakuEngine {
     const layerWidth = this.layer.clientWidth || 800;
     const speed = clamp(settings.speed, 1, 10);
     const baseDuration = 9000;
-    const durationMs = baseDuration / speed;
-    const lane = this.laneManager.acquire(durationMs);
     const laneHeight = settings.fontSize + 6;
-    const top = lane * laneHeight;
 
     const item = document.createElement('div');
     item.className = 'tbc-danmaku-item';
     item.textContent = message;
     item.style.cssText = `
-      top: ${top}px;
+      top: 0;
       color: ${usernameColor || '#efeff1'};
       font-size: ${settings.fontSize}px;
       font-family: ${settings.fontFamily};
-      --tbc-travel: ${layerWidth + 200}px;
-      --tbc-duration: ${durationMs}ms;
+      visibility: hidden;
+      animation: none;
     `;
+
+    this.layer.appendChild(item);
+    const itemWidth = item.offsetWidth;
+    const travel = layerWidth + itemWidth;
+    const durationMs = Math.round((travel / layerWidth) * (baseDuration / speed));
+    const lane = this.laneManager.acquire(durationMs);
+    const top = lane * laneHeight;
+
+    item.style.top = `${top}px`;
+    item.style.visibility = '';
+    item.style.setProperty('--tbc-travel', `${travel}px`);
+    item.style.setProperty('--tbc-start', '0px');
+    item.style.setProperty('--tbc-duration', `${durationMs}ms`);
+    void item.offsetWidth;
+    item.style.animation = '';
 
     const startAt = Date.now();
     let pausedAt = 0;
     let totalPaused = 0;
     let removeTimer = null;
 
-    const scheduleRemove = () => {
+    const scheduleRemove = (remainingMs = durationMs) => {
       const elapsed = Date.now() - startAt - totalPaused;
-      const remaining = Math.max(0, durationMs - elapsed);
+      const remaining = remainingMs ?? Math.max(0, durationMs - elapsed);
       clearTimeout(removeTimer);
       removeTimer = setTimeout(() => item.remove(), remaining + 500);
     };
+
+    item._tbcClearRemoveTimer = () => clearTimeout(removeTimer);
+    item._tbcScheduleRemove = scheduleRemove;
 
     const onPause = () => {
       pausedAt = Date.now();
@@ -150,7 +231,6 @@ class DanmakuEngine {
       onPause,
       onResume,
     });
-    this.layer.appendChild(item);
     scheduleRemove();
 
     item.addEventListener('animationend', () => {
