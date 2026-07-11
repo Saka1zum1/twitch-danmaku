@@ -44,6 +44,24 @@ function getDanmakuMount(item) {
   return item.closest('.tbc-danmaku-layer')?.parentElement || null;
 }
 
+function getTwitchProfileUrl(usernameEl, displayName) {
+  const link = usernameEl?.closest('a') || (usernameEl?.tagName === 'A' ? usernameEl : null);
+  const href = link?.getAttribute('href');
+  if (href) {
+    try {
+      const url = new URL(href, 'https://www.twitch.tv');
+      const path = url.pathname.replace(/\/+$/, '');
+      if (path.length > 1) return `https://www.twitch.tv${path}`;
+    } catch (_) {
+      /* ignore */
+    }
+  }
+
+  const login = displayName?.trim();
+  if (!login) return null;
+  return `https://www.twitch.tv/${encodeURIComponent(login.toLowerCase())}`;
+}
+
 function getEditorPlainText(editor) {
   return (editor.innerText || editor.textContent || '')
     .replace(/\u200B/g, '')

@@ -3,7 +3,7 @@
 // @name:zh-CN   Twitch 弹幕
 // @name:zh-TW   Twitch 弹幕
 // @namespace    https://github.com/saka1zum1/twitch-danmaku
-// @version      1.1.0
+// @version      1.2.0
 // @description  Convert Twitch live chat to video danmaku with real-time translation
 // @description:zh-CN  将 Twitch 直播评论转换为视频弹幕，支持实时翻译
 // @description:zh-TW  將聊天室中的新訊息轉換成影片上的滾動彈幕，支持即時翻譯
@@ -75,6 +75,7 @@ const LOCALES = {
     langRu: 'Русский',
     langPt: 'Português',
     tooltipCopy: '复制到聊天框',
+    tooltipOpenProfile: '打开发送者主页',
   },
   en: {
     danmakuToggle: 'Danmaku toggle',
@@ -126,6 +127,7 @@ const LOCALES = {
     langRu: 'Russian',
     langPt: 'Portuguese',
     tooltipCopy: 'Copy to chat',
+    tooltipOpenProfile: 'Open sender profile',
   },
 };
 
@@ -201,6 +203,8 @@ function getDefaultTranslateTargetLang() {
   return LOCALE === 'zh' ? 'zh-CN' : 'en';
 }
 
+const SCROLL_AREA_BOTTOM_RESERVE = 56;
+
 const DEFAULT_SETTINGS = {
   enabled: true,
   speed: 5,
@@ -220,6 +224,7 @@ const SELECTORS = {
   chatUsername: '[data-a-target="chat-message-username"], .chat-author__display-name, .chat-line__username',
   videoPlayer: '.video-player__container',
   videoOverlay: '.video-player__overlay',
+  playerControlsRoot: '[data-a-target="player-controls"], .player-controls',
   playerControls: '.player-controls__right-control-group',
   chatInput: 'textarea[data-a-target="chat-input"]',
   chatInputSlate: '[data-a-target="chat-input"][contenteditable="true"], .chat-wysiwyg-input__editor[contenteditable="true"]',
@@ -305,6 +310,24 @@ function getFullscreenElement() {
 
 function getDanmakuMount(item) {
   return item.closest('.tbc-danmaku-layer')?.parentElement || null;
+}
+
+function getTwitchProfileUrl(usernameEl, displayName) {
+  const link = usernameEl?.closest('a') || (usernameEl?.tagName === 'A' ? usernameEl : null);
+  const href = link?.getAttribute('href');
+  if (href) {
+    try {
+      const url = new URL(href, 'https://www.twitch.tv');
+      const path = url.pathname.replace(/\/+$/, '');
+      if (path.length > 1) return `https://www.twitch.tv${path}`;
+    } catch (_) {
+      /* ignore */
+    }
+  }
+
+  const login = displayName?.trim();
+  if (!login) return null;
+  return `https://www.twitch.tv/${encodeURIComponent(login.toLowerCase())}`;
 }
 
 function getEditorPlainText(editor) {
@@ -486,6 +509,7 @@ class DanmakuEngine {
     this.layer = null;
     this.playerEl = null;
     this.overlayEl = null;
+    this.controlsObserver = null;
     this.resizeObserver = null;
     this.boundUpdate = () => this.updateLayout();
   }
@@ -506,6 +530,12 @@ class DanmakuEngine {
     this.resizeObserver = new ResizeObserver(this.boundUpdate);
     this.resizeObserver.observe(this.playerEl);
 
+    const controlsEl = this.playerEl.querySelector(SELECTORS.playerControlsRoot);
+    if (controlsEl) {
+      this.controlsObserver = new ResizeObserver(this.boundUpdate);
+      this.controlsObserver.observe(controlsEl);
+    }
+
     window.addEventListener('resize', this.boundUpdate);
     document.addEventListener('fullscreenchange', this.boundUpdate);
     document.addEventListener('webkitfullscreenchange', this.boundUpdate);
@@ -518,22 +548,34 @@ class DanmakuEngine {
     document.removeEventListener('fullscreenchange', this.boundUpdate);
     document.removeEventListener('webkitfullscreenchange', this.boundUpdate);
     this.resizeObserver?.disconnect();
+    this.controlsObserver?.disconnect();
     hideDanmakuTooltip();
     this.layer?.remove();
     this.layer = null;
   }
 
+  getBottomReserve() {
+    const controls = this.playerEl?.querySelector(SELECTORS.playerControlsRoot);
+    if (controls) {
+      const height = controls.getBoundingClientRect().height;
+      if (height > 0) return Math.ceil(height) + 8;
+    }
+    return SCROLL_AREA_BOTTOM_RESERVE;
+  }
+
   getScrollAreaRect(playerRect) {
     const settings = this.getSettings();
     const h = playerRect.height;
+    const laneHeight = settings.fontSize + 6;
+    const bottomReserve = this.getBottomReserve();
 
     switch (settings.scrollArea) {
       case 'top-half':
-        return { top: 0, height: h * 0.5 };
+        return { top: 0, height: Math.max(laneHeight, h * 0.5) };
       case 'top-quarter':
-        return { top: 0, height: h * 0.25 };
+        return { top: 0, height: Math.max(laneHeight, h * 0.25) };
       default:
-        return { top: 0, height: h };
+        return { top: 0, height: Math.max(laneHeight, h - bottomReserve) };
     }
   }
 
@@ -640,7 +682,7 @@ class DanmakuEngine {
     this.layer.style.display = settings.enabled ? 'block' : 'none';
   }
 
-  render({ username, message, usernameColor, originalMessage, translated }) {
+  render({ username, message, usernameColor, profileUrl, originalMessage, translated }) {
     const settings = this.getSettings();
     if (!settings.enabled || !this.layer || !message) return;
 
@@ -707,6 +749,7 @@ class DanmakuEngine {
     attachDanmakuInteraction(item, {
       username,
       usernameColor,
+      profileUrl,
       originalMessage,
       translated,
       onPause,
@@ -842,7 +885,9 @@ function bindTooltipReposition(item, tooltip, mount) {
   document.addEventListener('webkitfullscreenchange', tooltipRepositionHandler);
 }
 
-function attachDanmakuInteraction(item, { username, usernameColor, originalMessage, translated, onPause, onResume }) {
+function attachDanmakuInteraction(item, {
+  username, usernameColor, profileUrl, originalMessage, translated, onPause, onResume,
+}) {
   let hoverResumeTimer = null;
   let maxPauseTimer = null;
   let pauseReason = null;
@@ -970,10 +1015,15 @@ function attachDanmakuInteraction(item, { username, usernameColor, originalMessa
     header.className = 'tbc-danmaku-tooltip-header';
 
     if (username) {
-      const nameRow = document.createElement('div');
+      const nameRow = document.createElement('a');
       nameRow.className = 'tbc-danmaku-tooltip-name';
+      nameRow.href = profileUrl || `https://www.twitch.tv/${encodeURIComponent(username.toLowerCase())}`;
+      nameRow.target = '_blank';
+      nameRow.rel = 'noopener noreferrer';
+      nameRow.setAttribute('aria-label', t('tooltipOpenProfile'));
       nameRow.style.color = usernameColor || '#a970ff';
       nameRow.textContent = username;
+      nameRow.addEventListener('click', (e) => e.stopPropagation());
       header.appendChild(nameRow);
     } else {
       header.classList.add('tbc-danmaku-tooltip-header--solo');
@@ -1147,7 +1197,7 @@ const TWITCH_DICTIONARY = {
   wtf: dictEntry('什么鬼', '什麼鬼', 'wtf'),
   rip: dictEntry('RIP', 'RIP', 'rip'),
   ez: dictEntry('轻松', '輕鬆', 'ez'),
-  diff: dictEntry('差距', '差距', 'diff')
+  diff: dictEntry('差距', '差距', 'diff'),
 };
 
 const PLACEHOLDER_PREFIX = '⟦T';
@@ -1584,9 +1634,10 @@ function parseChatMessage(msgEl) {
   const usernameEl = msgEl.querySelector(SELECTORS.chatUsername);
   const username = usernameEl?.textContent?.trim() || '';
   const usernameColor = getUsernameColor(msgEl);
+  const profileUrl = getTwitchProfileUrl(usernameEl, username);
 
   msgEl.classList.add('tbc-processed');
-  return { message, username, usernameColor };
+  return { message, username, usernameColor, profileUrl };
 }
 
 function markExistingMessages(chatRoot) {
@@ -1686,6 +1737,7 @@ class ChatObserver {
     const base = {
       username: parsed.username,
       usernameColor: parsed.usernameColor,
+      profileUrl: parsed.profileUrl,
       originalMessage: parsed.message,
     };
 
@@ -1789,6 +1841,12 @@ function injectStyles() {
       font-weight: 600;
       line-height: 1.3;
       word-break: break-word;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .tbc-danmaku-tooltip-name:hover {
+      text-decoration: underline;
     }
 
     .tbc-danmaku-tooltip-copy {

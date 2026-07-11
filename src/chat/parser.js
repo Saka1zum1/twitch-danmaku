@@ -66,9 +66,10 @@ function parseChatMessage(msgEl) {
   const usernameEl = msgEl.querySelector(SELECTORS.chatUsername);
   const username = usernameEl?.textContent?.trim() || '';
   const usernameColor = getUsernameColor(msgEl);
+  const profileUrl = getTwitchProfileUrl(usernameEl, username);
 
   msgEl.classList.add('tbc-processed');
-  return { message, username, usernameColor };
+  return { message, username, usernameColor, profileUrl };
 }
 
 function markExistingMessages(chatRoot) {

@@ -76,6 +76,12 @@ function injectStyles() {
       font-weight: 600;
       line-height: 1.3;
       word-break: break-word;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .tbc-danmaku-tooltip-name:hover {
+      text-decoration: underline;
     }
 
     .tbc-danmaku-tooltip-copy {

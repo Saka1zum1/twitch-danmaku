@@ -5,6 +5,7 @@ class DanmakuEngine {
     this.layer = null;
     this.playerEl = null;
     this.overlayEl = null;
+    this.controlsObserver = null;
     this.resizeObserver = null;
     this.boundUpdate = () => this.updateLayout();
   }
@@ -25,6 +26,12 @@ class DanmakuEngine {
     this.resizeObserver = new ResizeObserver(this.boundUpdate);
     this.resizeObserver.observe(this.playerEl);
 
+    const controlsEl = this.playerEl.querySelector(SELECTORS.playerControlsRoot);
+    if (controlsEl) {
+      this.controlsObserver = new ResizeObserver(this.boundUpdate);
+      this.controlsObserver.observe(controlsEl);
+    }
+
     window.addEventListener('resize', this.boundUpdate);
     document.addEventListener('fullscreenchange', this.boundUpdate);
     document.addEventListener('webkitfullscreenchange', this.boundUpdate);
@@ -37,22 +44,34 @@ class DanmakuEngine {
     document.removeEventListener('fullscreenchange', this.boundUpdate);
     document.removeEventListener('webkitfullscreenchange', this.boundUpdate);
     this.resizeObserver?.disconnect();
+    this.controlsObserver?.disconnect();
     hideDanmakuTooltip();
     this.layer?.remove();
     this.layer = null;
   }
 
+  getBottomReserve() {
+    const controls = this.playerEl?.querySelector(SELECTORS.playerControlsRoot);
+    if (controls) {
+      const height = controls.getBoundingClientRect().height;
+      if (height > 0) return Math.ceil(height) + 8;
+    }
+    return SCROLL_AREA_BOTTOM_RESERVE;
+  }
+
   getScrollAreaRect(playerRect) {
     const settings = this.getSettings();
     const h = playerRect.height;
+    const laneHeight = settings.fontSize + 6;
+    const bottomReserve = this.getBottomReserve();
 
     switch (settings.scrollArea) {
       case 'top-half':
-        return { top: 0, height: h * 0.5 };
+        return { top: 0, height: Math.max(laneHeight, h * 0.5) };
       case 'top-quarter':
-        return { top: 0, height: h * 0.25 };
+        return { top: 0, height: Math.max(laneHeight, h * 0.25) };
       default:
-        return { top: 0, height: h };
+        return { top: 0, height: Math.max(laneHeight, h - bottomReserve) };
     }
   }
 
@@ -159,13 +178,13 @@ class DanmakuEngine {
     this.layer.style.display = settings.enabled ? 'block' : 'none';
   }
 
-  render({ username, message, usernameColor, originalMessage, translated }) {
+  render({ username, message, usernameColor, profileUrl, originalMessage, translated }) {
     const settings = this.getSettings();
     if (!settings.enabled || !this.layer || !message) return;
 
     const layerWidth = this.layer.clientWidth || 800;
     const speed = clamp(settings.speed, 1, 10);
-    const baseDuration = 9000;
+    const baseDuration = 30000;
     const laneHeight = settings.fontSize + 6;
 
     const item = document.createElement('div');
@@ -226,6 +245,7 @@ class DanmakuEngine {
     attachDanmakuInteraction(item, {
       username,
       usernameColor,
+      profileUrl,
       originalMessage,
       translated,
       onPause,

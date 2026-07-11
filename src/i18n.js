@@ -48,8 +48,8 @@ const LOCALES = {
     langDe: 'Deutsch',
     langRu: 'Русский',
     langPt: 'Português',
-    senderLabel: '发送者',
     tooltipCopy: '复制到聊天框',
+    tooltipOpenProfile: '打开发送者主页',
   },
   en: {
     danmakuToggle: 'Danmaku toggle',
@@ -100,8 +100,8 @@ const LOCALES = {
     langDe: 'German',
     langRu: 'Russian',
     langPt: 'Portuguese',
-    senderLabel: 'Sender',
     tooltipCopy: 'Copy to chat',
+    tooltipOpenProfile: 'Open sender profile',
   },
 };
 

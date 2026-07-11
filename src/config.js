@@ -1,3 +1,5 @@
+const SCROLL_AREA_BOTTOM_RESERVE = 56;
+
 const DEFAULT_SETTINGS = {
   enabled: true,
   speed: 5,
@@ -7,7 +9,7 @@ const DEFAULT_SETTINGS = {
   translateEnabled: false,
   translateProvider: 'microsoft',
   translateTargetLang: getDefaultTranslateTargetLang(),
-  translateSpeed: 3,
+  translateSpeed: 5,
 };
 
 const SELECTORS = {
@@ -17,6 +19,7 @@ const SELECTORS = {
   chatUsername: '[data-a-target="chat-message-username"], .chat-author__display-name, .chat-line__username',
   videoPlayer: '.video-player__container',
   videoOverlay: '.video-player__overlay',
+  playerControlsRoot: '[data-a-target="player-controls"], .player-controls',
   playerControls: '.player-controls__right-control-group',
   chatInput: 'textarea[data-a-target="chat-input"]',
   chatInputSlate: '[data-a-target="chat-input"][contenteditable="true"], .chat-wysiwyg-input__editor[contenteditable="true"]',
@@ -25,7 +28,7 @@ const SELECTORS = {
 
 const STORAGE_KEY = 'tbc_settings_v1';
 
-const LIVE_MESSAGE_TAIL = 8;
+const LIVE_MESSAGE_TAIL = 10;
 const WARMUP_MS = 2500;
 const MAX_DANMAKU_QUEUE = 24;
 const MAX_TRANSLATE_QUEUE = 32;

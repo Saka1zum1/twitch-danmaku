@@ -119,7 +119,9 @@ function bindTooltipReposition(item, tooltip, mount) {
   document.addEventListener('webkitfullscreenchange', tooltipRepositionHandler);
 }
 
-function attachDanmakuInteraction(item, { username, usernameColor, originalMessage, translated, onPause, onResume }) {
+function attachDanmakuInteraction(item, {
+  username, usernameColor, profileUrl, originalMessage, translated, onPause, onResume,
+}) {
   let hoverResumeTimer = null;
   let maxPauseTimer = null;
   let pauseReason = null;
@@ -247,10 +249,15 @@ function attachDanmakuInteraction(item, { username, usernameColor, originalMessa
     header.className = 'tbc-danmaku-tooltip-header';
 
     if (username) {
-      const nameRow = document.createElement('div');
+      const nameRow = document.createElement('a');
       nameRow.className = 'tbc-danmaku-tooltip-name';
+      nameRow.href = profileUrl || `https://www.twitch.tv/${encodeURIComponent(username.toLowerCase())}`;
+      nameRow.target = '_blank';
+      nameRow.rel = 'noopener noreferrer';
+      nameRow.setAttribute('aria-label', t('tooltipOpenProfile'));
       nameRow.style.color = usernameColor || '#a970ff';
       nameRow.textContent = username;
+      nameRow.addEventListener('click', (e) => e.stopPropagation());
       header.appendChild(nameRow);
     } else {
       header.classList.add('tbc-danmaku-tooltip-header--solo');

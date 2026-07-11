@@ -75,6 +75,7 @@ class ChatObserver {
     const base = {
       username: parsed.username,
       usernameColor: parsed.usernameColor,
+      profileUrl: parsed.profileUrl,
       originalMessage: parsed.message,
     };
 
