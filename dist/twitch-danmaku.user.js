@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Twitch Danmaku - Bullet Chat
+// @name         Twitch Danmaku - LiveChat Flusher
 // @name:zh-CN   Twitch 弹幕
 // @name:zh-TW   Twitch 弹幕
 // @namespace    https://github.com/saka1zum1/twitch-danmaku
