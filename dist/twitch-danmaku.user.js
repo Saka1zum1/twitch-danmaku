@@ -3,7 +3,7 @@
 // @name:zh-CN   Twitch 弹幕
 // @name:zh-TW   Twitch 弹幕
 // @namespace    https://github.com/saka1zum1/twitch-danmaku
-// @version      1.3.0
+// @version      1.3.1
 // @description  Convert Twitch live chat to video danmaku with real-time translation
 // @description:zh-CN  将 Twitch 直播评论转换为视频弹幕，支持实时翻译
 // @description:zh-TW  將聊天室中的新訊息轉換成影片上的滾動彈幕，支持即時翻譯
@@ -2553,14 +2553,19 @@ function injectStyles() {
       will-change: transform;
     }
 
-    .tbc-danmaku-item .tbc-emote {
-      height: 1.25em;
-      width: 1.25em;
-      object-fit: contain;
-      vertical-align: -0.28em;
-      margin: 0 0.12em;
-      pointer-events: none;
-      user-select: none;
+    .tbc-danmaku-item img.tbc-emote {
+      display: inline-block !important;
+      height: 1.2em !important;
+      width: auto !important;
+      min-height: 1.2em !important;
+      max-height: 1.2em !important;
+      max-width: 6em !important;
+      object-fit: contain !important;
+      object-position: center !important;
+      vertical-align: -0.22em !important;
+      margin: 0 0.1em !important;
+      pointer-events: none !important;
+      user-select: none !important;
     }
 
     .tbc-danmaku-item.tbc-paused {

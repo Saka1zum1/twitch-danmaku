@@ -20,14 +20,19 @@ function injectStyles() {
       will-change: transform;
     }
 
-    .tbc-danmaku-item .tbc-emote {
-      height: 1.25em;
-      width: 1.25em;
-      object-fit: contain;
-      vertical-align: -0.28em;
-      margin: 0 0.12em;
-      pointer-events: none;
-      user-select: none;
+    .tbc-danmaku-item img.tbc-emote {
+      display: inline-block !important;
+      height: 1.2em !important;
+      width: auto !important;
+      min-height: 1.2em !important;
+      max-height: 1.2em !important;
+      max-width: 6em !important;
+      object-fit: contain !important;
+      object-position: center !important;
+      vertical-align: -0.22em !important;
+      margin: 0 0.1em !important;
+      pointer-events: none !important;
+      user-select: none !important;
     }
 
     .tbc-danmaku-item.tbc-paused {
