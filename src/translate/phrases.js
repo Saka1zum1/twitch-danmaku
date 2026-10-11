@@ -8,6 +8,13 @@ function shouldSkipTranslation(text) {
   return false;
 }
 
+function translatableCore(text) {
+  if (!text) return '';
+  const core = String(text).trim();
+  if (!core || core.length > 500 || shouldSkipTranslation(core)) return '';
+  return core;
+}
+
 function needsMachineTranslation(text) {
   const stripped = text.replace(/⟦T\d+⟧/g, '').trim();
   return !!stripped;

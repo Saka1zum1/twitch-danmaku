@@ -14,6 +14,7 @@
 // @grant        GM_addStyle
 // @grant        GM_setValue
 // @grant        GM_getValue
+// @grant        GM_setClipboard
 // @grant        GM_xmlhttpRequest
 // @connect      translate.googleapis.com
 // @connect      edge.microsoft.com
@@ -702,9 +703,30 @@ class DanmakuEngine {
     this.layer.style.display = settings.enabled ? 'block' : 'none';
   }
 
-  render({ username, message, usernameColor, profileUrl, originalMessage, translated }) {
+  appendParts(item, parts) {
+    for (const part of parts) {
+      if (part.type === 'emote' && part.src) {
+        const img = document.createElement('img');
+        img.className = 'tbc-emote';
+        img.src = part.src;
+        img.alt = part.name || '';
+        img.title = part.name || '';
+        img.draggable = false;
+        item.appendChild(img);
+        continue;
+      }
+
+      const text = part.type === 'emote' ? (part.name || '') : (part.value || '');
+      if (text) item.appendChild(document.createTextNode(text));
+    }
+  }
+
+  render({ username, message, parts, usernameColor, profileUrl, originalMessage, translated }) {
     const settings = this.getSettings();
-    if (!settings.enabled || !this.layer || !message) return;
+    const displayParts = parts?.length
+      ? parts
+      : (message ? [{ type: 'text', value: message }] : []);
+    if (!settings.enabled || !this.layer || !displayParts.length) return;
 
     const layerWidth = this.layer.clientWidth || 800;
     const speed = clamp(settings.speed, 1, 10);
@@ -713,7 +735,7 @@ class DanmakuEngine {
 
     const item = document.createElement('div');
     item.className = 'tbc-danmaku-item';
-    item.textContent = message;
+    this.appendParts(item, displayParts);
     item.style.cssText = `
       top: 0;
       color: ${usernameColor || '#efeff1'};
@@ -1858,6 +1880,13 @@ function shouldSkipTranslation(text) {
   return false;
 }
 
+function translatableCore(text) {
+  if (!text) return '';
+  const core = String(text).trim();
+  if (!core || core.length > 500 || shouldSkipTranslation(core)) return '';
+  return core;
+}
+
 function needsMachineTranslation(text) {
   const stripped = text.replace(/⟦T\d+⟧/g, '').trim();
   return !!stripped;
@@ -1958,7 +1987,7 @@ class TranslateQueue {
     return clamp(Number(this.getSettings().translateSpeed) || 1, 1, 10);
   }
 
-  enqueue(text, callback) {
+  enqueue(text, parts, callback) {
     if (!this.isActive()) return;
     const settings = this.getSettings();
     if (!settings.translateEnabled) return;
@@ -1967,7 +1996,12 @@ class TranslateQueue {
       this.queue.shift();
     }
     if (!this.collectStartedAt) this.collectStartedAt = Date.now();
-    this.queue.push({ text, callback, attempts: 0 });
+    this.queue.push({
+      text,
+      parts: parts?.length ? parts : [{ type: 'text', value: text }],
+      callback,
+      attempts: 0,
+    });
     this.schedule();
   }
 
@@ -2017,30 +2051,56 @@ class TranslateQueue {
     return Math.max(slotWait, collectWait);
   }
 
+  pieceCount(parts) {
+    return parts.reduce((count, part) => (
+      part.type === 'text' && translatableCore(part.value) ? count + 1 : count
+    ), 0);
+  }
+
   takeJobs(speed) {
     const jobs = [];
     let chars = 0;
+    let pieces = 0;
 
     while (this.queue.length && jobs.length < Math.min(speed, TRANSLATE_MAX_BATCH)) {
       const next = this.queue[0];
-      if (jobs.length > 0 && chars + next.text.length > TRANSLATE_MAX_BATCH_CHARS) break;
+      const nextPieces = this.pieceCount(next.parts);
+      if (jobs.length > 0 && (
+        chars + next.text.length > TRANSLATE_MAX_BATCH_CHARS
+        || pieces + nextPieces > TRANSLATE_MAX_BATCH
+      )) break;
       chars += next.text.length;
+      pieces += nextPieces;
       jobs.push(this.queue.shift());
     }
 
     return jobs;
   }
 
-  deliver(jobs, texts) {
+  deliver(jobs, partLists) {
     if (!this.isActive()) return;
     jobs.forEach((job, index) => {
-      const translated = typeof texts[index] === 'string' ? texts[index] : job.text;
+      const parts = partLists[index] || job.parts;
       try {
-        job.callback(translated, job.text);
+        job.callback(parts, job.text);
       } catch {
         /* ignore */
       }
     });
+  }
+
+  stitch(jobs, translations, refs) {
+    const outputs = jobs.map((job) => job.parts.map((part) => ({ ...part })));
+    refs.forEach((ref, index) => {
+      const part = outputs[ref.jobIndex][ref.partIndex];
+      const match = String(part.value).match(/^(\s*)([\s\S]*?)(\s*)$/);
+      const translated = translations[index] || match[2];
+      outputs[ref.jobIndex][ref.partIndex] = {
+        type: 'text',
+        value: `${match[1]}${translated}${match[3]}`,
+      };
+    });
+    return outputs;
   }
 
   pace(count, speed, startedAt) {
@@ -2068,9 +2128,26 @@ class TranslateQueue {
     this.inflight = true;
     const startedAt = Date.now();
 
+    const refs = [];
+    const pieces = [];
+    jobs.forEach((job, jobIndex) => {
+      job.parts.forEach((part, partIndex) => {
+        const core = part.type === 'text' ? translatableCore(part.value) : '';
+        if (!core) return;
+        refs.push({ jobIndex, partIndex });
+        pieces.push(core);
+      });
+    });
+
     try {
+      if (!pieces.length) {
+        this.deliver(jobs, jobs.map((job) => job.parts));
+        this.pace(jobs.length, speed, startedAt);
+        return;
+      }
+
       const outcome = await translateMessages(
-        jobs.map((job) => job.text),
+        pieces,
         settings.translateTargetLang,
         settings.translateProvider,
       );
@@ -2085,7 +2162,7 @@ class TranslateQueue {
         const exhausted = failed && jobs.every((job) => job.attempts >= TRANSLATE_GIVE_UP_ATTEMPTS);
         const blocked = failed && outcome.retryAfter > 1500;
         if (exhausted || blocked) {
-          this.deliver(jobs, jobs.map((job) => job.text));
+          this.deliver(jobs, jobs.map((job) => job.parts));
           this.pace(jobs.length, speed, startedAt);
         } else {
           this.queue = jobs.concat(this.queue);
@@ -2096,11 +2173,11 @@ class TranslateQueue {
         return;
       }
 
-      this.deliver(jobs, outcome.texts || []);
+      this.deliver(jobs, this.stitch(jobs, outcome.texts || [], refs));
       this.pace(jobs.length, speed, startedAt);
     } catch {
       if (epoch !== this.epoch || !this.isActive()) return;
-      this.deliver(jobs, jobs.map((job) => job.text));
+      this.deliver(jobs, jobs.map((job) => job.parts));
       this.pace(jobs.length, speed, startedAt);
     } finally {
       if (epoch === this.epoch) this.inflight = false;
@@ -2161,69 +2238,161 @@ function dedupeRepeatedMessage(text) {
 }
 
 function extractEmoteName(node) {
-  return node.alt
-    || node.getAttribute('title')
-    || node.getAttribute('aria-label')
+  if (!node) return '';
+  return node.getAttribute?.('data-emote-name')
+    || node.alt
+    || node.getAttribute?.('title')
     || node.dataset?.alt
     || '';
 }
 
-function extractMessageContent(msgEl) {
-  const root = msgEl.querySelector('[data-a-target="chat-message-text"]')
-    || msgEl.querySelector('.chat-line__message-body')
-    || msgEl;
+function pickEmoteSrc(img) {
+  const srcset = img.getAttribute('srcset') || '';
+  const candidates = srcset.split(',')
+    .map((item) => item.trim().split(/\s+/)[0])
+    .filter(Boolean);
+  const preferred = candidates.find((url) => /\/2\.0(?:$|[?#])/.test(url))
+    || candidates[candidates.length - 1]
+    || img.getAttribute('src')
+    || '';
+
+  try {
+    const url = new URL(preferred, location.href);
+    if (url.protocol !== 'https:') return '';
+    url.hash = '';
+    return url.href;
+  } catch {
+    return '';
+  }
+}
+
+function partsToPlain(parts) {
+  let out = '';
+  for (const part of parts) {
+    if (part.type === 'emote') {
+      if (out && !/\s$/.test(out)) out += ' ';
+      out += part.name || '';
+      continue;
+    }
+    out += part.value || '';
+  }
+  return out.trim();
+}
+
+function mergeTextParts(parts) {
+  const merged = [];
+  for (const part of parts) {
+    if (part.type === 'text') {
+      if (!part.value) continue;
+      const last = merged[merged.length - 1];
+      if (last?.type === 'text') last.value += part.value;
+      else merged.push({ type: 'text', value: part.value });
+      continue;
+    }
+    if (part.name || part.src) merged.push(part);
+  }
+  return merged;
+}
+
+function dedupeParts(parts) {
+  const units = [];
+  for (const part of parts) {
+    if (part.type === 'emote') {
+      units.push(part.name || '');
+      continue;
+    }
+    const words = String(part.value || '').trim().split(/\s+/).filter(Boolean);
+    units.push(...words);
+  }
+
+  const original = units.join(' ');
+  const deduped = dedupeRepeatedMessage(original);
+  if (!original || deduped === original) return mergeTextParts(parts);
+
+  const kept = deduped.split(/\s+/).filter(Boolean);
+  const rebuilt = [];
+  let cursor = 0;
+
+  const visit = (part) => {
+    if (cursor >= kept.length) return;
+    if (part.type === 'emote') {
+      if ((part.name || '') === kept[cursor]) {
+        if (rebuilt.length) rebuilt.push({ type: 'text', value: ' ' });
+        rebuilt.push(part);
+        cursor += 1;
+      }
+      return;
+    }
+    const words = String(part.value || '').trim().split(/\s+/).filter(Boolean);
+    words.forEach((word) => {
+      if (cursor >= kept.length || word !== kept[cursor]) return;
+      if (rebuilt.length) rebuilt.push({ type: 'text', value: ' ' });
+      rebuilt.push({ type: 'text', value: word });
+      cursor += 1;
+    });
+  };
+
+  parts.forEach(visit);
+  return cursor === kept.length ? mergeTextParts(rebuilt) : mergeTextParts(parts);
+}
+
+function extractMessageParts(msgEl) {
+  const root = msgEl.querySelector('[data-a-target="chat-line-message-body"]')
+    || msgEl.querySelector('.chat-line__message-body');
+  if (!root) return [];
 
   const parts = [];
 
+  const pushText = (text) => {
+    if (!text) return;
+    const last = parts[parts.length - 1];
+    if (last?.type === 'text') last.value += text;
+    else parts.push({ type: 'text', value: text });
+  };
+
+  const pushEmote = (img) => {
+    const name = extractEmoteName(img).trim();
+    const src = pickEmoteSrc(img);
+    if (!name && !src) return;
+    parts.push({ type: 'emote', name, src });
+  };
+
   const walk = (node) => {
     if (node.nodeType === Node.TEXT_NODE) {
-      parts.push(node.textContent);
+      pushText(node.textContent);
       return;
     }
     if (node.nodeType !== Node.ELEMENT_NODE) return;
 
-    if (node.matches('[data-a-target="chat-message-username"], .chat-author__display-name, .chat-line__username')) {
+    if (node.matches('.chat-badge, [data-a-target="chat-badge"], .chat-line__icons, .chat-line__username, [data-a-target="chat-message-username"]')) {
       return;
     }
 
     if (node.tagName === 'IMG') {
-      const name = extractEmoteName(node);
-      if (name) parts.push(name);
+      pushEmote(node);
       return;
     }
 
-    if (node.matches('[data-a-target="chat-message-emote"], .chat-line__message--emote, .chat-line__message--emote-button')) {
+    if (node.matches('.chat-line__message--emote-button, [data-a-target="emote-name"]')) {
       const img = node.querySelector('img');
-      const name = extractEmoteName(img || node);
-      if (name) parts.push(name);
-      return;
-    }
-
-    if (node.matches('span[data-a-target="chat-message-text"], span.text-fragment')) {
-      for (const child of node.childNodes) walk(child);
+      if (img) pushEmote(img);
       return;
     }
 
     for (const child of node.childNodes) walk(child);
   };
 
-  if (root.matches('[data-a-target="chat-message-text"], .chat-line__message-body')) {
-    for (const child of root.childNodes) walk(child);
-  } else {
-    walk(root);
-  }
-
-  return parts.join('').trim();
+  for (const child of root.childNodes) walk(child);
+  return dedupeParts(parts);
 }
 
 function parseChatMessage(msgEl) {
   if (msgEl.classList.contains('tbc-processed')) return null;
   if (msgEl.closest('.tbc-processed')) return null;
 
-  const rawMessage = extractMessageContent(msgEl);
-  if (!rawMessage) return null;
-
-  const message = dedupeRepeatedMessage(rawMessage);
+  const parts = extractMessageParts(msgEl);
+  const message = partsToPlain(parts);
+  if (!message) return null;
 
   const usernameEl = msgEl.querySelector(SELECTORS.chatUsername);
   const username = usernameEl?.textContent?.trim() || '';
@@ -2231,7 +2400,7 @@ function parseChatMessage(msgEl) {
   const profileUrl = getTwitchProfileUrl(usernameEl, username);
 
   msgEl.classList.add('tbc-processed');
-  return { message, username, usernameColor, profileUrl };
+  return { message, parts, username, usernameColor, profileUrl };
 }
 
 function markExistingMessages(chatRoot) {
@@ -2335,23 +2504,28 @@ class ChatObserver {
       originalMessage: parsed.message,
     };
 
-    if (!settings.translateEnabled) {
+    const hasTranslatableText = parsed.parts.some((part) => (
+      part.type === 'text' && translatableCore(part.value)
+    ));
+
+    if (!settings.translateEnabled || !hasTranslatableText) {
       this.danmakuEmitter.enqueue({
         ...base,
         message: parsed.message,
+        parts: parsed.parts,
         translated: false,
       });
       return;
     }
 
-    this.translateQueue.enqueue(parsed.message, (translated, original) => {
+    this.translateQueue.enqueue(parsed.message, parsed.parts, (parts) => {
       if (!this.isActive()) return;
-      const message = translated?.trim() ? translated : original;
-      const wasTranslated = message !== original;
+      const message = partsToPlain(parts) || parsed.message;
       this.danmakuEmitter.enqueue({
         ...base,
         message,
-        translated: wasTranslated,
+        parts,
+        translated: message !== parsed.message,
       });
     });
   }
@@ -2377,6 +2551,16 @@ function injectStyles() {
         0 0 4px rgba(0, 0, 0, 0.8);
       animation: tbc-scroll var(--tbc-duration, 8s) linear forwards;
       will-change: transform;
+    }
+
+    .tbc-danmaku-item .tbc-emote {
+      height: 1.25em;
+      width: 1.25em;
+      object-fit: contain;
+      vertical-align: -0.28em;
+      margin: 0 0.12em;
+      pointer-events: none;
+      user-select: none;
     }
 
     .tbc-danmaku-item.tbc-paused {

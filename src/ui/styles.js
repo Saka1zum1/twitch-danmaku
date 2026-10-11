@@ -20,6 +20,16 @@ function injectStyles() {
       will-change: transform;
     }
 
+    .tbc-danmaku-item .tbc-emote {
+      height: 1.25em;
+      width: 1.25em;
+      object-fit: contain;
+      vertical-align: -0.28em;
+      margin: 0 0.12em;
+      pointer-events: none;
+      user-select: none;
+    }
+
     .tbc-danmaku-item.tbc-paused {
       animation-play-state: paused;
       z-index: 20;

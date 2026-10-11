@@ -178,9 +178,30 @@ class DanmakuEngine {
     this.layer.style.display = settings.enabled ? 'block' : 'none';
   }
 
-  render({ username, message, usernameColor, profileUrl, originalMessage, translated }) {
+  appendParts(item, parts) {
+    for (const part of parts) {
+      if (part.type === 'emote' && part.src) {
+        const img = document.createElement('img');
+        img.className = 'tbc-emote';
+        img.src = part.src;
+        img.alt = part.name || '';
+        img.title = part.name || '';
+        img.draggable = false;
+        item.appendChild(img);
+        continue;
+      }
+
+      const text = part.type === 'emote' ? (part.name || '') : (part.value || '');
+      if (text) item.appendChild(document.createTextNode(text));
+    }
+  }
+
+  render({ username, message, parts, usernameColor, profileUrl, originalMessage, translated }) {
     const settings = this.getSettings();
-    if (!settings.enabled || !this.layer || !message) return;
+    const displayParts = parts?.length
+      ? parts
+      : (message ? [{ type: 'text', value: message }] : []);
+    if (!settings.enabled || !this.layer || !displayParts.length) return;
 
     const layerWidth = this.layer.clientWidth || 800;
     const speed = clamp(settings.speed, 1, 10);
@@ -189,7 +210,7 @@ class DanmakuEngine {
 
     const item = document.createElement('div');
     item.className = 'tbc-danmaku-item';
-    item.textContent = message;
+    this.appendParts(item, displayParts);
     item.style.cssText = `
       top: 0;
       color: ${usernameColor || '#efeff1'};

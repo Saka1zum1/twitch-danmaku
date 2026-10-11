@@ -14,6 +14,7 @@
 // @grant        GM_addStyle
 // @grant        GM_setValue
 // @grant        GM_getValue
+// @grant        GM_setClipboard
 // @grant        GM_xmlhttpRequest
 // @connect      translate.googleapis.com
 // @connect      edge.microsoft.com

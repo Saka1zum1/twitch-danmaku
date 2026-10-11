@@ -19,7 +19,7 @@ class TranslateQueue {
     return clamp(Number(this.getSettings().translateSpeed) || 1, 1, 10);
   }
 
-  enqueue(text, callback) {
+  enqueue(text, parts, callback) {
     if (!this.isActive()) return;
     const settings = this.getSettings();
     if (!settings.translateEnabled) return;
@@ -28,7 +28,12 @@ class TranslateQueue {
       this.queue.shift();
     }
     if (!this.collectStartedAt) this.collectStartedAt = Date.now();
-    this.queue.push({ text, callback, attempts: 0 });
+    this.queue.push({
+      text,
+      parts: parts?.length ? parts : [{ type: 'text', value: text }],
+      callback,
+      attempts: 0,
+    });
     this.schedule();
   }
 
@@ -78,30 +83,56 @@ class TranslateQueue {
     return Math.max(slotWait, collectWait);
   }
 
+  pieceCount(parts) {
+    return parts.reduce((count, part) => (
+      part.type === 'text' && translatableCore(part.value) ? count + 1 : count
+    ), 0);
+  }
+
   takeJobs(speed) {
     const jobs = [];
     let chars = 0;
+    let pieces = 0;
 
     while (this.queue.length && jobs.length < Math.min(speed, TRANSLATE_MAX_BATCH)) {
       const next = this.queue[0];
-      if (jobs.length > 0 && chars + next.text.length > TRANSLATE_MAX_BATCH_CHARS) break;
+      const nextPieces = this.pieceCount(next.parts);
+      if (jobs.length > 0 && (
+        chars + next.text.length > TRANSLATE_MAX_BATCH_CHARS
+        || pieces + nextPieces > TRANSLATE_MAX_BATCH
+      )) break;
       chars += next.text.length;
+      pieces += nextPieces;
       jobs.push(this.queue.shift());
     }
 
     return jobs;
   }
 
-  deliver(jobs, texts) {
+  deliver(jobs, partLists) {
     if (!this.isActive()) return;
     jobs.forEach((job, index) => {
-      const translated = typeof texts[index] === 'string' ? texts[index] : job.text;
+      const parts = partLists[index] || job.parts;
       try {
-        job.callback(translated, job.text);
+        job.callback(parts, job.text);
       } catch {
         /* ignore */
       }
     });
+  }
+
+  stitch(jobs, translations, refs) {
+    const outputs = jobs.map((job) => job.parts.map((part) => ({ ...part })));
+    refs.forEach((ref, index) => {
+      const part = outputs[ref.jobIndex][ref.partIndex];
+      const match = String(part.value).match(/^(\s*)([\s\S]*?)(\s*)$/);
+      const translated = translations[index] || match[2];
+      outputs[ref.jobIndex][ref.partIndex] = {
+        type: 'text',
+        value: `${match[1]}${translated}${match[3]}`,
+      };
+    });
+    return outputs;
   }
 
   pace(count, speed, startedAt) {
@@ -129,9 +160,26 @@ class TranslateQueue {
     this.inflight = true;
     const startedAt = Date.now();
 
+    const refs = [];
+    const pieces = [];
+    jobs.forEach((job, jobIndex) => {
+      job.parts.forEach((part, partIndex) => {
+        const core = part.type === 'text' ? translatableCore(part.value) : '';
+        if (!core) return;
+        refs.push({ jobIndex, partIndex });
+        pieces.push(core);
+      });
+    });
+
     try {
+      if (!pieces.length) {
+        this.deliver(jobs, jobs.map((job) => job.parts));
+        this.pace(jobs.length, speed, startedAt);
+        return;
+      }
+
       const outcome = await translateMessages(
-        jobs.map((job) => job.text),
+        pieces,
         settings.translateTargetLang,
         settings.translateProvider,
       );
@@ -146,7 +194,7 @@ class TranslateQueue {
         const exhausted = failed && jobs.every((job) => job.attempts >= TRANSLATE_GIVE_UP_ATTEMPTS);
         const blocked = failed && outcome.retryAfter > 1500;
         if (exhausted || blocked) {
-          this.deliver(jobs, jobs.map((job) => job.text));
+          this.deliver(jobs, jobs.map((job) => job.parts));
           this.pace(jobs.length, speed, startedAt);
         } else {
           this.queue = jobs.concat(this.queue);
@@ -157,11 +205,11 @@ class TranslateQueue {
         return;
       }
 
-      this.deliver(jobs, outcome.texts || []);
+      this.deliver(jobs, this.stitch(jobs, outcome.texts || [], refs));
       this.pace(jobs.length, speed, startedAt);
     } catch {
       if (epoch !== this.epoch || !this.isActive()) return;
-      this.deliver(jobs, jobs.map((job) => job.text));
+      this.deliver(jobs, jobs.map((job) => job.parts));
       this.pace(jobs.length, speed, startedAt);
     } finally {
       if (epoch === this.epoch) this.inflight = false;

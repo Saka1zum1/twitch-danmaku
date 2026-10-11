@@ -79,23 +79,28 @@ class ChatObserver {
       originalMessage: parsed.message,
     };
 
-    if (!settings.translateEnabled) {
+    const hasTranslatableText = parsed.parts.some((part) => (
+      part.type === 'text' && translatableCore(part.value)
+    ));
+
+    if (!settings.translateEnabled || !hasTranslatableText) {
       this.danmakuEmitter.enqueue({
         ...base,
         message: parsed.message,
+        parts: parsed.parts,
         translated: false,
       });
       return;
     }
 
-    this.translateQueue.enqueue(parsed.message, (translated, original) => {
+    this.translateQueue.enqueue(parsed.message, parsed.parts, (parts) => {
       if (!this.isActive()) return;
-      const message = translated?.trim() ? translated : original;
-      const wasTranslated = message !== original;
+      const message = partsToPlain(parts) || parsed.message;
       this.danmakuEmitter.enqueue({
         ...base,
         message,
-        translated: wasTranslated,
+        parts,
+        translated: message !== parsed.message,
       });
     });
   }
