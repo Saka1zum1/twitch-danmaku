@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name         Twitch Danmaku - LiveChat Flusher
+// @name         Twitch Danmaku - Bullet Chat
 // @name:zh-CN   Twitch 弹幕
 // @name:zh-TW   Twitch 弹幕
 // @namespace    https://github.com/saka1zum1/twitch-danmaku
-// @version      1.2.0
+// @version      1.3.0
 // @description  Convert Twitch live chat to video danmaku with real-time translation
 // @description:zh-CN  将 Twitch 直播评论转换为视频弹幕，支持实时翻译
 // @description:zh-TW  將聊天室中的新訊息轉換成影片上的滾動彈幕，支持即時翻譯
@@ -18,6 +18,9 @@
 // @connect      translate.googleapis.com
 // @connect      edge.microsoft.com
 // @connect      api-edge.cognitive.microsofttranslator.com
+// @connect      transmart.qq.com
+// @connect      translate.volcengine.com
+// @connect      api.interpreter.caiyunai.com
 // @run-at       document-idle
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=twitch.com
 // ==/UserScript==
@@ -38,8 +41,12 @@ const LOCALES = {
     scrollArea: '滚动区域',
     translateEnable: '启用翻译',
     translateProvider: '翻译引擎',
+    translateProviderAuto: '自动切换',
     translateProviderMicrosoft: 'Microsoft 翻译',
     translateProviderGoogle: 'Google 翻译',
+    translateProviderVolcengine: '火山翻译',
+    translateProviderCaiyun: '彩云小译',
+    translateProviderTencent: '腾讯交互翻译',
     translateTarget: '目标语言',
     translateSpeed: '翻译速度',
     translateSpeedUnit: '条/秒',
@@ -90,8 +97,12 @@ const LOCALES = {
     scrollArea: 'Scroll area',
     translateEnable: 'Enable translation',
     translateProvider: 'Translation engine',
+    translateProviderAuto: 'Auto',
     translateProviderMicrosoft: 'Microsoft Translator',
     translateProviderGoogle: 'Google Translate',
+    translateProviderVolcengine: 'Volcengine',
+    translateProviderCaiyun: 'Caiyun',
+    translateProviderTencent: 'Tencent Transmart',
     translateTarget: 'Target language',
     translateSpeed: 'Translation speed',
     translateSpeedUnit: '/sec',
@@ -179,8 +190,12 @@ function getScrollAreaOptions() {
 
 function getTranslateProviderOptions() {
   return [
+    { label: t('translateProviderAuto'), value: 'auto' },
     { label: t('translateProviderMicrosoft'), value: 'microsoft' },
     { label: t('translateProviderGoogle'), value: 'google' },
+    { label: t('translateProviderVolcengine'), value: 'volcengine' },
+    { label: t('translateProviderCaiyun'), value: 'caiyun' },
+    { label: t('translateProviderTencent'), value: 'tencent' },
   ];
 }
 
@@ -214,7 +229,7 @@ const DEFAULT_SETTINGS = {
   translateEnabled: false,
   translateProvider: 'microsoft',
   translateTargetLang: getDefaultTranslateTargetLang(),
-  translateSpeed: 5,
+  translateSpeed: 3,
 };
 
 const SELECTORS = {
@@ -231,9 +246,11 @@ const SELECTORS = {
   chatInputEditable: '[data-a-target="chat-input"][contenteditable="true"], [data-a-target="chat-input-text"]',
 };
 
+const TRANSLATE_PROVIDERS = ['auto', 'microsoft', 'google', 'volcengine', 'caiyun', 'tencent'];
+
 const STORAGE_KEY = 'tbc_settings_v1';
 
-const LIVE_MESSAGE_TAIL = 10;
+const LIVE_MESSAGE_TAIL = 8;
 const WARMUP_MS = 2500;
 const MAX_DANMAKU_QUEUE = 24;
 const MAX_TRANSLATE_QUEUE = 32;
@@ -245,6 +262,9 @@ function loadSettings() {
       const merged = { ...DEFAULT_SETTINGS, ...saved };
       if (merged.scrollArea === 'half') {
         merged.scrollArea = 'top-half';
+      }
+      if (!TRANSLATE_PROVIDERS.includes(merged.translateProvider)) {
+        merged.translateProvider = DEFAULT_SETTINGS.translateProvider;
       }
       return merged;
     }
@@ -1308,9 +1328,99 @@ const MS_LANG_MAP = {
   pt: 'pt',
 };
 
+const TENCENT_LANG_MAP = {
+  'zh-CN': 'zh',
+  'zh-TW': 'zh-TW',
+  en: 'en',
+  ja: 'ja',
+  ko: 'ko',
+  es: 'es',
+  fr: 'fr',
+  de: 'de',
+  ru: 'ru',
+  pt: 'pt',
+};
+
 const TRANSLATE_TIMEOUT_MS = 8000;
+const TRANSLATE_MAX_BATCH = 10;
+const TRANSLATE_MAX_BATCH_CHARS = 1600;
+const PROVIDER_GAP_MS = 1000;
+const PRIMARY_PROVIDERS = ['microsoft', 'google'];
+const ALL_PROVIDERS = ['microsoft', 'google', 'volcengine', 'caiyun', 'tencent'];
+const MAX_PROVIDER_ATTEMPTS = 2;
+const HARD_COOLDOWNS_MS = [5000, 15000, 40000, 60000];
+const SOFT_COOLDOWNS_MS = [2000, 5000, 15000, 30000];
+const TRANSLATION_CACHE_LIMIT = 200;
+const TRANSLATION_CACHE_TTL_MS = 10 * 60 * 1000;
+
+const VOLC_LANG_MAP = {
+  'zh-CN': 'zh',
+  'zh-TW': 'zh-Hant',
+  en: 'en',
+  ja: 'ja',
+  ko: 'ko',
+  es: 'es',
+  fr: 'fr',
+  de: 'de',
+  ru: 'ru',
+  pt: 'pt',
+};
+
+const CAIYUN_LANG_MAP = {
+  'zh-CN': 'auto2zh',
+  'zh-TW': 'auto2zh-Hant',
+  en: 'auto2en',
+  ja: 'auto2ja',
+  ko: 'auto2ko',
+  es: 'auto2es',
+  fr: 'auto2fr',
+  de: 'auto2de',
+  ru: 'auto2ru',
+  pt: 'auto2pt',
+};
+
+const CAIYUN_TOKEN = '3975l6lr5pcbvidl6jl2';
+
+const translationCache = new Map();
+const providerState = {};
+const unsupportedTargets = new Set();
+const disabledProviders = new Set();
 
 let msAuthCache = { token: '', expiresAt: 0, inflight: null };
+let tencentClientKey = '';
+let primaryCursor = 0;
+
+for (const id of ALL_PROVIDERS) {
+  providerState[id] = { nextAt: 0, cooldownUntil: 0, failures: 0 };
+}
+
+function translationCacheKey(text, targetLang) {
+  return `${targetLang}\n${text}`;
+}
+
+function getCachedTranslation(text, targetLang) {
+  const key = translationCacheKey(text, targetLang);
+  const hit = translationCache.get(key);
+  if (!hit) return null;
+  if (Date.now() - hit.at > TRANSLATION_CACHE_TTL_MS) {
+    translationCache.delete(key);
+    return null;
+  }
+  translationCache.delete(key);
+  translationCache.set(key, hit);
+  return hit.value;
+}
+
+function setCachedTranslation(text, targetLang, value) {
+  if (!value) return;
+  const key = translationCacheKey(text, targetLang);
+  if (translationCache.has(key)) translationCache.delete(key);
+  translationCache.set(key, { value, at: Date.now() });
+  while (translationCache.size > TRANSLATION_CACHE_LIMIT) {
+    const oldest = translationCache.keys().next().value;
+    translationCache.delete(oldest);
+  }
+}
 
 function gmRequest(options) {
   return new Promise((resolve, reject) => {
@@ -1324,6 +1434,13 @@ function gmRequest(options) {
   });
 }
 
+function isRateLimited(res) {
+  const status = Number(res?.status) || 0;
+  if (status === 429 || status === 403 || status === 503) return true;
+  const body = String(res?.responseText || '');
+  return /<\s*html/i.test(body) && /sorry|too many|rate limit|quota/i.test(body);
+}
+
 function parseJwtExp(token) {
   try {
     const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
@@ -1335,6 +1452,25 @@ function parseJwtExp(token) {
 
 function toMicrosoftLang(code) {
   return MS_LANG_MAP[code] || code;
+}
+
+function getTencentClientKey() {
+  if (!tencentClientKey) {
+    const uuid = crypto.randomUUID
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    tencentClientKey = `browser-chrome-122.0.0-Windows_10-${uuid}`;
+  }
+  return tencentClientKey;
+}
+
+function detectScript(text) {
+  if (/\p{Script=Hangul}/u.test(text)) return 'ko';
+  if (/[\u3040-\u30ff]/.test(text)) return 'ja';
+  if (/\p{Script=Cyrillic}/u.test(text)) return 'ru';
+  if (/\p{Script=Han}/u.test(text)) return 'zh';
+  if (/\p{Script=Arabic}/u.test(text)) return 'ar';
+  return 'latin';
 }
 
 async function getMicrosoftAuthToken() {
@@ -1351,8 +1487,13 @@ async function getMicrosoftAuthToken() {
         method: 'GET',
         url: 'https://edge.microsoft.com/translate/auth',
       });
+      if (isRateLimited(res)) {
+        const error = new Error('auth rate limited');
+        error.rateLimited = true;
+        throw error;
+      }
       const token = res.responseText?.trim();
-      if (!token) throw new Error('empty auth token');
+      if (!res.status || res.status >= 400 || !token) throw new Error('empty auth token');
       msAuthCache.token = token;
       msAuthCache.expiresAt = parseJwtExp(token);
       return token;
@@ -1364,57 +1505,347 @@ async function getMicrosoftAuthToken() {
   return msAuthCache.inflight;
 }
 
-async function microsoftTranslate(text, targetLang) {
-  if (!text.trim() || text.length > 500) return '';
+async function microsoftRequest(texts, targetLang) {
+  const token = await getMicrosoftAuthToken();
+  const url = `https://api-edge.cognitive.microsofttranslator.com/translate?api-version=3.0&to=${encodeURIComponent(targetLang)}`;
+  const res = await gmRequest({
+    method: 'POST',
+    url,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    data: JSON.stringify(texts.map((text) => ({ Text: text }))),
+  });
 
-  try {
-    const token = await getMicrosoftAuthToken();
-    const to = toMicrosoftLang(targetLang);
-    const url = `https://api-edge.cognitive.microsofttranslator.com/translate?api-version=3.0&to=${encodeURIComponent(to)}`;
+  if (res?.status === 401) return { ok: false, unauthorized: true, rateLimited: false };
+  if (isRateLimited(res)) return { ok: false, rateLimited: true };
+  if (!res || res.status !== 200) return { ok: false, rateLimited: false };
 
-    const res = await gmRequest({
-      method: 'POST',
-      url,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
+  const json = JSON.parse(res.responseText);
+  if (!Array.isArray(json) || json.length !== texts.length) {
+    return { ok: false, rateLimited: false };
+  }
+
+  return {
+    ok: true,
+    texts: json.map((item) => item?.translations?.[0]?.text || ''),
+  };
+}
+
+async function microsoftTranslate(texts, targetLang) {
+  const to = toMicrosoftLang(targetLang);
+  let result = await microsoftRequest(texts, to);
+  if (result.unauthorized) {
+    msAuthCache.token = '';
+    msAuthCache.expiresAt = 0;
+    result = await microsoftRequest(texts, to);
+  }
+  if (result.unauthorized) return { ok: false, rateLimited: false };
+  return result;
+}
+
+function parseGoogleBatch(json, count) {
+  if (!Array.isArray(json) || json.length !== count) return null;
+  const texts = [];
+  for (const item of json) {
+    if (typeof item === 'string') {
+      texts.push(item);
+      continue;
+    }
+    if (Array.isArray(item) && typeof item[0] === 'string') {
+      texts.push(item[0]);
+      continue;
+    }
+    return null;
+  }
+  return texts;
+}
+
+async function googleTranslate(texts, targetLang) {
+  const query = texts.map((text) => `q=${encodeURIComponent(text)}`).join('&');
+  const url = `https://translate.googleapis.com/translate_a/t?client=dict-chrome-ex&sl=auto&tl=${encodeURIComponent(targetLang)}&${query}`;
+  const res = await gmRequest({ method: 'GET', url });
+
+  if (isRateLimited(res)) return { ok: false, rateLimited: true };
+  if (!res || res.status !== 200) return { ok: false, rateLimited: false };
+
+  const json = JSON.parse(res.responseText);
+  const parsed = parseGoogleBatch(json, texts.length);
+  if (!parsed) return { ok: false, rateLimited: false };
+  return { ok: true, texts: parsed };
+}
+
+async function tencentRequest(texts, targetLang) {
+  const res = await gmRequest({
+    method: 'POST',
+    url: 'https://transmart.qq.com/api/imt',
+    headers: {
+      'Content-Type': 'application/json',
+      Origin: 'https://transmart.qq.com',
+      Referer: 'https://transmart.qq.com/',
+    },
+    data: JSON.stringify({
+      header: {
+        fn: 'auto_translation',
+        client_key: getTencentClientKey(),
       },
-      data: JSON.stringify([{ Text: text }]),
-    });
+      type: 'plain',
+      model_category: 'normal',
+      source: {
+        lang: 'auto',
+        text_list: texts,
+      },
+      target: { lang: targetLang },
+    }),
+  });
 
-    const json = JSON.parse(res.responseText);
-    return json?.[0]?.translations?.[0]?.text?.trim() || '';
-  } catch {
-    return '';
+  if (isRateLimited(res)) return { ok: false, rateLimited: true };
+  if (!res || res.status !== 200) return { ok: false, rateLimited: false };
+
+  const json = JSON.parse(res.responseText);
+  const code = json?.header?.ret_code;
+  if (code === 'succ' && Array.isArray(json.auto_translation) && json.auto_translation.length === texts.length) {
+    return {
+      ok: true,
+      texts: json.auto_translation.map((item) => (item == null ? '' : String(item))),
+    };
+  }
+
+  const message = String(json?.message || '');
+  if (/unrecognized target language/i.test(message)) {
+    return { ok: false, rateLimited: false, unsupported: true };
+  }
+  const rateLimited = code === 'Auth-Failed' || /frequent|limit|quota/i.test(message);
+  return { ok: false, rateLimited };
+}
+
+async function tencentTranslate(texts, targetLang) {
+  const to = TENCENT_LANG_MAP[targetLang];
+  if (!to) return { ok: false, rateLimited: false, unsupported: true };
+  if (unsupportedTargets.has(`tencent:${targetLang}`)) {
+    return { ok: false, rateLimited: false, unsupported: true };
+  }
+
+  const buckets = new Map();
+  texts.forEach((text, index) => {
+    const script = detectScript(text);
+    if (!buckets.has(script)) buckets.set(script, []);
+    buckets.get(script).push({ text, index });
+  });
+
+  const output = texts.map(() => '');
+  let translated = 0;
+
+  for (const items of buckets.values()) {
+    const result = await tencentRequest(items.map((item) => item.text), to);
+    if (result.unsupported) unsupportedTargets.add(`tencent:${targetLang}`);
+    if (!result.ok) {
+      if (!translated) return result;
+      break;
+    }
+    result.texts.forEach((value, index) => {
+      output[items[index].index] = value;
+      if (value && value.trim()) translated += 1;
+    });
+  }
+
+  if (!translated) return { ok: false, rateLimited: false };
+  return { ok: true, texts: output };
+}
+
+async function volcengineRequest(texts, targetLang) {
+  const res = await gmRequest({
+    method: 'POST',
+    url: 'https://translate.volcengine.com/crx/translate/v1/',
+    headers: { 'Content-Type': 'application/json' },
+    data: JSON.stringify({
+      target_language: targetLang,
+      text: texts.map((text) => text.replace(/\r?\n/g, ' ')).join('\n'),
+    }),
+  });
+
+  if (isRateLimited(res)) return { ok: false, rateLimited: true };
+  if (!res || res.status !== 200) return { ok: false, rateLimited: false };
+
+  const json = JSON.parse(res.responseText);
+  if (json?.base_resp && Number(json.base_resp.status_code) !== 0) {
+    const detail = `${json.base_resp.status_message || ''}`;
+    return { ok: false, rateLimited: /limit|quota|frequent/i.test(detail) };
+  }
+
+  const parts = String(json?.translation ?? '').split('\n');
+  if (parts.length !== texts.length) return { ok: false, rateLimited: false };
+  return { ok: true, texts: parts };
+}
+
+async function volcengineTranslate(texts, targetLang) {
+  const to = VOLC_LANG_MAP[targetLang];
+  if (!to) return { ok: false, rateLimited: false, unsupported: true };
+
+  const buckets = new Map();
+  texts.forEach((text, index) => {
+    const script = detectScript(text);
+    if (!buckets.has(script)) buckets.set(script, []);
+    buckets.get(script).push({ text, index });
+  });
+
+  const output = texts.map(() => '');
+  let translated = 0;
+
+  for (const items of buckets.values()) {
+    const result = await volcengineRequest(items.map((item) => item.text), to);
+    if (!result.ok) {
+      if (!translated) return result;
+      break;
+    }
+    result.texts.forEach((value, index) => {
+      output[items[index].index] = value;
+      if (value && value.trim()) translated += 1;
+    });
+  }
+
+  if (!translated) return { ok: false, rateLimited: false };
+  return { ok: true, texts: output };
+}
+
+async function caiyunTranslate(texts, targetLang) {
+  const transType = CAIYUN_LANG_MAP[targetLang];
+  if (!transType) return { ok: false, rateLimited: false, unsupported: true };
+
+  const res = await gmRequest({
+    method: 'POST',
+    url: 'https://api.interpreter.caiyunai.com/v1/translator',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Authorization': `token:${CAIYUN_TOKEN}`,
+    },
+    data: JSON.stringify({
+      source: texts,
+      trans_type: transType,
+      request_id: 'twitch-danmaku',
+      detect: true,
+    }),
+  });
+
+  if (res?.status === 401) return { ok: false, rateLimited: false, disabled: true };
+  if (res?.status === 409) return { ok: false, rateLimited: false, unsupported: true };
+  if (isRateLimited(res)) return { ok: false, rateLimited: true };
+  if (!res || res.status !== 200) return { ok: false, rateLimited: false };
+
+  const json = JSON.parse(res.responseText);
+  if (!Array.isArray(json?.target) || json.target.length !== texts.length) {
+    return { ok: false, rateLimited: false };
+  }
+  return {
+    ok: true,
+    texts: json.target.map((item) => (item == null ? '' : String(item))),
+  };
+}
+
+const PROVIDER_CALLS = {
+  microsoft: microsoftTranslate,
+  google: googleTranslate,
+  volcengine: volcengineTranslate,
+  caiyun: caiyunTranslate,
+  tencent: tencentTranslate,
+};
+
+function noteProviderFailure(id, rateLimited) {
+  const state = providerState[id];
+  state.failures += 1;
+  const table = rateLimited ? HARD_COOLDOWNS_MS : SOFT_COOLDOWNS_MS;
+  const delay = table[Math.min(state.failures - 1, table.length - 1)];
+  state.cooldownUntil = Date.now() + delay;
+  if (rateLimited) {
+    console.warn('[TBC] translation provider cooling down:', id);
   }
 }
 
-async function googleTranslate(text, targetLang) {
-  if (!text.trim() || text.length > 500) return '';
-
-  try {
-    const res = await gmRequest({
-      method: 'GET',
-      url: `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${encodeURIComponent(targetLang)}&dt=t&q=${encodeURIComponent(text)}`,
-    });
-
-    const json = JSON.parse(
-      res.responseText.replace(/,\s*,/g, ',null,').replace(/,\s*]/g, ',null]'),
-    );
-    return json[0].map((x) => x[0]).join('').trim();
-  } catch {
-    return '';
-  }
+function providerReadyAt(id) {
+  const state = providerState[id];
+  return Math.max(state.nextAt, state.cooldownUntil);
 }
 
-async function translateWithProvider(text, targetLang, provider) {
-  const primary = provider === 'google' ? googleTranslate : microsoftTranslate;
-  const fallback = provider === 'google' ? microsoftTranslate : googleTranslate;
+function waitForProviders(ids, failed) {
+  const now = Date.now();
+  const wait = ids.reduce((soonest, id) => Math.min(soonest, providerReadyAt(id) - now), Infinity);
+  return {
+    retryAfter: Math.max(50, Math.min(Number.isFinite(wait) ? wait : 1000, 60000)),
+    failed,
+  };
+}
 
-  const result = await primary(text, targetLang);
-  if (result) return result;
+function autoSequence(ready) {
+  const primaryReady = PRIMARY_PROVIDERS.filter((id) => ready.includes(id));
+  if (!primaryReady.length) return ready.slice();
 
-  return fallback(text, targetLang);
+  const id = primaryReady[primaryCursor % primaryReady.length];
+  primaryCursor = (primaryCursor + 1) % primaryReady.length;
+  return [id, ...ready.filter((candidate) => candidate !== id)];
+}
+
+function markProviderUsed(id, startedAt) {
+  const elapsed = Date.now() - startedAt;
+  providerState[id].nextAt = Date.now() + Math.max(0, PROVIDER_GAP_MS - elapsed);
+}
+
+async function translateBatch(texts, targetLang, preferred) {
+  if (!texts.length) return { texts: [] };
+
+  const order = preferred && preferred !== 'auto'
+    ? [preferred, ...ALL_PROVIDERS.filter((id) => id !== preferred)]
+    : ALL_PROVIDERS.slice();
+  const supported = order.filter((id) => (
+    !disabledProviders.has(id) && !unsupportedTargets.has(`${id}:${targetLang}`)
+  ));
+  const candidates = supported.length ? supported : order;
+  const now = Date.now();
+
+  if (preferred && preferred !== 'auto' && candidates[0] === preferred) {
+    const pinned = providerState[preferred];
+    if (pinned.cooldownUntil <= now && pinned.nextAt > now) {
+      return waitForProviders([preferred], false);
+    }
+  }
+
+  const usable = candidates.filter((id) => providerState[id].cooldownUntil <= now);
+  if (!usable.length) return waitForProviders(candidates, true);
+
+  const ready = usable.filter((id) => providerState[id].nextAt <= now);
+  if (!ready.length) return waitForProviders(usable, false);
+
+  const sequence = !preferred || preferred === 'auto'
+    ? autoSequence(ready)
+    : [preferred, ...ready.filter((id) => id !== preferred)].filter((id) => ready.includes(id));
+
+  const flushStarted = Date.now();
+  const attemptLimit = Math.min(MAX_PROVIDER_ATTEMPTS, sequence.length);
+  for (let attempt = 0; attempt < attemptLimit; attempt += 1) {
+    if (attempt > 0 && Date.now() - flushStarted > TRANSLATE_TIMEOUT_MS) break;
+    const id = sequence[attempt];
+    const startedAt = Date.now();
+    let result;
+    try {
+      result = await PROVIDER_CALLS[id](texts, targetLang);
+    } catch (err) {
+      result = { ok: false, rateLimited: !!err?.rateLimited };
+    }
+    markProviderUsed(id, startedAt);
+
+    if (result?.disabled) {
+      disabledProviders.add(id);
+      continue;
+    }
+    if (result?.unsupported) unsupportedTargets.add(`${id}:${targetLang}`);
+    if (result?.ok && Array.isArray(result.texts) && result.texts.length === texts.length) {
+      providerState[id].failures = 0;
+      return { texts: result.texts };
+    }
+    noteProviderFailure(id, !!result?.rateLimited);
+  }
+
+  return { retryAfter: 800, failed: true };
 }
 
 const TOOLTIP_ORIGINAL_MAX = 64;
@@ -1437,90 +1868,253 @@ function truncateText(text, max = TOOLTIP_ORIGINAL_MAX) {
   return `${text.slice(0, max - 1)}…`;
 }
 
-async function translateMessage(text, targetLang, provider = 'microsoft') {
-  if (shouldSkipTranslation(text)) return text;
-
-  const { preparedText, placeholders, fullyMapped } = prepareDictionaryText(text, targetLang);
-  if (fullyMapped) {
-    return restoreDictionaryText(preparedText, placeholders);
-  }
-
-  let machineText = preparedText;
-  if (needsMachineTranslation(preparedText)) {
-    machineText = await translateWithProvider(preparedText, targetLang, provider);
-    if (!machineText?.trim()) machineText = preparedText;
-  }
-
-  const restored = restoreDictionaryText(machineText, placeholders);
-  return restored?.trim() || text;
+function preparedGroupKey(preparedText, placeholders) {
+  return `${preparedText}\0${placeholders.map((item) => item.replacement).join('\0')}`;
 }
+
+async function translateMessages(texts, targetLang, provider = 'microsoft') {
+  const results = new Array(texts.length);
+  const pending = [];
+
+  texts.forEach((text, index) => {
+    const cached = getCachedTranslation(text, targetLang);
+    if (cached != null) {
+      results[index] = cached;
+      return;
+    }
+
+    if (shouldSkipTranslation(text) || text.length > 500) {
+      results[index] = text;
+      return;
+    }
+
+    const prepared = prepareDictionaryText(text, targetLang);
+    if (prepared.fullyMapped || !needsMachineTranslation(prepared.preparedText)) {
+      results[index] = restoreDictionaryText(prepared.preparedText, prepared.placeholders);
+      return;
+    }
+
+    pending.push({
+      index,
+      original: text,
+      preparedText: prepared.preparedText,
+      placeholders: prepared.placeholders,
+    });
+  });
+
+  if (!pending.length) return { texts: results };
+
+  const groups = new Map();
+  for (const item of pending) {
+    const key = preparedGroupKey(item.preparedText, item.placeholders);
+    if (!groups.has(key)) {
+      groups.set(key, { preparedText: item.preparedText, items: [] });
+    }
+    groups.get(key).items.push(item);
+  }
+
+  const unique = [...groups.values()];
+  const outcome = await translateBatch(
+    unique.map((group) => group.preparedText),
+    targetLang,
+    provider,
+  );
+  if (outcome.retryAfter) return outcome;
+
+  unique.forEach((group, groupIndex) => {
+    const machine = outcome.texts[groupIndex]?.trim()
+      ? outcome.texts[groupIndex]
+      : group.preparedText;
+    const cacheable = !!outcome.texts[groupIndex]?.trim();
+
+    for (const item of group.items) {
+      const restored = restoreDictionaryText(machine, item.placeholders)?.trim() || item.original;
+      results[item.index] = restored;
+      if (cacheable) setCachedTranslation(item.original, targetLang, restored);
+    }
+  });
+
+  return { texts: results };
+}
+
+const TRANSLATE_SINGLE_GRACE_MS = 220;
+const TRANSLATE_BURST_WINDOW_MS = 1000;
+const TRANSLATE_GIVE_UP_ATTEMPTS = 2;
 
 class TranslateQueue {
   constructor(getSettings, isActive) {
     this.getSettings = getSettings;
     this.isActive = isActive;
     this.queue = [];
-    this.processing = false;
+    this.inflight = false;
     this.timer = null;
+    this.timerDelay = null;
+    this.epoch = 0;
+    this.nextSlotAt = 0;
+    this.collectStartedAt = 0;
+  }
+
+  currentSpeed() {
+    return clamp(Number(this.getSettings().translateSpeed) || 1, 1, 10);
   }
 
   enqueue(text, callback) {
     if (!this.isActive()) return;
-
-    if (this.queue.length >= MAX_TRANSLATE_QUEUE) {
-      this.queue.shift();
-    }
-    this.queue.push({ text, callback });
-    this.schedule();
-  }
-
-  schedule() {
-    if (this.timer || !this.isActive()) return;
     const settings = this.getSettings();
     if (!settings.translateEnabled) return;
 
-    const intervalMs = Math.max(200, Math.round(1000 / clamp(settings.translateSpeed, 1, 10)));
-    this.timer = setTimeout(() => {
-      this.timer = null;
-      this.processNext();
-    }, intervalMs);
-  }
-
-  async processNext() {
-    const settings = this.getSettings();
-    if (!this.isActive() || !settings.translateEnabled || this.processing || this.queue.length === 0) {
-      if (this.isActive()) this.schedule();
-      return;
+    while (this.queue.length >= MAX_TRANSLATE_QUEUE) {
+      this.queue.shift();
     }
-
-    this.processing = true;
-    const job = this.queue.shift();
-    const original = job.text;
-
-    try {
-      const translated = await translateMessage(
-        original,
-        settings.translateTargetLang,
-        settings.translateProvider,
-      );
-      if (this.isActive()) {
-        job.callback(translated, original);
-      }
-    } catch {
-      if (this.isActive()) job.callback(original, original);
-    }
-
-    this.processing = false;
+    if (!this.collectStartedAt) this.collectStartedAt = Date.now();
+    this.queue.push({ text, callback, attempts: 0 });
     this.schedule();
   }
 
-  clear() {
-    this.queue = [];
-    if (this.timer) {
-      clearTimeout(this.timer);
+  clearTimer() {
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = null;
+    this.timerDelay = null;
+  }
+
+  armTimer(delay) {
+    this.clearTimer();
+    this.timerDelay = delay;
+    this.timer = setTimeout(() => {
       this.timer = null;
+      this.timerDelay = null;
+      this.flush();
+    }, delay);
+  }
+
+  schedule() {
+    if (this.inflight || !this.isActive()) return;
+    if (!this.getSettings().translateEnabled) return;
+
+    if (this.queue.length === 0) {
+      this.collectStartedAt = 0;
+      this.clearTimer();
+      return;
     }
-    this.processing = false;
+
+    const delay = this.computeDelay();
+    if (delay === 0 && this.timer && this.timerDelay === 0) return;
+    this.armTimer(delay);
+  }
+
+  computeDelay() {
+    const now = Date.now();
+    const speed = this.currentSpeed();
+    const slotWait = Math.max(0, this.nextSlotAt - now);
+    const started = this.collectStartedAt || now;
+
+    if (this.queue.length >= speed) return slotWait;
+
+    const grace = speed <= 1 || this.queue.length < 2
+      ? (speed <= 1 ? 0 : TRANSLATE_SINGLE_GRACE_MS)
+      : TRANSLATE_BURST_WINDOW_MS;
+    const collectWait = Math.max(0, started + grace - now);
+    return Math.max(slotWait, collectWait);
+  }
+
+  takeJobs(speed) {
+    const jobs = [];
+    let chars = 0;
+
+    while (this.queue.length && jobs.length < Math.min(speed, TRANSLATE_MAX_BATCH)) {
+      const next = this.queue[0];
+      if (jobs.length > 0 && chars + next.text.length > TRANSLATE_MAX_BATCH_CHARS) break;
+      chars += next.text.length;
+      jobs.push(this.queue.shift());
+    }
+
+    return jobs;
+  }
+
+  deliver(jobs, texts) {
+    if (!this.isActive()) return;
+    jobs.forEach((job, index) => {
+      const translated = typeof texts[index] === 'string' ? texts[index] : job.text;
+      try {
+        job.callback(translated, job.text);
+      } catch {
+        /* ignore */
+      }
+    });
+  }
+
+  pace(count, speed, startedAt) {
+    const spent = Date.now() - startedAt;
+    const budget = Math.round(count * (1000 / speed));
+    const nextAt = Date.now() + Math.max(0, budget - spent);
+    this.nextSlotAt = Math.max(this.nextSlotAt, nextAt);
+  }
+
+  async flush() {
+    if (this.inflight || this.queue.length === 0 || !this.isActive()) {
+      this.schedule();
+      return;
+    }
+
+    const settings = this.getSettings();
+    if (!settings.translateEnabled) return;
+
+    const epoch = this.epoch;
+    const speed = this.currentSpeed();
+    const jobs = this.takeJobs(speed);
+    if (!jobs.length) return;
+
+    this.collectStartedAt = this.queue.length ? Date.now() : 0;
+    this.inflight = true;
+    const startedAt = Date.now();
+
+    try {
+      const outcome = await translateMessages(
+        jobs.map((job) => job.text),
+        settings.translateTargetLang,
+        settings.translateProvider,
+      );
+
+      if (epoch !== this.epoch || !this.isActive()) return;
+
+      if (outcome.retryAfter) {
+        const failed = !!outcome.failed;
+        if (failed) {
+          for (const job of jobs) job.attempts += 1;
+        }
+        const exhausted = failed && jobs.every((job) => job.attempts >= TRANSLATE_GIVE_UP_ATTEMPTS);
+        const blocked = failed && outcome.retryAfter > 1500;
+        if (exhausted || blocked) {
+          this.deliver(jobs, jobs.map((job) => job.text));
+          this.pace(jobs.length, speed, startedAt);
+        } else {
+          this.queue = jobs.concat(this.queue);
+          while (this.queue.length > MAX_TRANSLATE_QUEUE) this.queue.pop();
+          this.collectStartedAt = Date.now() - TRANSLATE_BURST_WINDOW_MS;
+          this.nextSlotAt = Math.max(this.nextSlotAt, Date.now() + outcome.retryAfter);
+        }
+        return;
+      }
+
+      this.deliver(jobs, outcome.texts || []);
+      this.pace(jobs.length, speed, startedAt);
+    } catch {
+      if (epoch !== this.epoch || !this.isActive()) return;
+      this.deliver(jobs, jobs.map((job) => job.text));
+      this.pace(jobs.length, speed, startedAt);
+    } finally {
+      if (epoch === this.epoch) this.inflight = false;
+      if (this.queue.length && epoch === this.epoch) this.schedule();
+    }
+  }
+
+  clear() {
+    this.epoch += 1;
+    this.queue = [];
+    this.collectStartedAt = 0;
+    this.nextSlotAt = 0;
+    this.clearTimer();
+    this.inflight = false;
   }
 }
 

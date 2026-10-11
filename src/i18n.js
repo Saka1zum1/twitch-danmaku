@@ -12,8 +12,12 @@ const LOCALES = {
     scrollArea: '滚动区域',
     translateEnable: '启用翻译',
     translateProvider: '翻译引擎',
+    translateProviderAuto: '自动切换',
     translateProviderMicrosoft: 'Microsoft 翻译',
     translateProviderGoogle: 'Google 翻译',
+    translateProviderVolcengine: '火山翻译',
+    translateProviderCaiyun: '彩云小译',
+    translateProviderTencent: '腾讯交互翻译',
     translateTarget: '目标语言',
     translateSpeed: '翻译速度',
     translateSpeedUnit: '条/秒',
@@ -64,8 +68,12 @@ const LOCALES = {
     scrollArea: 'Scroll area',
     translateEnable: 'Enable translation',
     translateProvider: 'Translation engine',
+    translateProviderAuto: 'Auto',
     translateProviderMicrosoft: 'Microsoft Translator',
     translateProviderGoogle: 'Google Translate',
+    translateProviderVolcengine: 'Volcengine',
+    translateProviderCaiyun: 'Caiyun',
+    translateProviderTencent: 'Tencent Transmart',
     translateTarget: 'Target language',
     translateSpeed: 'Translation speed',
     translateSpeedUnit: '/sec',
@@ -153,8 +161,12 @@ function getScrollAreaOptions() {
 
 function getTranslateProviderOptions() {
   return [
+    { label: t('translateProviderAuto'), value: 'auto' },
     { label: t('translateProviderMicrosoft'), value: 'microsoft' },
     { label: t('translateProviderGoogle'), value: 'google' },
+    { label: t('translateProviderVolcengine'), value: 'volcengine' },
+    { label: t('translateProviderCaiyun'), value: 'caiyun' },
+    { label: t('translateProviderTencent'), value: 'tencent' },
   ];
 }
 

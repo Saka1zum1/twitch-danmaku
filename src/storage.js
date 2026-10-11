@@ -6,6 +6,9 @@ function loadSettings() {
       if (merged.scrollArea === 'half') {
         merged.scrollArea = 'top-half';
       }
+      if (!TRANSLATE_PROVIDERS.includes(merged.translateProvider)) {
+        merged.translateProvider = DEFAULT_SETTINGS.translateProvider;
+      }
       return merged;
     }
   } catch (_) {

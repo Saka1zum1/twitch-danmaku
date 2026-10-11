@@ -9,7 +9,7 @@ const DEFAULT_SETTINGS = {
   translateEnabled: false,
   translateProvider: 'microsoft',
   translateTargetLang: getDefaultTranslateTargetLang(),
-  translateSpeed: 5,
+  translateSpeed: 3,
 };
 
 const SELECTORS = {
@@ -26,9 +26,11 @@ const SELECTORS = {
   chatInputEditable: '[data-a-target="chat-input"][contenteditable="true"], [data-a-target="chat-input-text"]',
 };
 
+const TRANSLATE_PROVIDERS = ['auto', 'microsoft', 'google', 'volcengine', 'caiyun', 'tencent'];
+
 const STORAGE_KEY = 'tbc_settings_v1';
 
-const LIVE_MESSAGE_TAIL = 10;
+const LIVE_MESSAGE_TAIL = 8;
 const WARMUP_MS = 2500;
 const MAX_DANMAKU_QUEUE = 24;
 const MAX_TRANSLATE_QUEUE = 32;

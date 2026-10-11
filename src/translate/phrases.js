@@ -18,20 +18,71 @@ function truncateText(text, max = TOOLTIP_ORIGINAL_MAX) {
   return `${text.slice(0, max - 1)}…`;
 }
 
-async function translateMessage(text, targetLang, provider = 'microsoft') {
-  if (shouldSkipTranslation(text)) return text;
+function preparedGroupKey(preparedText, placeholders) {
+  return `${preparedText}\0${placeholders.map((item) => item.replacement).join('\0')}`;
+}
 
-  const { preparedText, placeholders, fullyMapped } = prepareDictionaryText(text, targetLang);
-  if (fullyMapped) {
-    return restoreDictionaryText(preparedText, placeholders);
+async function translateMessages(texts, targetLang, provider = 'microsoft') {
+  const results = new Array(texts.length);
+  const pending = [];
+
+  texts.forEach((text, index) => {
+    const cached = getCachedTranslation(text, targetLang);
+    if (cached != null) {
+      results[index] = cached;
+      return;
+    }
+
+    if (shouldSkipTranslation(text) || text.length > 500) {
+      results[index] = text;
+      return;
+    }
+
+    const prepared = prepareDictionaryText(text, targetLang);
+    if (prepared.fullyMapped || !needsMachineTranslation(prepared.preparedText)) {
+      results[index] = restoreDictionaryText(prepared.preparedText, prepared.placeholders);
+      return;
+    }
+
+    pending.push({
+      index,
+      original: text,
+      preparedText: prepared.preparedText,
+      placeholders: prepared.placeholders,
+    });
+  });
+
+  if (!pending.length) return { texts: results };
+
+  const groups = new Map();
+  for (const item of pending) {
+    const key = preparedGroupKey(item.preparedText, item.placeholders);
+    if (!groups.has(key)) {
+      groups.set(key, { preparedText: item.preparedText, items: [] });
+    }
+    groups.get(key).items.push(item);
   }
 
-  let machineText = preparedText;
-  if (needsMachineTranslation(preparedText)) {
-    machineText = await translateWithProvider(preparedText, targetLang, provider);
-    if (!machineText?.trim()) machineText = preparedText;
-  }
+  const unique = [...groups.values()];
+  const outcome = await translateBatch(
+    unique.map((group) => group.preparedText),
+    targetLang,
+    provider,
+  );
+  if (outcome.retryAfter) return outcome;
 
-  const restored = restoreDictionaryText(machineText, placeholders);
-  return restored?.trim() || text;
+  unique.forEach((group, groupIndex) => {
+    const machine = outcome.texts[groupIndex]?.trim()
+      ? outcome.texts[groupIndex]
+      : group.preparedText;
+    const cacheable = !!outcome.texts[groupIndex]?.trim();
+
+    for (const item of group.items) {
+      const restored = restoreDictionaryText(machine, item.placeholders)?.trim() || item.original;
+      results[item.index] = restored;
+      if (cacheable) setCachedTranslation(item.original, targetLang, restored);
+    }
+  });
+
+  return { texts: results };
 }

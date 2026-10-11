@@ -12,7 +12,7 @@ A Tampermonkey userscript that turns Twitch live chat into scrolling video danma
 - **Copy to chat** — Click a danmaku, then use the copy button in the tooltip to paste the message into the live chat input
 - **Customization** — Speed, font, scroll area (full / top half / top quarter)
 - **Fullscreen-aware** — Adapts to resize and fullscreen automatically
-- **Translation** — Google Translate with phrase mapping; skips numbers and symbols
+- **Translation** — Microsoft, Google, Volcengine, Caiyun, and Tencent Transmart; batches requests during busy chat and switches engines when one is rate-limited. Skips numbers and symbols
 - **Anti-flood** — No burst when joining a stream or returning to the tab
 - **Bilingual UI** — Auto-detects browser language (Chinese / English)
 
@@ -52,8 +52,9 @@ npm run build
 | Font | 18 system fonts |
 | Scroll area | Full / top half / top quarter |
 | Translation | Replaces original text on screen |
+| Translation engine | Auto / Microsoft / Google / Volcengine / Caiyun / Tencent Transmart |
 | Target language | Source auto-detected |
-| Translation speed | 1–10 messages/sec |
+| Translation speed | 1–10 messages/sec. Busy chat is batched into fewer requests so one engine is not flooded |
 
 Settings are saved locally and persist across sessions.
 
@@ -66,8 +67,8 @@ npm run watch
 
 ## Notes
 
-- Translation requires Google Translate; a proxy may be needed in some regions
-- Lower translation speed on busy chats to avoid queue buildup
+- Translation uses Microsoft, Google, Volcengine, Caiyun, or Tencent; a proxy may be needed in some regions
+- Busy chat is translated in batches, and a rate-limited engine is paused in favor of the others
 - Twitch DOM changes may affect compatibility — please report issues
 
 ## License
