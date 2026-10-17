@@ -55,6 +55,7 @@ npm run build
 | Translation engine | Auto / Microsoft / Google / Volcengine / Caiyun / Tencent Transmart |
 | Target language | Source auto-detected |
 | Translation speed | 1–10 messages/sec. Busy chat is batched into fewer requests so one engine is not flooded |
+| Block keywords | Hides a danmaku when the original or the translation contains a keyword |
 
 Settings are saved locally and persist across sessions.
 

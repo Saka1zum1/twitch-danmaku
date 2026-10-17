@@ -3,7 +3,7 @@
 // @name:zh-CN   Twitch 弹幕
 // @name:zh-TW   Twitch 弹幕
 // @namespace    https://github.com/saka1zum1/twitch-danmaku
-// @version      1.3.1
+// @version      1.3.2
 // @description  Convert Twitch live chat to video danmaku with real-time translation
 // @description:zh-CN  将 Twitch 直播评论转换为视频弹幕，支持实时翻译
 // @description:zh-TW  將聊天室中的新訊息轉換成影片上的滾動彈幕，支持即時翻譯
@@ -51,6 +51,12 @@ const LOCALES = {
     translateTarget: '目标语言',
     translateSpeed: '翻译速度',
     translateSpeedUnit: '条/秒',
+    blockKeywords: '关键词屏蔽',
+    blockKeywordsHint: '原文或译文包含关键词时不显示',
+    blockKeywordsPlaceholder: '输入关键词',
+    blockKeywordsAdd: '添加',
+    blockKeywordsRemove: '移除',
+    blockKeywordsEmpty: '暂无关键词',
     scrollAreaFull: '全屏',
     scrollAreaTopHalf: '上半屏',
     scrollAreaTopQuarter: '顶部 1/4',
@@ -107,6 +113,12 @@ const LOCALES = {
     translateTarget: 'Target language',
     translateSpeed: 'Translation speed',
     translateSpeedUnit: '/sec',
+    blockKeywords: 'Block keywords',
+    blockKeywordsHint: 'Hidden when the original or translation contains a keyword',
+    blockKeywordsPlaceholder: 'Keyword',
+    blockKeywordsAdd: 'Add',
+    blockKeywordsRemove: 'Remove',
+    blockKeywordsEmpty: 'No keywords',
     scrollAreaFull: 'Full screen',
     scrollAreaTopHalf: 'Top half',
     scrollAreaTopQuarter: 'Top quarter',
@@ -231,6 +243,7 @@ const DEFAULT_SETTINGS = {
   translateProvider: 'microsoft',
   translateTargetLang: getDefaultTranslateTargetLang(),
   translateSpeed: 3,
+  blockedKeywords: [],
 };
 
 const SELECTORS = {
@@ -267,6 +280,7 @@ function loadSettings() {
       if (!TRANSLATE_PROVIDERS.includes(merged.translateProvider)) {
         merged.translateProvider = DEFAULT_SETTINGS.translateProvider;
       }
+      merged.blockedKeywords = sanitizeBlockedKeywords(merged.blockedKeywords);
       return merged;
     }
   } catch (_) {
@@ -277,6 +291,34 @@ function loadSettings() {
 
 function saveSettings(settings) {
   GM_setValue(STORAGE_KEY, settings);
+}
+
+const BLOCKED_KEYWORD_LIMIT = 50;
+const BLOCKED_KEYWORD_LENGTH = 40;
+
+function sanitizeBlockedKeywords(value) {
+  if (!Array.isArray(value)) return [];
+
+  const seen = new Set();
+  const keywords = [];
+  for (const item of value) {
+    const keyword = String(item || '').trim().slice(0, BLOCKED_KEYWORD_LENGTH);
+    const key = keyword.toLowerCase();
+    if (!keyword || seen.has(key)) continue;
+    seen.add(key);
+    keywords.push(keyword);
+    if (keywords.length >= BLOCKED_KEYWORD_LIMIT) break;
+  }
+  return keywords;
+}
+
+function isKeywordBlocked(text, keywords) {
+  const haystack = String(text || '').toLowerCase();
+  if (!haystack || !keywords?.length) return false;
+  return keywords.some((keyword) => {
+    const needle = String(keyword || '').trim().toLowerCase();
+    return needle && haystack.includes(needle);
+  });
 }
 
 function clamp(value, min, max) {
@@ -1202,11 +1244,13 @@ const TWITCH_DICTIONARY = {
   EZ: dictEntry('轻松', '輕鬆', 'EZ'),
   Clap: dictEntry('（鼓掌）', '（鼓掌）', 'Clap'),
   NPC: dictEntry('工具人', '工具人', 'NPC'),
+  ICANT: dictEntry('我做不到', '我做不到', 'ICANT'),
   W: dictEntry('神', '神', 'W'),
   L: dictEntry('拉胯', '拉胯', 'L'),
   F: dictEntry('F', 'F', 'F'),
   o7: dictEntry('o7', 'o7', 'o7'),
   lol: dictEntry('哈哈', '哈哈', 'lol'),
+  LMFAO: dictEntry('笑死我了', '笑死我了', 'LMFAO'),
   lmao: dictEntry('笑死我了', '笑死我了', 'lmao'),
   lmfao: dictEntry('笑死我了', '笑死我了', 'lmfao'),
   rofl: dictEntry('笑翻', '笑翻', 'rofl'),
@@ -2497,6 +2541,8 @@ class ChatObserver {
     const settings = this.getSettings();
     if (!this.isActive()) return;
 
+    if (isKeywordBlocked(parsed.message, settings.blockedKeywords)) return;
+
     const base = {
       username: parsed.username,
       usernameColor: parsed.usernameColor,
@@ -2520,7 +2566,10 @@ class ChatObserver {
 
     this.translateQueue.enqueue(parsed.message, parsed.parts, (parts) => {
       if (!this.isActive()) return;
+      const latest = this.getSettings();
       const message = partsToPlain(parts) || parsed.message;
+      if (isKeywordBlocked(parsed.message, latest.blockedKeywords)) return;
+      if (isKeywordBlocked(message, latest.blockedKeywords)) return;
       this.danmakuEmitter.enqueue({
         ...base,
         message,
@@ -2847,6 +2896,77 @@ function injectStyles() {
       background: rgba(255, 255, 255, 0.08);
     }
 
+    .tbc-keyword-hint,
+    .tbc-keyword-empty {
+      color: #adadb8;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .tbc-keyword-form {
+      display: flex;
+      gap: 6px;
+    }
+
+    .tbc-keyword-input {
+      flex: 1;
+      min-width: 0;
+      padding: 6px 8px;
+      border: 1px solid #3a3a3d;
+      border-radius: 4px;
+      background: #0e0e10;
+      color: #efeff1;
+      font-size: 13px;
+    }
+
+    .tbc-keyword-add {
+      flex-shrink: 0;
+      border: none;
+      border-radius: 4px;
+      background: #9147ff;
+      color: #fff;
+      padding: 6px 10px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .tbc-keyword-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      max-height: 96px;
+      overflow-y: auto;
+    }
+
+    .tbc-keyword {
+      display: inline-flex;
+      align-items: center;
+      max-width: 100%;
+      padding: 2px 2px 2px 8px;
+      border-radius: 999px;
+      background: rgba(145, 71, 255, 0.16);
+      color: #efeff1;
+      font-size: 12px;
+    }
+
+    .tbc-keyword-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 180px;
+    }
+
+    .tbc-keyword-remove {
+      border: none;
+      background: transparent;
+      color: #adadb8;
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+      padding: 0 6px;
+    }
+
     .tbc-switch {
       position: relative;
       width: 40px;
@@ -3079,6 +3199,100 @@ class SettingsPanel {
     return row;
   }
 
+  createKeywordBlock() {
+    const row = document.createElement('div');
+    row.className = 'tbc-balloon-row tbc-balloon-row--field';
+
+    const labelEl = document.createElement('div');
+    labelEl.className = 'tbc-balloon-label';
+    labelEl.textContent = t('blockKeywords');
+
+    const hint = document.createElement('div');
+    hint.className = 'tbc-keyword-hint';
+    hint.textContent = t('blockKeywordsHint');
+
+    const form = document.createElement('div');
+    form.className = 'tbc-keyword-form';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'tbc-keyword-input';
+    input.maxLength = 40;
+    input.placeholder = t('blockKeywordsPlaceholder');
+    input.setAttribute('aria-label', t('blockKeywords'));
+
+    const addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.className = 'tbc-keyword-add';
+    addBtn.textContent = t('blockKeywordsAdd');
+
+    const list = document.createElement('div');
+    list.className = 'tbc-keyword-list';
+
+    const commit = () => {
+      const incoming = input.value.split(/[,，]/).map((item) => item.trim()).filter(Boolean);
+      if (!incoming.length) return;
+      const next = sanitizeBlockedKeywords([...(this.settings.blockedKeywords || []), ...incoming]);
+      input.value = '';
+      this.updateSetting('blockedKeywords', next);
+      this.renderKeywordList(list);
+    };
+
+    addBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      commit();
+    });
+    input.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        commit();
+      }
+    });
+
+    form.append(input, addBtn);
+    row.append(labelEl, hint, form, list);
+    this.renderKeywordList(list);
+    return row;
+  }
+
+  renderKeywordList(list) {
+    list.replaceChildren();
+    const keywords = this.settings.blockedKeywords || [];
+    if (!keywords.length) {
+      const empty = document.createElement('div');
+      empty.className = 'tbc-keyword-empty';
+      empty.textContent = t('blockKeywordsEmpty');
+      list.appendChild(empty);
+      return;
+    }
+
+    keywords.forEach((keyword, index) => {
+      const chip = document.createElement('span');
+      chip.className = 'tbc-keyword';
+
+      const text = document.createElement('span');
+      text.className = 'tbc-keyword-text';
+      text.textContent = keyword;
+      text.title = keyword;
+
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'tbc-keyword-remove';
+      removeBtn.setAttribute('aria-label', `${t('blockKeywordsRemove')} ${keyword}`);
+      removeBtn.textContent = '×';
+      removeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const next = (this.settings.blockedKeywords || []).filter((_, itemIndex) => itemIndex !== index);
+        this.updateSetting('blockedKeywords', next);
+        this.renderKeywordList(list);
+      });
+
+      chip.append(text, removeBtn);
+      list.appendChild(chip);
+    });
+  }
+
   createDivider() {
     const div = document.createElement('div');
     div.className = 'tbc-balloon-divider';
@@ -3123,6 +3337,8 @@ class SettingsPanel {
       this.createSelect(t('translateProvider'), 'translateProvider', getTranslateProviderOptions()),
       this.createSelect(t('translateTarget'), 'translateTargetLang', getTranslateLangOptions()),
       this.createRange(t('translateSpeed'), 'translateSpeed', 1, 10, 1, (v) => `${v} ${t('translateSpeedUnit')}`),
+      this.createDivider(),
+      this.createKeywordBlock(),
     );
 
     this.balloon.append(header, body);

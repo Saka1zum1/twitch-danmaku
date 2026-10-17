@@ -178,6 +178,100 @@ class SettingsPanel {
     return row;
   }
 
+  createKeywordBlock() {
+    const row = document.createElement('div');
+    row.className = 'tbc-balloon-row tbc-balloon-row--field';
+
+    const labelEl = document.createElement('div');
+    labelEl.className = 'tbc-balloon-label';
+    labelEl.textContent = t('blockKeywords');
+
+    const hint = document.createElement('div');
+    hint.className = 'tbc-keyword-hint';
+    hint.textContent = t('blockKeywordsHint');
+
+    const form = document.createElement('div');
+    form.className = 'tbc-keyword-form';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'tbc-keyword-input';
+    input.maxLength = 40;
+    input.placeholder = t('blockKeywordsPlaceholder');
+    input.setAttribute('aria-label', t('blockKeywords'));
+
+    const addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.className = 'tbc-keyword-add';
+    addBtn.textContent = t('blockKeywordsAdd');
+
+    const list = document.createElement('div');
+    list.className = 'tbc-keyword-list';
+
+    const commit = () => {
+      const incoming = input.value.split(/[,，]/).map((item) => item.trim()).filter(Boolean);
+      if (!incoming.length) return;
+      const next = sanitizeBlockedKeywords([...(this.settings.blockedKeywords || []), ...incoming]);
+      input.value = '';
+      this.updateSetting('blockedKeywords', next);
+      this.renderKeywordList(list);
+    };
+
+    addBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      commit();
+    });
+    input.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        commit();
+      }
+    });
+
+    form.append(input, addBtn);
+    row.append(labelEl, hint, form, list);
+    this.renderKeywordList(list);
+    return row;
+  }
+
+  renderKeywordList(list) {
+    list.replaceChildren();
+    const keywords = this.settings.blockedKeywords || [];
+    if (!keywords.length) {
+      const empty = document.createElement('div');
+      empty.className = 'tbc-keyword-empty';
+      empty.textContent = t('blockKeywordsEmpty');
+      list.appendChild(empty);
+      return;
+    }
+
+    keywords.forEach((keyword, index) => {
+      const chip = document.createElement('span');
+      chip.className = 'tbc-keyword';
+
+      const text = document.createElement('span');
+      text.className = 'tbc-keyword-text';
+      text.textContent = keyword;
+      text.title = keyword;
+
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'tbc-keyword-remove';
+      removeBtn.setAttribute('aria-label', `${t('blockKeywordsRemove')} ${keyword}`);
+      removeBtn.textContent = '×';
+      removeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const next = (this.settings.blockedKeywords || []).filter((_, itemIndex) => itemIndex !== index);
+        this.updateSetting('blockedKeywords', next);
+        this.renderKeywordList(list);
+      });
+
+      chip.append(text, removeBtn);
+      list.appendChild(chip);
+    });
+  }
+
   createDivider() {
     const div = document.createElement('div');
     div.className = 'tbc-balloon-divider';
@@ -222,6 +316,8 @@ class SettingsPanel {
       this.createSelect(t('translateProvider'), 'translateProvider', getTranslateProviderOptions()),
       this.createSelect(t('translateTarget'), 'translateTargetLang', getTranslateLangOptions()),
       this.createRange(t('translateSpeed'), 'translateSpeed', 1, 10, 1, (v) => `${v} ${t('translateSpeedUnit')}`),
+      this.createDivider(),
+      this.createKeywordBlock(),
     );
 
     this.balloon.append(header, body);

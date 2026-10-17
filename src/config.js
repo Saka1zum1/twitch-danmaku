@@ -10,6 +10,7 @@ const DEFAULT_SETTINGS = {
   translateProvider: 'microsoft',
   translateTargetLang: getDefaultTranslateTargetLang(),
   translateSpeed: 3,
+  blockedKeywords: [],
 };
 
 const SELECTORS = {

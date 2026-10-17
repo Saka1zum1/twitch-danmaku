@@ -314,6 +314,77 @@ function injectStyles() {
       background: rgba(255, 255, 255, 0.08);
     }
 
+    .tbc-keyword-hint,
+    .tbc-keyword-empty {
+      color: #adadb8;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .tbc-keyword-form {
+      display: flex;
+      gap: 6px;
+    }
+
+    .tbc-keyword-input {
+      flex: 1;
+      min-width: 0;
+      padding: 6px 8px;
+      border: 1px solid #3a3a3d;
+      border-radius: 4px;
+      background: #0e0e10;
+      color: #efeff1;
+      font-size: 13px;
+    }
+
+    .tbc-keyword-add {
+      flex-shrink: 0;
+      border: none;
+      border-radius: 4px;
+      background: #9147ff;
+      color: #fff;
+      padding: 6px 10px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .tbc-keyword-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      max-height: 96px;
+      overflow-y: auto;
+    }
+
+    .tbc-keyword {
+      display: inline-flex;
+      align-items: center;
+      max-width: 100%;
+      padding: 2px 2px 2px 8px;
+      border-radius: 999px;
+      background: rgba(145, 71, 255, 0.16);
+      color: #efeff1;
+      font-size: 12px;
+    }
+
+    .tbc-keyword-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 180px;
+    }
+
+    .tbc-keyword-remove {
+      border: none;
+      background: transparent;
+      color: #adadb8;
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+      padding: 0 6px;
+    }
+
     .tbc-switch {
       position: relative;
       width: 40px;

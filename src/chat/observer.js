@@ -72,6 +72,8 @@ class ChatObserver {
     const settings = this.getSettings();
     if (!this.isActive()) return;
 
+    if (isKeywordBlocked(parsed.message, settings.blockedKeywords)) return;
+
     const base = {
       username: parsed.username,
       usernameColor: parsed.usernameColor,
@@ -95,7 +97,10 @@ class ChatObserver {
 
     this.translateQueue.enqueue(parsed.message, parsed.parts, (parts) => {
       if (!this.isActive()) return;
+      const latest = this.getSettings();
       const message = partsToPlain(parts) || parsed.message;
+      if (isKeywordBlocked(parsed.message, latest.blockedKeywords)) return;
+      if (isKeywordBlocked(message, latest.blockedKeywords)) return;
       this.danmakuEmitter.enqueue({
         ...base,
         message,
