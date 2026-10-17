@@ -176,6 +176,10 @@ class DanmakuEngine {
     const laneCount = Math.floor(newHeight / laneHeight);
     this.laneManager.reset(laneCount, laneHeight);
     this.layer.style.display = settings.enabled ? 'block' : 'none';
+    this.layer.style.setProperty(
+      '--tbc-opacity',
+      String(clamp(Number(settings.danmakuOpacity) || 100, 10, 100) / 100),
+    );
   }
 
   appendParts(item, parts) {

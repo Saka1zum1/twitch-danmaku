@@ -10,6 +10,7 @@ function loadSettings() {
         merged.translateProvider = DEFAULT_SETTINGS.translateProvider;
       }
       merged.blockedKeywords = sanitizeBlockedKeywords(merged.blockedKeywords);
+      merged.danmakuOpacity = clamp(Number(merged.danmakuOpacity) || DEFAULT_SETTINGS.danmakuOpacity, 10, 100);
       return merged;
     }
   } catch (_) {

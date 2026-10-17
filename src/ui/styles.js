@@ -9,6 +9,7 @@ function injectStyles() {
       position: absolute;
       left: 100%;
       white-space: nowrap;
+      opacity: var(--tbc-opacity, 1);
       font-weight: 600;
       pointer-events: auto;
       cursor: default;

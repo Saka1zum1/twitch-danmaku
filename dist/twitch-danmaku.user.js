@@ -3,7 +3,7 @@
 // @name:zh-CN   Twitch 弹幕
 // @name:zh-TW   Twitch 弹幕
 // @namespace    https://github.com/saka1zum1/twitch-danmaku
-// @version      1.3.2
+// @version      1.4.0
 // @description  Convert Twitch live chat to video danmaku with real-time translation
 // @description:zh-CN  将 Twitch 直播评论转换为视频弹幕，支持实时翻译
 // @description:zh-TW  將聊天室中的新訊息轉換成影片上的滾動彈幕，支持即時翻譯
@@ -38,6 +38,7 @@ const LOCALES = {
     panelClose: '关闭',
     scrollSpeed: '滚动速度',
     fontSize: '字体大小',
+    danmakuOpacity: '弹幕透明度',
     fontFamily: '字体',
     scrollArea: '滚动区域',
     translateEnable: '启用翻译',
@@ -100,6 +101,7 @@ const LOCALES = {
     panelClose: 'Close',
     scrollSpeed: 'Scroll speed',
     fontSize: 'Font size',
+    danmakuOpacity: 'Danmaku opacity',
     fontFamily: 'Font',
     scrollArea: 'Scroll area',
     translateEnable: 'Enable translation',
@@ -237,6 +239,7 @@ const DEFAULT_SETTINGS = {
   enabled: true,
   speed: 5,
   fontSize: 22,
+  danmakuOpacity: 100,
   fontFamily: 'system-ui, sans-serif',
   scrollArea: 'full',
   translateEnabled: false,
@@ -281,6 +284,7 @@ function loadSettings() {
         merged.translateProvider = DEFAULT_SETTINGS.translateProvider;
       }
       merged.blockedKeywords = sanitizeBlockedKeywords(merged.blockedKeywords);
+      merged.danmakuOpacity = clamp(Number(merged.danmakuOpacity) || DEFAULT_SETTINGS.danmakuOpacity, 10, 100);
       return merged;
     }
   } catch (_) {
@@ -743,6 +747,10 @@ class DanmakuEngine {
     const laneCount = Math.floor(newHeight / laneHeight);
     this.laneManager.reset(laneCount, laneHeight);
     this.layer.style.display = settings.enabled ? 'block' : 'none';
+    this.layer.style.setProperty(
+      '--tbc-opacity',
+      String(clamp(Number(settings.danmakuOpacity) || 100, 10, 100) / 100),
+    );
   }
 
   appendParts(item, parts) {
@@ -2591,6 +2599,7 @@ function injectStyles() {
       position: absolute;
       left: 100%;
       white-space: nowrap;
+      opacity: var(--tbc-opacity, 1);
       font-weight: 600;
       pointer-events: auto;
       cursor: default;
@@ -3330,6 +3339,7 @@ class SettingsPanel {
     body.append(
       this.createRange(t('scrollSpeed'), 'speed', 1, 10, 1, (v) => String(v)),
       this.createRange(t('fontSize'), 'fontSize', 14, 40, 1, (v) => `${v}px`),
+      this.createRange(t('danmakuOpacity'), 'danmakuOpacity', 10, 100, 5, (v) => `${v}%`),
       this.createSelect(t('fontFamily'), 'fontFamily', getFontOptions()),
       this.createSelect(t('scrollArea'), 'scrollArea', getScrollAreaOptions()),
       this.createDivider(),

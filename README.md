@@ -49,6 +49,7 @@ npm run build
 |--------|-------------|
 | Scroll speed | 1–10, higher = faster |
 | Font size | 14–40 px |
+| Danmaku opacity | 10–100% |
 | Font | 18 system fonts |
 | Scroll area | Full / top half / top quarter |
 | Translation | Replaces original text on screen |
