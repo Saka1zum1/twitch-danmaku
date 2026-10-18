@@ -5,6 +5,8 @@ const ROOT = path.join(__dirname, '..');
 const SRC = path.join(ROOT, 'src');
 const OUT = path.join(ROOT, 'dist', 'twitch-danmaku.user.js');
 const DOCS_OUT = path.join(ROOT, 'docs', 'twitch-danmaku.user.js');
+const DEMO_HTML = path.join(ROOT, 'demo', 'preview.html');
+const DOCS_HTML = path.join(ROOT, 'docs', 'index.html');
 
 const MODULES = [
   'userscript-header.js',
@@ -60,6 +62,11 @@ function build() {
   fs.writeFileSync(OUT, output, 'utf8');
   fs.mkdirSync(path.dirname(DOCS_OUT), { recursive: true });
   fs.writeFileSync(DOCS_OUT, output, 'utf8');
+  if (fs.existsSync(DEMO_HTML)) {
+    const demoHtml = fs.readFileSync(DEMO_HTML, 'utf8')
+      .replace('../dist/twitch-danmaku.user.js', './twitch-danmaku.user.js');
+    fs.writeFileSync(DOCS_HTML, demoHtml, 'utf8');
+  }
   console.log(`Built ${OUT} (${(output.length / 1024).toFixed(1)} KB)`);
   console.log(`Copied ${DOCS_OUT}`);
 }

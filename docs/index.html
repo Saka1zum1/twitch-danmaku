@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN" data-tbc-preview="true">
 <head>
   <meta charset="utf-8">
@@ -173,7 +173,7 @@
         <button id="add-chat" type="button">Add chat</button>
         <button id="add-cheer" class="secondary" type="button">Add cheer</button>
       </div>
-      <p class="hint">鍒楄〃閲屽凡鏈夌殑娑堟伅涓嶄細鍙樻垚寮瑰箷銆傞鐑粨鏉熷悗锛岀偣鎸夐挳鎴栫瓑寰呰嚜鍔ㄦ彃鍏ョ殑鏂版秷鎭細浠庤棰戜笂椋樿繃銆傚彲璇曠敤鏈楄銆佹偓鍋滄殏鍋溿€佸鍒跺埌杈撳叆妗嗗拰 Super Chat 鍥哄畾銆?/p>
+      <p class="hint">列表里已有的消息不会变成弹幕。预热结束后，点按钮或等待自动插入的新消息会从视频上飘过。可试用朗读、悬停暂停、复制到输入框和 Super Chat 固定。</p>
     </div>
   </div>
 
@@ -205,12 +205,12 @@
   <script>
     const samples = [
       ['Alice', '#ff8a80', 'hello from chat'],
-      ['灏忔槑', '#ffd600', '杩欐槸涓€鏉′腑鏂囧脊骞?],
+      ['小明', '#ffd600', '这是一条中文弹幕'],
       ['Bob', '#82b1ff', 'lol lol lol lol lol'],
-      ['閲嶅', '#ea80fc', '鎴戜笉鐭ラ亾鎴戜笉鐭ラ亾鎴戜笉鐭ラ亾鎴戜笉鐭ラ亾鎴戜笉鐭ラ亾'],
-      ['鏁板瓧', '#b9f6ca', '666'],
-      ['琛ㄦ儏', '#ffab91', '馃槀馃槀馃槀'],
-      ['闀垮彞', '#80d8ff', '杩欐槸涓€鏉℃瘮杈冮暱鐨勫脊骞曪紝鐢ㄦ潵璇曞惉鍙橀€熸ā寮忎細涓嶄細鍦ㄨ秴杩囧崟鏉℃渶闀挎湕璇绘椂闂翠箣鍚庤嚜鍔ㄥ姞蹇閫熴€?],
+      ['重复', '#ea80fc', '我不知道我不知道我不知道我不知道我不知道'],
+      ['数字', '#b9f6ca', '666'],
+      ['表情', '#ffab91', '😂😂😂'],
+      ['长句', '#80d8ff', '这是一条比较长的弹幕，用来试听变速模式会不会在超过单条最长朗读时间之后自动加快语速。'],
     ];
     let seq = 0;
     const scroller = document.querySelector('[data-a-target="chat-scroller"]');
