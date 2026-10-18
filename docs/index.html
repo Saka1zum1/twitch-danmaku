@@ -1,13 +1,283 @@
-<!DOCTYPE html>
-<html lang="en">
+﻿<!DOCTYPE html>
+<html lang="zh-CN" data-tbc-preview="true">
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="refresh" content="0; url=/twitch-danmaku/demo/preview.html">
-  <link rel="canonical" href="/twitch-danmaku/demo/preview.html">
-  <title>Twitch Danmaku demo</title>
-  <script>location.replace('/twitch-danmaku/demo/preview.html');</script>
+  <title>Twitch Danmaku preview</title>
+  <style>
+    body {
+      margin: 0;
+      background: #0e0e10;
+      color: #efeff1;
+      font-family: "Inter", "Roobert", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    }
+    .layout {
+      display: flex;
+      gap: 16px;
+      padding: 68px 16px 16px;
+      align-items: flex-start;
+    }
+    .page-header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 56px;
+      z-index: 2000;
+      background: #0e0e10;
+    }
+    .video-player__container {
+      position: relative;
+      width: 640px;
+      height: 360px;
+      background: #000;
+      overflow: hidden;
+    }
+    .video-player__overlay {
+      position: absolute;
+      inset: 0;
+    }
+    .fake-stage {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: #adadb8;
+      font-size: 14px;
+      background:
+        linear-gradient(135deg, rgba(145, 71, 255, 0.22), transparent 42%),
+        repeating-linear-gradient(0deg, #111 0 2px, #161616 2px 4px);
+      pointer-events: none;
+    }
+    .player-controls {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 48px;
+      z-index: 40;
+      background: linear-gradient(transparent, rgba(0, 0, 0, 0.75));
+    }
+    .player-controls__right-control-group {
+      position: absolute;
+      right: 8px;
+      top: 0;
+      height: 48px;
+      display: flex;
+      align-items: center;
+    }
+    .chat-column {
+      width: 340px;
+      height: 596px;
+      background: #18181b;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 6px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .chat-header {
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      font-weight: 600;
+      font-size: 14px;
+    }
+    [data-a-target="chat-scroller"] {
+      flex: 1;
+      overflow: auto;
+      padding: 8px 12px;
+      font-size: 13px;
+    }
+    .chat-line__message {
+      margin: 6px 0;
+      line-height: 1.4;
+      word-break: break-word;
+    }
+    .chat-author__display-name {
+      font-weight: 700;
+      margin-right: 6px;
+    }
+    .chat-line__message--emote {
+      height: 1.2em;
+      width: auto;
+      vertical-align: middle;
+      margin: 0 2px;
+    }
+    .chat-input-wrap {
+      padding: 8px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    textarea[data-a-target="chat-input"] {
+      width: 100%;
+      min-height: 40px;
+      resize: vertical;
+      border: 1px solid #3a3a3d;
+      border-radius: 6px;
+      background: #0e0e10;
+      color: #efeff1;
+      padding: 8px;
+      font: inherit;
+      box-sizing: border-box;
+    }
+    .toolbar {
+      padding: 0 8px 8px;
+      display: flex;
+      gap: 8px;
+    }
+    .toolbar button {
+      background: #9147ff;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .toolbar button.secondary {
+      background: #3a3a3d;
+    }
+    .hint {
+      margin: 0 8px 10px;
+      color: #adadb8;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+  </style>
 </head>
 <body>
-  <p><a href="/twitch-danmaku/demo/preview.html">Open demo</a></p>
+  <div class="page-header"></div>
+  <div class="layout">
+    <div class="video-player__container">
+      <div class="video-player__overlay"></div>
+      <div class="fake-stage">Twitch Danmaku demo player</div>
+      <div data-a-target="player-controls" class="player-controls">
+        <div class="player-controls__right-control-group"></div>
+      </div>
+    </div>
+
+    <div class="chat-column">
+      <div class="chat-header">Live Chat</div>
+      <div data-a-target="chat-scroller">
+        <div class="chat-line__message" data-a-target="chat-message-container">
+          <a href="/history">
+            <span data-a-target="chat-message-username" class="chat-author__display-name" style="color:#aaaaaa">History</span>
+          </a>
+          <div data-a-target="chat-line-message-body" class="chat-line__message-body">
+            <span data-a-target="chat-message-text" class="text-fragment">already on screen</span>
+          </div>
+        </div>
+      </div>
+      <div class="chat-input-wrap">
+        <textarea data-a-target="chat-input" placeholder="Send a message"></textarea>
+      </div>
+      <div class="toolbar">
+        <button id="add-chat" type="button">Add chat</button>
+        <button id="add-cheer" class="secondary" type="button">Add cheer</button>
+      </div>
+      <p class="hint">鍒楄〃閲屽凡鏈夌殑娑堟伅涓嶄細鍙樻垚寮瑰箷銆傞鐑粨鏉熷悗锛岀偣鎸夐挳鎴栫瓑寰呰嚜鍔ㄦ彃鍏ョ殑鏂版秷鎭細浠庤棰戜笂椋樿繃銆傚彲璇曠敤鏈楄銆佹偓鍋滄殏鍋溿€佸鍒跺埌杈撳叆妗嗗拰 Super Chat 鍥哄畾銆?/p>
+    </div>
+  </div>
+
+  <script>
+    function GM_addStyle(css) {
+      const style = document.createElement('style');
+      style.textContent = css;
+      document.documentElement.appendChild(style);
+    }
+    function GM_getValue(key, fallback) {
+      try {
+        const raw = localStorage.getItem('tbc-preview:' + key);
+        return raw == null ? fallback : JSON.parse(raw);
+      } catch (_) {
+        return fallback;
+      }
+    }
+    function GM_setValue(key, value) {
+      localStorage.setItem('tbc-preview:' + key, JSON.stringify(value));
+    }
+    function GM_xmlhttpRequest(details) {
+      if (details && typeof details.onerror === 'function') details.onerror({});
+    }
+    function GM_setClipboard(text) {
+      if (navigator.clipboard) return navigator.clipboard.writeText(text);
+    }
+  </script>
+  <script src="./twitch-danmaku.user.js"></script>
+  <script>
+    const samples = [
+      ['Alice', '#ff8a80', 'hello from chat'],
+      ['灏忔槑', '#ffd600', '杩欐槸涓€鏉′腑鏂囧脊骞?],
+      ['Bob', '#82b1ff', 'lol lol lol lol lol'],
+      ['閲嶅', '#ea80fc', '鎴戜笉鐭ラ亾鎴戜笉鐭ラ亾鎴戜笉鐭ラ亾鎴戜笉鐭ラ亾鎴戜笉鐭ラ亾'],
+      ['鏁板瓧', '#b9f6ca', '666'],
+      ['琛ㄦ儏', '#ffab91', '馃槀馃槀馃槀'],
+      ['闀垮彞', '#80d8ff', '杩欐槸涓€鏉℃瘮杈冮暱鐨勫脊骞曪紝鐢ㄦ潵璇曞惉鍙橀€熸ā寮忎細涓嶄細鍦ㄨ秴杩囧崟鏉℃渶闀挎湕璇绘椂闂翠箣鍚庤嚜鍔ㄥ姞蹇閫熴€?],
+    ];
+    let seq = 0;
+    const scroller = document.querySelector('[data-a-target="chat-scroller"]');
+
+    function addMessage(name, color, text, options = {}) {
+      const item = document.createElement('div');
+      item.className = 'chat-line__message';
+      item.setAttribute('data-a-target', 'chat-message-container');
+      if (options.background) item.style.backgroundColor = options.background;
+
+      const link = document.createElement('a');
+      link.href = '/' + encodeURIComponent(name.toLowerCase());
+      const author = document.createElement('span');
+      author.setAttribute('data-a-target', 'chat-message-username');
+      author.className = 'chat-author__display-name';
+      author.style.color = color;
+      author.textContent = name;
+      link.appendChild(author);
+
+      const body = document.createElement('div');
+      body.setAttribute('data-a-target', 'chat-line-message-body');
+      body.className = 'chat-line__message-body';
+
+      if (options.cheer) {
+        const img = document.createElement('img');
+        img.className = 'chat-line__message--emote';
+        img.alt = options.cheer;
+        img.src = 'https://static-cdn.jtvnw.net/bits/light/static/purple/2';
+        body.appendChild(img);
+        body.appendChild(document.createTextNode(' '));
+      }
+
+      const message = document.createElement('span');
+      message.setAttribute('data-a-target', 'chat-message-text');
+      message.className = 'text-fragment';
+      message.textContent = text;
+      body.appendChild(message);
+
+      item.append(link, body);
+      scroller.appendChild(item);
+      scroller.scrollTop = scroller.scrollHeight;
+    }
+
+    document.getElementById('add-chat').addEventListener('click', () => {
+      const sample = samples[seq % samples.length];
+      addMessage(sample[0], sample[1], sample[2] + ' ' + (++seq));
+    });
+
+    document.getElementById('add-cheer').addEventListener('click', () => {
+      addMessage('CheerFan', '#9147ff', 'thanks for the stream', {
+        cheer: 'Cheer100',
+        background: 'rgb(145, 71, 255)',
+      });
+      seq += 1;
+    });
+
+    setTimeout(() => {
+      samples.forEach((sample, index) => {
+        setTimeout(() => addMessage(sample[0], sample[1], sample[2]), index * 700);
+      });
+      setTimeout(() => {
+        addMessage('CheerFan', '#9147ff', 'thanks for the stream', {
+          cheer: 'Cheer100',
+          background: 'rgb(145, 71, 255)',
+        });
+      }, samples.length * 700);
+    }, 4000);
+  </script>
 </body>
 </html>
