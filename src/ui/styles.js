@@ -578,5 +578,148 @@ function injectStyles() {
     .tbc-switch input:checked + .tbc-switch-slider::before {
       transform: translateX(18px);
     }
+
+    .tbc-balloon-body--history {
+      max-height: min(70vh, 560px);
+    }
+
+    .tbc-history-meta,
+    .tbc-history-hint,
+    .tbc-history-status {
+      margin: 0;
+      color: #adadb8;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .tbc-history-meta {
+      padding: 8px 12px 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .tbc-history-status {
+      min-height: 1.4em;
+      padding-top: 8px;
+    }
+
+    .tbc-history-status--error {
+      color: #ff8280;
+    }
+
+    .tbc-history-status--ok {
+      color: #00f593;
+    }
+
+    .tbc-history-range {
+      position: relative;
+      height: 28px;
+    }
+
+    .tbc-history-track,
+    .tbc-history-fill {
+      position: absolute;
+      top: 12px;
+      height: 4px;
+      border-radius: 2px;
+    }
+
+    .tbc-history-track {
+      left: 0;
+      right: 0;
+      background: #3a3a3d;
+    }
+
+    .tbc-history-fill {
+      background: #9147ff;
+    }
+
+    .tbc-history-range input[type="range"] {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 28px;
+      margin: 0;
+      background: none;
+      pointer-events: none;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    .tbc-history-range input[type="range"]::-webkit-slider-runnable-track {
+      height: 4px;
+      background: transparent;
+    }
+
+    .tbc-history-range input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      pointer-events: auto;
+      width: 14px;
+      height: 14px;
+      margin-top: -5px;
+      border: 2px solid #9147ff;
+      border-radius: 50%;
+      background: #fff;
+      cursor: pointer;
+    }
+
+    .tbc-history-range input[type="range"]::-moz-range-track {
+      height: 4px;
+      background: transparent;
+      border: none;
+    }
+
+    .tbc-history-range input[type="range"]::-moz-range-thumb {
+      pointer-events: auto;
+      width: 14px;
+      height: 14px;
+      border: 2px solid #9147ff;
+      border-radius: 50%;
+      background: #fff;
+      cursor: pointer;
+    }
+
+    .tbc-history-actions {
+      padding: 4px 12px 8px;
+    }
+
+    .tbc-history-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .tbc-history-download,
+    .tbc-history-pause,
+    .tbc-history-resume,
+    .tbc-history-cancel {
+      flex: 1;
+      border: none;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 8px 12px;
+      cursor: pointer;
+      color: #fff;
+    }
+
+    .tbc-history-download,
+    .tbc-history-resume {
+      background: #9147ff;
+    }
+
+    .tbc-history-pause {
+      background: #3a3a3d;
+    }
+
+    .tbc-history-cancel {
+      background: #ad1c1c;
+    }
+
+    .tbc-history-download:disabled {
+      opacity: 0.45;
+      cursor: default;
+    }
   `);
 }

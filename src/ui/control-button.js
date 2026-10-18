@@ -1,14 +1,17 @@
 class ControlButton {
-  constructor({ onToggleDanmaku, onTogglePanel, onToggleSpeech, getSettings, isPanelOpen, isSpeechPanelOpen }) {
+  constructor({ onToggleDanmaku, onTogglePanel, onToggleSpeech, onToggleHistory, getSettings, isPanelOpen, isSpeechPanelOpen, isHistoryPanelOpen }) {
     this.onToggleDanmaku = onToggleDanmaku;
     this.onTogglePanel = onTogglePanel;
     this.onToggleSpeech = onToggleSpeech;
+    this.onToggleHistory = onToggleHistory;
     this.getSettings = getSettings;
     this.isPanelOpen = isPanelOpen;
     this.isSpeechPanelOpen = isSpeechPanelOpen;
+    this.isHistoryPanelOpen = isHistoryPanelOpen;
     this.wrap = null;
     this.danmakuBtn = null;
     this.speechBtn = null;
+    this.historyBtn = null;
     this.settingsBtn = null;
     this.controlsGroup = null;
     this.retryTimer = null;
@@ -58,7 +61,13 @@ class ControlButton {
       this.onTogglePanel(this.settingsBtn);
     });
 
-    this.wrap.append(this.danmakuBtn, this.speechBtn, this.settingsBtn);
+    this.historyBtn = this.createBtn('tbc-history-btn', t('historyToggle'), ICON_DOWNLOAD);
+    this.historyBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.onToggleHistory(this.historyBtn);
+    });
+
+    this.wrap.append(this.danmakuBtn, this.settingsBtn, this.speechBtn, this.historyBtn);
     this.controlsGroup.appendChild(this.wrap);
     this.updateDanmakuState();
     this.updateSpeechState();
@@ -66,11 +75,12 @@ class ControlButton {
   }
 
   remount() {
-    if (this.wrap?.isConnected && this.wrap.querySelector('.tbc-speech-btn')) return;
+    if (this.wrap?.isConnected && this.wrap.querySelector('.tbc-speech-btn') && this.wrap.querySelector('.tbc-history-btn')) return;
     this.wrap?.remove();
     this.wrap = null;
     this.danmakuBtn = null;
     this.speechBtn = null;
+    this.historyBtn = null;
     this.settingsBtn = null;
     clearTimeout(this.retryTimer);
     this.retryTimer = setTimeout(() => this.mount(), 500);
@@ -100,11 +110,20 @@ class ControlButton {
     this.speechBtn.setAttribute('aria-expanded', this.isSpeechPanelOpen?.() ? 'true' : 'false');
   }
 
+  updateHistoryState() {
+    if (!this.historyBtn) return;
+    const open = !!this.isHistoryPanelOpen?.();
+    this.historyBtn.classList.toggle('tbc-active', open);
+    this.historyBtn.title = t('historyToggle');
+    this.historyBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+
   updatePanelState() {
     if (!this.settingsBtn) return;
     this.settingsBtn.classList.toggle('tbc-active', this.isPanelOpen());
     this.settingsBtn.setAttribute('aria-expanded', this.isPanelOpen() ? 'true' : 'false');
     this.updateSpeechState();
+    this.updateHistoryState();
   }
 
   destroy() {
@@ -113,6 +132,7 @@ class ControlButton {
     this.wrap = null;
     this.danmakuBtn = null;
     this.speechBtn = null;
+    this.historyBtn = null;
     this.settingsBtn = null;
   }
 }

@@ -15,6 +15,7 @@ No more constantly glancing at the chat panel. Messages flow across the screen s
 3. New buttons appear in the player control bar:
    - **Danmaku button** — Toggle danmaku on/off
    - **Read button** — Open speech settings
+   - **Download button** — Export archived VOD chat
    - **Settings button** — Open the options panel
 4. Customize appearance, opacity, keyword blocking, or enable translation in the settings panel
 
@@ -45,6 +46,13 @@ No more constantly glancing at the chat panel. Messages flow across the screen s
 - Recognizes Bits cheers, highlighted messages with a paid background, and pinned chat
 - When enabled, they stay on the top or bottom of the video instead of scrolling
 - Animations: fade, slide, pop, or shine. Hover pauses the animation and shows the sender
+
+### Chat History Download
+- On a VOD page (`/videos/…`), download archived chat as JSON, CSV, or TXT
+- Filter by keyword and username. Leave a field empty to skip that filter
+- Choose whether to include Bits cheers (Super Chat), and drag a time range
+- After download starts, pause, resume, or cancel the job
+- Live pages have no archived chat. If the replay has none, the panel says so
 
 ### Keyword Block
 - Add or remove blocked keywords in the settings panel (up to 50, case-insensitive substring match)

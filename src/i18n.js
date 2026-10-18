@@ -51,6 +51,36 @@ const LOCALES = {
     speechBuffer: '保留条数',
     speechBufferHint: '超过这个数量时丢掉更早的弹幕，避免朗读一直追不上',
     speechUnsupported: '当前浏览器不支持语音朗读',
+    historyToggle: '下载聊天记录',
+    historyPanelTitle: '下载聊天记录',
+    historyKeyword: '内容关键词',
+    historyKeywordPlaceholder: '关键词，逗号分隔',
+    historyKeywordHint: '只导出包含这些词的消息。留空表示不过滤。',
+    historyUsername: '用户名',
+    historyUsernamePlaceholder: '用户名，逗号分隔',
+    historyUsernameHint: '匹配登录名或显示名。留空表示不过滤。',
+    historyIncludeSuperchat: '包含 Super Chat',
+    historyIncludeSuperchatHint: 'Super Chat 指 Bits Cheers。关闭后不导出这些消息。',
+    historyRange: '时间范围',
+    historyRangeUnknown: '未能读取时长，将下载整段聊天。',
+    historyFormat: '导出格式',
+    historyFormatJson: 'JSON',
+    historyFormatCsv: 'CSV',
+    historyFormatTxt: 'TXT',
+    historyDownload: '下载',
+    historyPause: '暂停',
+    historyResume: '继续',
+    historyCancel: '取消',
+    historyLoading: '正在读取回放…',
+    historyNeedVod: '请先打开回放页面（网址中包含 /videos/）。直播页没有可下载的历史聊天。',
+    historyMissing: '找不到这个回放，或聊天记录已不可用。',
+    historyFailed: '下载失败，请稍后再试。',
+    historyEmpty: '这段时间没有聊天记录。',
+    historyNoMatch: '没有符合筛选条件的聊天记录。',
+    historyProgress: '已获取 {count} 条',
+    historyPaused: '已暂停，已获取 {count} 条',
+    historyDone: '已导出 {count} 条',
+    historyCancelled: '已取消',
     superchatPinned: 'Super Chat 悬停',
     superchatPosition: '悬停位置',
     superchatDuration: '悬停时间',
@@ -147,6 +177,36 @@ const LOCALES = {
     speechBuffer: 'Keep latest',
     speechBufferHint: 'Older lines beyond this count are dropped so reading can catch up',
     speechUnsupported: 'Speech synthesis is not available in this browser',
+    historyToggle: 'Download chat history',
+    historyPanelTitle: 'Download chat history',
+    historyKeyword: 'Keyword',
+    historyKeywordPlaceholder: 'Keywords, comma separated',
+    historyKeywordHint: 'Export only messages that contain one of these words. Leave empty to keep all.',
+    historyUsername: 'Username',
+    historyUsernamePlaceholder: 'Usernames, comma separated',
+    historyUsernameHint: 'Matches login or display name. Leave empty to keep all.',
+    historyIncludeSuperchat: 'Include Super Chats',
+    historyIncludeSuperchatHint: 'Super Chat means Bits cheers. Turn this off to leave them out.',
+    historyRange: 'Time range',
+    historyRangeUnknown: 'Duration is unavailable, so the full chat will be downloaded.',
+    historyFormat: 'Format',
+    historyFormatJson: 'JSON',
+    historyFormatCsv: 'CSV',
+    historyFormatTxt: 'TXT',
+    historyDownload: 'Download',
+    historyPause: 'Pause',
+    historyResume: 'Resume',
+    historyCancel: 'Cancel',
+    historyLoading: 'Loading VOD…',
+    historyNeedVod: 'Open a VOD page (the URL contains /videos/). Live pages have no archived chat to download.',
+    historyMissing: 'This VOD was not found, or its chat is no longer available.',
+    historyFailed: 'Download failed. Try again later.',
+    historyEmpty: 'No chat in this time range.',
+    historyNoMatch: 'No messages match these filters.',
+    historyProgress: 'Collected {count}',
+    historyPaused: 'Paused, collected {count}',
+    historyDone: 'Exported {count}',
+    historyCancelled: 'Cancelled',
     superchatPinned: 'Pin Super Chats',
     superchatPosition: 'Pin position',
     superchatDuration: 'Pin time',
@@ -206,6 +266,14 @@ const STRINGS = LOCALES[LOCALE];
 
 function t(key) {
   return STRINGS[key] || LOCALES.en[key] || key;
+}
+
+function fill(key, vars) {
+  let text = t(key);
+  for (const [name, value] of Object.entries(vars || {})) {
+    text = text.replaceAll(`{${name}}`, String(value));
+  }
+  return text;
 }
 
 function getFontOptions() {

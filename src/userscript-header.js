@@ -24,6 +24,7 @@
 // @connect      transmart.qq.com
 // @connect      translate.volcengine.com
 // @connect      api.interpreter.caiyunai.com
+// @connect      gql.twitch.tv
 // @run-at       document-idle
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=twitch.com
 // ==/UserScript==

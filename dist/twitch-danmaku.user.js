@@ -24,6 +24,7 @@
 // @connect      transmart.qq.com
 // @connect      translate.volcengine.com
 // @connect      api.interpreter.caiyunai.com
+// @connect      gql.twitch.tv
 // @run-at       document-idle
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=twitch.com
 // ==/UserScript==
@@ -83,6 +84,36 @@ const LOCALES = {
     speechBuffer: '保留条数',
     speechBufferHint: '超过这个数量时丢掉更早的弹幕，避免朗读一直追不上',
     speechUnsupported: '当前浏览器不支持语音朗读',
+    historyToggle: '下载聊天记录',
+    historyPanelTitle: '下载聊天记录',
+    historyKeyword: '内容关键词',
+    historyKeywordPlaceholder: '关键词，逗号分隔',
+    historyKeywordHint: '只导出包含这些词的消息。留空表示不过滤。',
+    historyUsername: '用户名',
+    historyUsernamePlaceholder: '用户名，逗号分隔',
+    historyUsernameHint: '匹配登录名或显示名。留空表示不过滤。',
+    historyIncludeSuperchat: '包含 Super Chat',
+    historyIncludeSuperchatHint: 'Super Chat 指 Bits Cheers。关闭后不导出这些消息。',
+    historyRange: '时间范围',
+    historyRangeUnknown: '未能读取时长，将下载整段聊天。',
+    historyFormat: '导出格式',
+    historyFormatJson: 'JSON',
+    historyFormatCsv: 'CSV',
+    historyFormatTxt: 'TXT',
+    historyDownload: '下载',
+    historyPause: '暂停',
+    historyResume: '继续',
+    historyCancel: '取消',
+    historyLoading: '正在读取回放…',
+    historyNeedVod: '请先打开回放页面（网址中包含 /videos/）。直播页没有可下载的历史聊天。',
+    historyMissing: '找不到这个回放，或聊天记录已不可用。',
+    historyFailed: '下载失败，请稍后再试。',
+    historyEmpty: '这段时间没有聊天记录。',
+    historyNoMatch: '没有符合筛选条件的聊天记录。',
+    historyProgress: '已获取 {count} 条',
+    historyPaused: '已暂停，已获取 {count} 条',
+    historyDone: '已导出 {count} 条',
+    historyCancelled: '已取消',
     superchatPinned: 'Super Chat 悬停',
     superchatPosition: '悬停位置',
     superchatDuration: '悬停时间',
@@ -179,6 +210,36 @@ const LOCALES = {
     speechBuffer: 'Keep latest',
     speechBufferHint: 'Older lines beyond this count are dropped so reading can catch up',
     speechUnsupported: 'Speech synthesis is not available in this browser',
+    historyToggle: 'Download chat history',
+    historyPanelTitle: 'Download chat history',
+    historyKeyword: 'Keyword',
+    historyKeywordPlaceholder: 'Keywords, comma separated',
+    historyKeywordHint: 'Export only messages that contain one of these words. Leave empty to keep all.',
+    historyUsername: 'Username',
+    historyUsernamePlaceholder: 'Usernames, comma separated',
+    historyUsernameHint: 'Matches login or display name. Leave empty to keep all.',
+    historyIncludeSuperchat: 'Include Super Chats',
+    historyIncludeSuperchatHint: 'Super Chat means Bits cheers. Turn this off to leave them out.',
+    historyRange: 'Time range',
+    historyRangeUnknown: 'Duration is unavailable, so the full chat will be downloaded.',
+    historyFormat: 'Format',
+    historyFormatJson: 'JSON',
+    historyFormatCsv: 'CSV',
+    historyFormatTxt: 'TXT',
+    historyDownload: 'Download',
+    historyPause: 'Pause',
+    historyResume: 'Resume',
+    historyCancel: 'Cancel',
+    historyLoading: 'Loading VOD…',
+    historyNeedVod: 'Open a VOD page (the URL contains /videos/). Live pages have no archived chat to download.',
+    historyMissing: 'This VOD was not found, or its chat is no longer available.',
+    historyFailed: 'Download failed. Try again later.',
+    historyEmpty: 'No chat in this time range.',
+    historyNoMatch: 'No messages match these filters.',
+    historyProgress: 'Collected {count}',
+    historyPaused: 'Paused, collected {count}',
+    historyDone: 'Exported {count}',
+    historyCancelled: 'Cancelled',
     superchatPinned: 'Pin Super Chats',
     superchatPosition: 'Pin position',
     superchatDuration: 'Pin time',
@@ -238,6 +299,14 @@ const STRINGS = LOCALES[LOCALE];
 
 function t(key) {
   return STRINGS[key] || LOCALES.en[key] || key;
+}
+
+function fill(key, vars) {
+  let text = t(key);
+  for (const [name, value] of Object.entries(vars || {})) {
+    text = text.replaceAll(`{${name}}`, String(value));
+  }
+  return text;
 }
 
 function getFontOptions() {
@@ -3030,6 +3099,337 @@ function isLiveMessage(msgEl, chatRoot) {
   return false;
 }
 
+const TWITCH_GQL_URL = 'https://gql.twitch.tv/gql';
+const TWITCH_GQL_CLIENT_ID = 'kd1unb4b3q4t58fwlpcbzcbnm76a8fp';
+const VOD_COMMENTS_HASH = 'b70a3591ff0f4e0313d126c6a1502d79a1c02baebb288227c582044aa76adf6a';
+const BITS_PATTERN = '(?:^|\\s)(?:4Head|Anon|BibleThumb|BitBoss|bday|Cheer|Charity|Corgo|cheerwal|DansGame|DoodleCheer|EleGiggle|FrankerZ|FailFish|Goal|HeyGuys|HolidayCheer|Kappa|Kreygasm|MrDestructoid|Muxy|NotLikeThis|Party|Pride|PJSalt|RIPCheer|Scoops|ShowLove|Shamrock|SeemsGood|SwiftRage|Streamlabs|TriHard|uni|VoHiYo)([1-9]\\d{0,6})(?=\\s|$)';
+
+function historyError(code, message) {
+  const error = new Error(message || code);
+  error.code = code;
+  return error;
+}
+
+function currentVodId() {
+  const demoId = typeof window !== 'undefined' ? window.__TBC_DEMO_VOD_ID__ : '';
+  if (demoId) return String(demoId).replace(/\D/g, '');
+  const match = location.pathname.match(/\/(?:videos|video)\/(\d+)/i);
+  return match ? match[1] : '';
+}
+
+function playerDurationSeconds() {
+  const video = document.querySelector('video');
+  const duration = Number(video?.duration);
+  if (!Number.isFinite(duration) || duration <= 0 || duration === Infinity) return 0;
+  return Math.floor(duration);
+}
+
+function formatChatClock(seconds) {
+  const total = Math.max(0, Math.floor(Number(seconds) || 0));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const secs = total % 60;
+  const pad = (value) => String(value).padStart(2, '0');
+  return hours > 0 ? `${hours}:${pad(minutes)}:${pad(secs)}` : `${minutes}:${pad(secs)}`;
+}
+
+function fileClock(seconds) {
+  const total = Math.max(0, Math.floor(Number(seconds) || 0));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const secs = total % 60;
+  const pad = (value) => String(value).padStart(2, '0');
+  return `${pad(hours)}h${pad(minutes)}m${pad(secs)}s`;
+}
+
+function splitFilterTerms(text) {
+  return String(text || '')
+    .split(/[,，]/)
+    .map((part) => part.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function twitchGql(body) {
+  return new Promise((resolve, reject) => {
+    GM_xmlhttpRequest({
+      method: 'POST',
+      url: TWITCH_GQL_URL,
+      headers: {
+        'Client-ID': TWITCH_GQL_CLIENT_ID,
+        'Content-Type': 'application/json',
+      },
+      data: JSON.stringify(body),
+      timeout: 20000,
+      onload: (res) => {
+        const status = Number(res?.status) || 0;
+        if (status < 200 || status >= 300) {
+          reject(historyError('failed', `HTTP ${status}`));
+          return;
+        }
+        try {
+          resolve(JSON.parse(res.responseText));
+        } catch {
+          reject(historyError('failed', 'invalid json'));
+        }
+      },
+      onerror: () => reject(historyError('failed', 'network')),
+      ontimeout: () => reject(historyError('failed', 'timeout')),
+    });
+  });
+}
+
+function waitMs(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitWhilePaused(shouldPause, shouldCancel) {
+  while (shouldPause?.()) {
+    if (shouldCancel?.()) throw historyError('cancel');
+    await waitMs(120);
+  }
+  if (shouldCancel?.()) throw historyError('cancel');
+}
+
+async function fetchVodInfo(videoId) {
+  const id = String(videoId || '').replace(/\D/g, '');
+  if (!id) return null;
+  const payload = await twitchGql({
+    query: `query{video(id:"${id}"){title,createdAt,lengthSeconds,owner{displayName,login}}}`,
+  });
+  const video = payload?.data?.video;
+  if (!video) return null;
+  return {
+    id,
+    title: video.title || '',
+    createdAt: video.createdAt || '',
+    lengthSeconds: Number(video.lengthSeconds) || 0,
+    channel: video.owner?.displayName || video.owner?.login || '',
+    login: video.owner?.login || '',
+  };
+}
+
+function commentText(node) {
+  const fragments = node?.message?.fragments;
+  if (!Array.isArray(fragments)) return '';
+  return fragments.map((fragment) => fragment?.text || '').join('');
+}
+
+function commentBits(node, text) {
+  const spent = Number(node?.message?.bitsSpent);
+  if (Number.isFinite(spent) && spent > 0) return spent;
+  const matcher = new RegExp(BITS_PATTERN, 'g');
+  let total = 0;
+  let match = matcher.exec(text);
+  while (match) {
+    total += Number(match[1]) || 0;
+    match = matcher.exec(text);
+  }
+  return total;
+}
+
+function normalizeVodComment(node) {
+  const message = commentText(node).replace(/\s+/g, ' ').trim();
+  const bits = commentBits(node, message);
+  return {
+    id: node.id,
+    offsetSeconds: Number(node.contentOffsetSeconds) || 0,
+    createdAt: node.createdAt || '',
+    userId: node.commenter?.id || '',
+    login: node.commenter?.login || '',
+    displayName: (node.commenter?.displayName || node.commenter?.login || '').trim(),
+    message,
+    color: node.message?.userColor || '',
+    bits,
+    superchat: bits > 0,
+  };
+}
+
+function commentMatchesFilters(comment, keywords, usernames, includeSuperchat) {
+  if (!includeSuperchat && comment.superchat) return false;
+  if (keywords.length) {
+    const haystack = comment.message.toLowerCase();
+    if (!keywords.some((keyword) => haystack.includes(keyword))) return false;
+  }
+  if (usernames.length) {
+    const login = comment.login.toLowerCase();
+    const displayName = comment.displayName.toLowerCase();
+    if (!usernames.some((name) => login.includes(name) || displayName.includes(name))) return false;
+  }
+  return true;
+}
+
+async function downloadVodChat({
+  videoId,
+  start = 0,
+  end = Infinity,
+  keywords = '',
+  usernames = '',
+  includeSuperchat = true,
+  onProgress,
+  shouldCancel,
+  shouldPause,
+}) {
+  const id = String(videoId || '').replace(/\D/g, '');
+  if (!id) throw historyError('missing');
+
+  const rangeStart = Math.max(0, Number(start) || 0);
+  const selectedEnd = Number.isFinite(Number(end)) ? Math.max(rangeStart, Number(end)) : Infinity;
+  const rangeEnd = Number.isFinite(selectedEnd) ? selectedEnd + 1 : Infinity;
+  const keywordTerms = splitFilterTerms(keywords);
+  const usernameTerms = splitFilterTerms(usernames);
+  const comments = [];
+  const seen = new Set();
+  let cursor = '';
+  let first = true;
+  let latest = rangeStart - 1;
+  let scanned = 0;
+  let errorCount = 0;
+  let nullCount = 0;
+  let pages = 0;
+
+  while (latest < rangeEnd) {
+    await waitWhilePaused(shouldPause, shouldCancel);
+    if (++pages > 8000) throw historyError('failed', 'too many pages');
+
+    let payload;
+    try {
+      payload = await twitchGql({
+        operationName: 'VideoCommentsByOffsetOrCursor',
+        variables: first
+          ? { videoID: id, contentOffsetSeconds: Math.floor(rangeStart) }
+          : { videoID: id, cursor },
+        extensions: { persistedQuery: { version: 1, sha256Hash: VOD_COMMENTS_HASH } },
+      });
+      errorCount = Math.max(0, errorCount - 0.1);
+    } catch (error) {
+      if (++errorCount > 8) throw historyError('failed', error.message);
+      await waitMs(1000 * errorCount);
+      continue;
+    }
+
+    const video = payload?.data?.video;
+    const edges = video?.comments?.edges;
+    if (!video || !edges) {
+      if (++nullCount > 8) throw historyError(video ? 'failed' : 'missing');
+      await waitMs(150 * nullCount);
+      continue;
+    }
+    nullCount = Math.max(0, nullCount - 0.1);
+    if (!edges.length) break;
+
+    for (const edge of edges) {
+      const node = edge?.node;
+      const offset = Number(node?.contentOffsetSeconds);
+      if (Number.isFinite(offset) && offset > latest) latest = offset;
+      if (!node?.id || !node.commenter || seen.has(node.id)) continue;
+      if (!Number.isFinite(offset) || offset < rangeStart || offset >= rangeEnd) continue;
+      seen.add(node.id);
+      scanned += 1;
+      const comment = normalizeVodComment(node);
+      if (!comment.message && !comment.superchat) continue;
+      if (!commentMatchesFilters(comment, keywordTerms, usernameTerms, includeSuperchat)) continue;
+      comments.push(comment);
+    }
+
+    onProgress?.({
+      count: comments.length,
+      scanned,
+      offset: Math.max(rangeStart, latest),
+      start: rangeStart,
+      end: rangeEnd,
+    });
+
+    if (!video.comments.pageInfo?.hasNextPage) break;
+    const nextCursor = edges[edges.length - 1]?.cursor;
+    if (!nextCursor || nextCursor === cursor) break;
+    cursor = nextCursor;
+    first = false;
+  }
+
+  comments.sort((a, b) => a.offsetSeconds - b.offsetSeconds || String(a.createdAt).localeCompare(String(b.createdAt)));
+  return { comments, scanned, start: rangeStart, end: selectedEnd };
+}
+
+function csvCell(value) {
+  const text = String(value ?? '');
+  if (/[",\n\r]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
+  return text;
+}
+
+function buildChatExport(format, video, result) {
+  const comments = result.comments || [];
+  const start = result.start || 0;
+  const endLabel = Number.isFinite(result.end) ? fileClock(result.end) : 'end';
+  const base = `twitch-chat-${video.id}-${fileClock(start)}-${endLabel}`;
+  const kind = ['csv', 'txt', 'json'].includes(format) ? format : 'json';
+
+  if (kind === 'csv') {
+    const header = ['offset_seconds', 'timestamp', 'created_at', 'login', 'display_name', 'user_id', 'message', 'bits', 'superchat'];
+    const lines = comments.map((comment) => [
+      comment.offsetSeconds,
+      formatChatClock(comment.offsetSeconds),
+      comment.createdAt,
+      comment.login,
+      comment.displayName,
+      comment.userId,
+      comment.message,
+      comment.bits,
+      comment.superchat ? '1' : '0',
+    ].map(csvCell).join(','));
+    return {
+      filename: `${base}.csv`,
+      mime: 'text/csv;charset=utf-8',
+      text: `\uFEFF${header.join(',')}\n${lines.join('\n')}\n`,
+    };
+  }
+
+  if (kind === 'txt') {
+    const lines = comments.map((comment) => {
+      const bits = comment.superchat ? ` [Bits ${comment.bits}]` : '';
+      return `[${formatChatClock(comment.offsetSeconds)}] ${comment.displayName}${bits}: ${comment.message}`;
+    });
+    return {
+      filename: `${base}.txt`,
+      mime: 'text/plain;charset=utf-8',
+      text: `${lines.join('\n')}\n`,
+    };
+  }
+
+  return {
+    filename: `${base}.json`,
+    mime: 'application/json;charset=utf-8',
+    text: `${JSON.stringify({
+      video: {
+        id: video.id,
+        title: video.title,
+        channel: video.channel,
+        login: video.login,
+        createdAt: video.createdAt,
+        lengthSeconds: video.lengthSeconds,
+      },
+      range: {
+        start,
+        end: Number.isFinite(result.end) ? result.end : null,
+      },
+      count: comments.length,
+      comments,
+    }, null, 2)}\n`,
+  };
+}
+
+function saveChatFile(filename, text, mime) {
+  const blob = new Blob([text], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+
 class ChatObserver {
   constructor({ getSettings, danmakuEmitter, translateQueue, isActive }) {
     this.getSettings = getSettings;
@@ -3725,6 +4125,149 @@ function injectStyles() {
     .tbc-switch input:checked + .tbc-switch-slider::before {
       transform: translateX(18px);
     }
+
+    .tbc-balloon-body--history {
+      max-height: min(70vh, 560px);
+    }
+
+    .tbc-history-meta,
+    .tbc-history-hint,
+    .tbc-history-status {
+      margin: 0;
+      color: #adadb8;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .tbc-history-meta {
+      padding: 8px 12px 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .tbc-history-status {
+      min-height: 1.4em;
+      padding-top: 8px;
+    }
+
+    .tbc-history-status--error {
+      color: #ff8280;
+    }
+
+    .tbc-history-status--ok {
+      color: #00f593;
+    }
+
+    .tbc-history-range {
+      position: relative;
+      height: 28px;
+    }
+
+    .tbc-history-track,
+    .tbc-history-fill {
+      position: absolute;
+      top: 12px;
+      height: 4px;
+      border-radius: 2px;
+    }
+
+    .tbc-history-track {
+      left: 0;
+      right: 0;
+      background: #3a3a3d;
+    }
+
+    .tbc-history-fill {
+      background: #9147ff;
+    }
+
+    .tbc-history-range input[type="range"] {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 28px;
+      margin: 0;
+      background: none;
+      pointer-events: none;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    .tbc-history-range input[type="range"]::-webkit-slider-runnable-track {
+      height: 4px;
+      background: transparent;
+    }
+
+    .tbc-history-range input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      pointer-events: auto;
+      width: 14px;
+      height: 14px;
+      margin-top: -5px;
+      border: 2px solid #9147ff;
+      border-radius: 50%;
+      background: #fff;
+      cursor: pointer;
+    }
+
+    .tbc-history-range input[type="range"]::-moz-range-track {
+      height: 4px;
+      background: transparent;
+      border: none;
+    }
+
+    .tbc-history-range input[type="range"]::-moz-range-thumb {
+      pointer-events: auto;
+      width: 14px;
+      height: 14px;
+      border: 2px solid #9147ff;
+      border-radius: 50%;
+      background: #fff;
+      cursor: pointer;
+    }
+
+    .tbc-history-actions {
+      padding: 4px 12px 8px;
+    }
+
+    .tbc-history-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .tbc-history-download,
+    .tbc-history-pause,
+    .tbc-history-resume,
+    .tbc-history-cancel {
+      flex: 1;
+      border: none;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 8px 12px;
+      cursor: pointer;
+      color: #fff;
+    }
+
+    .tbc-history-download,
+    .tbc-history-resume {
+      background: #9147ff;
+    }
+
+    .tbc-history-pause {
+      background: #3a3a3d;
+    }
+
+    .tbc-history-cancel {
+      background: #ad1c1c;
+    }
+
+    .tbc-history-download:disabled {
+      opacity: 0.45;
+      cursor: default;
+    }
   `);
 }
 
@@ -3741,6 +4284,8 @@ const ICON_SPEECH_ON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 
 const ICON_SPEECH_MUTE = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51A8.8 8.8 0 0 0 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3 3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06a8.99 8.99 0 0 0 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4 9.91 6.09 12 8.18V4z"/></svg>`;
 
 const ICON_SPEECH_OFF = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3z"/></svg>`;
+
+const ICON_DOWNLOAD = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a1 1 0 0 1 1 1v8.59l2.3-2.3a1 1 0 0 1 1.4 1.42l-4 4a1 1 0 0 1-1.4 0l-4-4a1 1 0 1 1 1.4-1.42l2.3 2.3V4a1 1 0 0 1 1-1zM5 19a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H6a1 1 0 0 1-1-1z"/></svg>`;
 
 class SettingsPanel {
   constructor({ settings, onChange, onClose }) {
@@ -4422,17 +4967,455 @@ class SpeechPanel {
   }
 }
 
+class HistoryPanel {
+  constructor({ onClose }) {
+    this.onClose = onClose;
+    this.balloon = null;
+    this.anchor = null;
+    this.isOpen = false;
+    this.job = 0;
+    this.loadToken = 0;
+    this.state = 'idle';
+    this.paused = false;
+    this.lastCount = 0;
+    this.video = null;
+    this.videoId = '';
+    this.duration = 0;
+    this.start = 0;
+    this.end = 0;
+    this.boundReposition = () => this.reposition();
+    this.boundOutsideClick = (event) => this.handleOutsideClick(event);
+  }
+
+  toggle(anchor) {
+    if (this.isOpen && this.anchor === anchor) this.close();
+    else this.open(anchor);
+  }
+
+  open(anchor) {
+    this.close();
+    this.anchor = anchor;
+    this.isOpen = true;
+    this.render();
+    this.reposition();
+    requestAnimationFrame(() => this.reposition());
+    window.addEventListener('resize', this.boundReposition);
+    document.addEventListener('fullscreenchange', this.boundReposition);
+    document.addEventListener('webkitfullscreenchange', this.boundReposition);
+    document.addEventListener('scroll', this.boundReposition, true);
+    setTimeout(() => document.addEventListener('click', this.boundOutsideClick, true), 0);
+    this.loadVideo();
+  }
+
+  close() {
+    const wasOpen = this.isOpen;
+    this.job += 1;
+    this.loadToken += 1;
+    this.state = 'idle';
+    this.paused = false;
+    this.lastCount = 0;
+    this.isOpen = false;
+    this.anchor = null;
+    this.balloon?.remove();
+    this.balloon = null;
+    window.removeEventListener('resize', this.boundReposition);
+    document.removeEventListener('fullscreenchange', this.boundReposition);
+    document.removeEventListener('webkitfullscreenchange', this.boundReposition);
+    document.removeEventListener('scroll', this.boundReposition, true);
+    document.removeEventListener('click', this.boundOutsideClick, true);
+    if (wasOpen) this.onClose?.();
+  }
+
+  handleOutsideClick(event) {
+    if (!this.balloon || !this.isOpen) return;
+    if (this.balloon.contains(event.target)) return;
+    if (this.anchor?.contains(event.target)) return;
+    if (this.state !== 'idle') return;
+    this.close();
+  }
+
+  reposition() {
+    if (!this.balloon || !this.anchor) return;
+    const mountTarget = getFullscreenElement() || document.body;
+    if (this.balloon.parentElement !== mountTarget) mountTarget.appendChild(this.balloon);
+
+    const rect = this.anchor.getBoundingClientRect();
+    const width = 360;
+    const gap = 8;
+    const height = this.balloon.offsetHeight;
+    let left = rect.right - width;
+    let top = rect.top - height - gap;
+    left = clamp(left, 8, window.innerWidth - width - 8);
+    if (top < 8) top = rect.bottom + gap;
+    Object.assign(this.balloon.style, {
+      position: 'fixed',
+      left: `${left}px`,
+      top: `${top}px`,
+      width: `${width}px`,
+      zIndex: '100000',
+    });
+  }
+
+  setStatus(text, kind) {
+    if (!this.statusEl) return;
+    this.statusEl.textContent = text || '';
+    this.statusEl.classList.toggle('tbc-history-status--error', kind === 'error');
+    this.statusEl.classList.toggle('tbc-history-status--ok', kind === 'ok');
+  }
+
+  setDownloadState(state) {
+    this.state = state;
+    const idle = state === 'idle';
+    const running = state === 'running';
+    const paused = state === 'paused';
+    this.downloadBtn.hidden = !idle;
+    this.pauseBtn.hidden = !running;
+    this.resumeBtn.hidden = !paused;
+    this.cancelBtn.hidden = idle;
+    this.downloadBtn.disabled = !this.video;
+    for (const input of this.balloon.querySelectorAll('input, select')) {
+      if (input.closest('.tbc-history-actions')) continue;
+      input.disabled = !idle || (input.type === 'range' && !this.duration);
+    }
+  }
+
+  async loadVideo() {
+    const token = ++this.loadToken;
+    this.video = null;
+    this.videoId = currentVodId();
+    this.duration = 0;
+    this.metaEl.textContent = '';
+    this.setDownloadState('idle');
+    this.downloadBtn.disabled = true;
+    if (!this.videoId) {
+      this.syncRange();
+      this.setStatus(t('historyNeedVod'), 'error');
+      return;
+    }
+
+    this.setStatus(t('historyLoading'), '');
+    try {
+      const info = await fetchVodInfo(this.videoId);
+      if (token !== this.loadToken) return;
+      if (!info) {
+        this.syncRange();
+        this.setStatus(t('historyMissing'), 'error');
+        return;
+      }
+      this.video = info;
+      this.duration = info.lengthSeconds || playerDurationSeconds();
+      this.start = 0;
+      this.end = this.duration;
+      this.metaEl.textContent = info.title || info.id;
+      this.metaEl.title = info.title || '';
+      this.syncRange();
+      this.setDownloadState('idle');
+      this.setStatus('', '');
+    } catch {
+      if (token !== this.loadToken) return;
+      this.syncRange();
+      this.setStatus(t('historyFailed'), 'error');
+    }
+  }
+
+  syncRange() {
+    const known = this.duration > 0;
+    this.rangeWrap.hidden = !known;
+    this.rangeUnknown.hidden = known || !this.video;
+    if (!known) return;
+    this.startInput.max = String(this.duration);
+    this.endInput.max = String(this.duration);
+    this.startInput.value = String(this.start);
+    this.endInput.value = String(this.end);
+    this.updateRange();
+  }
+
+  updateRange() {
+    if (!this.duration) return;
+    const startPct = (this.start / this.duration) * 100;
+    const endPct = (this.end / this.duration) * 100;
+    this.rangeFill.style.left = `${startPct}%`;
+    this.rangeFill.style.width = `${Math.max(0, endPct - startPct)}%`;
+    this.rangeLabel.textContent = `${formatChatClock(this.start)} – ${formatChatClock(this.end)}`;
+  }
+
+  selectedFilters() {
+    return {
+      keywords: this.keywordInput.value,
+      usernames: this.usernameInput.value,
+      includeSuperchat: this.superchatInput.checked,
+      format: this.formatSelect.value,
+    };
+  }
+
+  pauseDownload() {
+    if (this.state !== 'running') return;
+    this.paused = true;
+    this.setDownloadState('paused');
+    this.setStatus(fill('historyPaused', { count: this.lastCount }), '');
+    this.reposition();
+  }
+
+  resumeDownload() {
+    if (this.state !== 'paused') return;
+    this.paused = false;
+    this.setDownloadState('running');
+    this.setStatus(fill('historyProgress', { count: this.lastCount }), '');
+  }
+
+  cancelDownload() {
+    if (this.state === 'idle') return;
+    this.job += 1;
+    this.paused = false;
+    this.setDownloadState('idle');
+    this.setStatus(t('historyCancelled'), '');
+  }
+
+  async startDownload() {
+    if (!this.video || this.state !== 'idle') return;
+    const token = ++this.job;
+    const filters = this.selectedFilters();
+    this.paused = false;
+    this.lastCount = 0;
+    this.setDownloadState('running');
+    this.setStatus(fill('historyProgress', { count: 0 }), '');
+
+    try {
+      const result = await downloadVodChat({
+        videoId: this.video.id,
+        start: this.duration ? this.start : 0,
+        end: this.duration ? this.end : Infinity,
+        keywords: filters.keywords,
+        usernames: filters.usernames,
+        includeSuperchat: filters.includeSuperchat,
+        shouldCancel: () => token !== this.job,
+        shouldPause: () => token === this.job && this.paused,
+        onProgress: ({ count }) => {
+          if (token !== this.job) return;
+          this.lastCount = count;
+          if (!this.paused) {
+            this.setStatus(fill('historyProgress', { count }), '');
+            this.reposition();
+          }
+        },
+      });
+      if (token !== this.job) return;
+      if (!result.comments.length) {
+        this.setStatus(result.scanned ? t('historyNoMatch') : t('historyEmpty'), 'error');
+        return;
+      }
+      const file = buildChatExport(filters.format, this.video, result);
+      saveChatFile(file.filename, file.text, file.mime);
+      this.setStatus(fill('historyDone', { count: result.comments.length }), 'ok');
+    } catch (error) {
+      if (token !== this.job || error?.code === 'cancel') return;
+      this.setStatus(error?.code === 'missing' ? t('historyMissing') : t('historyFailed'), 'error');
+    } finally {
+      if (token === this.job) {
+        this.paused = false;
+        this.setDownloadState('idle');
+      }
+    }
+  }
+
+  render() {
+    this.balloon = document.createElement('div');
+    this.balloon.className = 'tbc-balloon tbc-history-panel';
+
+    const header = document.createElement('div');
+    header.className = 'tbc-balloon-header';
+    const title = document.createElement('div');
+    title.className = 'tbc-balloon-title';
+    title.textContent = t('historyPanelTitle');
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'tbc-balloon-close';
+    closeBtn.textContent = t('panelClose');
+    closeBtn.addEventListener('click', (event) => {
+      event.stopPropagation();
+      this.close();
+    });
+    header.append(title, closeBtn);
+
+    const body = document.createElement('div');
+    body.className = 'tbc-balloon-body tbc-balloon-body--history';
+    this.metaEl = document.createElement('p');
+    this.metaEl.className = 'tbc-history-meta';
+    body.append(
+      this.metaEl,
+      this.createTextField('historyKeyword', 'keywordInput', 'historyKeywordPlaceholder', 'historyKeywordHint'),
+      this.createTextField('historyUsername', 'usernameInput', 'historyUsernamePlaceholder', 'historyUsernameHint'),
+      this.createSuperchatToggle(),
+      this.createRangeField(),
+      this.createFormatField(),
+      this.createActions(),
+    );
+
+    this.balloon.append(header, body);
+    this.balloon.addEventListener('click', (event) => event.stopPropagation());
+    this.balloon.addEventListener('pointerdown', (event) => event.stopPropagation());
+    (getFullscreenElement() || document.body).appendChild(this.balloon);
+  }
+
+  createTextField(labelKey, field, placeholderKey, hintKey) {
+    const row = document.createElement('div');
+    row.className = 'tbc-balloon-row tbc-balloon-row--field';
+    const label = document.createElement('span');
+    label.className = 'tbc-balloon-label';
+    label.textContent = t(labelKey);
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'tbc-balloon-input';
+    input.placeholder = t(placeholderKey);
+    input.autocomplete = 'off';
+    this[field] = input;
+    const hint = document.createElement('p');
+    hint.className = 'tbc-history-hint';
+    hint.textContent = t(hintKey);
+    row.append(label, input, hint);
+    return row;
+  }
+
+  createSuperchatToggle() {
+    const row = document.createElement('div');
+    row.className = 'tbc-balloon-row tbc-balloon-row--field';
+    const line = document.createElement('div');
+    line.className = 'tbc-balloon-row--toggle';
+    line.style.padding = '0';
+    const label = document.createElement('span');
+    label.className = 'tbc-balloon-label';
+    label.textContent = t('historyIncludeSuperchat');
+    const switchWrap = document.createElement('label');
+    switchWrap.className = 'tbc-switch';
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.checked = true;
+    const slider = document.createElement('span');
+    slider.className = 'tbc-switch-slider';
+    switchWrap.append(input, slider);
+    line.append(label, switchWrap);
+    const hint = document.createElement('p');
+    hint.className = 'tbc-history-hint';
+    hint.textContent = t('historyIncludeSuperchatHint');
+    this.superchatInput = input;
+    row.append(line, hint);
+    return row;
+  }
+
+  createRangeField() {
+    const row = document.createElement('div');
+    row.className = 'tbc-balloon-row tbc-balloon-row--field';
+    const header = document.createElement('div');
+    header.className = 'tbc-balloon-field-header';
+    const label = document.createElement('span');
+    label.className = 'tbc-balloon-label';
+    label.textContent = t('historyRange');
+    this.rangeLabel = document.createElement('span');
+    this.rangeLabel.className = 'tbc-balloon-value';
+    header.append(label, this.rangeLabel);
+
+    this.rangeWrap = document.createElement('div');
+    this.rangeWrap.className = 'tbc-history-range';
+    this.rangeWrap.hidden = true;
+    const track = document.createElement('div');
+    track.className = 'tbc-history-track';
+    this.rangeFill = document.createElement('div');
+    this.rangeFill.className = 'tbc-history-fill';
+    track.appendChild(this.rangeFill);
+
+    this.startInput = document.createElement('input');
+    this.startInput.type = 'range';
+    this.startInput.min = '0';
+    this.startInput.value = '0';
+    this.startInput.addEventListener('input', () => {
+      this.start = Math.min(Number(this.startInput.value), this.end);
+      this.startInput.value = String(this.start);
+      this.updateRange();
+    });
+    this.endInput = document.createElement('input');
+    this.endInput.type = 'range';
+    this.endInput.min = '0';
+    this.endInput.value = '0';
+    this.endInput.addEventListener('input', () => {
+      this.end = Math.max(Number(this.endInput.value), this.start);
+      this.endInput.value = String(this.end);
+      this.updateRange();
+    });
+    this.rangeWrap.append(track, this.startInput, this.endInput);
+
+    this.rangeUnknown = document.createElement('p');
+    this.rangeUnknown.className = 'tbc-history-hint';
+    this.rangeUnknown.textContent = t('historyRangeUnknown');
+    this.rangeUnknown.hidden = true;
+    row.append(header, this.rangeWrap, this.rangeUnknown);
+    return row;
+  }
+
+  createFormatField() {
+    const row = document.createElement('div');
+    row.className = 'tbc-balloon-row tbc-balloon-row--field';
+    const label = document.createElement('span');
+    label.className = 'tbc-balloon-label';
+    label.textContent = t('historyFormat');
+    this.formatSelect = document.createElement('select');
+    this.formatSelect.className = 'tbc-balloon-select';
+    for (const [value, key] of [['json', 'historyFormatJson'], ['csv', 'historyFormatCsv'], ['txt', 'historyFormatTxt']]) {
+      this.formatSelect.appendChild(new Option(t(key), value));
+    }
+    row.append(label, this.formatSelect);
+    return row;
+  }
+
+  createActionButton(className, label, onClick) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = className;
+    button.textContent = label;
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      onClick();
+    });
+    return button;
+  }
+
+  createActions() {
+    const row = document.createElement('div');
+    row.className = 'tbc-history-actions';
+    const buttons = document.createElement('div');
+    buttons.className = 'tbc-history-buttons';
+
+    this.downloadBtn = this.createActionButton('tbc-history-download', t('historyDownload'), () => this.startDownload());
+    this.pauseBtn = this.createActionButton('tbc-history-pause', t('historyPause'), () => this.pauseDownload());
+    this.resumeBtn = this.createActionButton('tbc-history-resume', t('historyResume'), () => this.resumeDownload());
+    this.cancelBtn = this.createActionButton('tbc-history-cancel', t('historyCancel'), () => this.cancelDownload());
+    this.pauseBtn.hidden = true;
+    this.resumeBtn.hidden = true;
+    this.cancelBtn.hidden = true;
+    this.downloadBtn.disabled = true;
+
+    this.statusEl = document.createElement('p');
+    this.statusEl.className = 'tbc-history-status';
+    buttons.append(this.downloadBtn, this.pauseBtn, this.resumeBtn, this.cancelBtn);
+    row.append(buttons, this.statusEl);
+    return row;
+  }
+}
+
 class ControlButton {
-  constructor({ onToggleDanmaku, onTogglePanel, onToggleSpeech, getSettings, isPanelOpen, isSpeechPanelOpen }) {
+  constructor({ onToggleDanmaku, onTogglePanel, onToggleSpeech, onToggleHistory, getSettings, isPanelOpen, isSpeechPanelOpen, isHistoryPanelOpen }) {
     this.onToggleDanmaku = onToggleDanmaku;
     this.onTogglePanel = onTogglePanel;
     this.onToggleSpeech = onToggleSpeech;
+    this.onToggleHistory = onToggleHistory;
     this.getSettings = getSettings;
     this.isPanelOpen = isPanelOpen;
     this.isSpeechPanelOpen = isSpeechPanelOpen;
+    this.isHistoryPanelOpen = isHistoryPanelOpen;
     this.wrap = null;
     this.danmakuBtn = null;
     this.speechBtn = null;
+    this.historyBtn = null;
     this.settingsBtn = null;
     this.controlsGroup = null;
     this.retryTimer = null;
@@ -4482,7 +5465,13 @@ class ControlButton {
       this.onTogglePanel(this.settingsBtn);
     });
 
-    this.wrap.append(this.danmakuBtn, this.speechBtn, this.settingsBtn);
+    this.historyBtn = this.createBtn('tbc-history-btn', t('historyToggle'), ICON_DOWNLOAD);
+    this.historyBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.onToggleHistory(this.historyBtn);
+    });
+
+    this.wrap.append(this.danmakuBtn, this.settingsBtn, this.speechBtn, this.historyBtn);
     this.controlsGroup.appendChild(this.wrap);
     this.updateDanmakuState();
     this.updateSpeechState();
@@ -4490,11 +5479,12 @@ class ControlButton {
   }
 
   remount() {
-    if (this.wrap?.isConnected && this.wrap.querySelector('.tbc-speech-btn')) return;
+    if (this.wrap?.isConnected && this.wrap.querySelector('.tbc-speech-btn') && this.wrap.querySelector('.tbc-history-btn')) return;
     this.wrap?.remove();
     this.wrap = null;
     this.danmakuBtn = null;
     this.speechBtn = null;
+    this.historyBtn = null;
     this.settingsBtn = null;
     clearTimeout(this.retryTimer);
     this.retryTimer = setTimeout(() => this.mount(), 500);
@@ -4524,11 +5514,20 @@ class ControlButton {
     this.speechBtn.setAttribute('aria-expanded', this.isSpeechPanelOpen?.() ? 'true' : 'false');
   }
 
+  updateHistoryState() {
+    if (!this.historyBtn) return;
+    const open = !!this.isHistoryPanelOpen?.();
+    this.historyBtn.classList.toggle('tbc-active', open);
+    this.historyBtn.title = t('historyToggle');
+    this.historyBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+
   updatePanelState() {
     if (!this.settingsBtn) return;
     this.settingsBtn.classList.toggle('tbc-active', this.isPanelOpen());
     this.settingsBtn.setAttribute('aria-expanded', this.isPanelOpen() ? 'true' : 'false');
     this.updateSpeechState();
+    this.updateHistoryState();
   }
 
   destroy() {
@@ -4537,6 +5536,7 @@ class ControlButton {
     this.wrap = null;
     this.danmakuBtn = null;
     this.speechBtn = null;
+    this.historyBtn = null;
     this.settingsBtn = null;
   }
 }
@@ -4548,6 +5548,7 @@ let translateQueue = null;
 let chatObserver = null;
 let settingsPanel = null;
 let speechPanel = null;
+let historyPanel = null;
 let controlButton = null;
 let stylesInjected = false;
 let navPath = location.pathname;
@@ -4599,6 +5600,7 @@ function teardown() {
   translateQueue?.clear();
   settingsPanel?.close();
   speechPanel?.close();
+  historyPanel?.close();
   cancelSpeech();
   chatObserver = null;
   danmaku = null;
@@ -4648,21 +5650,36 @@ async function boot() {
     speechPanel.settings = settings;
   }
 
+  if (!historyPanel) {
+    historyPanel = new HistoryPanel({
+      onClose: () => controlButton?.updateHistoryState(),
+    });
+  }
+
   controlButton = new ControlButton({
     onToggleDanmaku: toggleDanmaku,
     onTogglePanel: (anchor) => {
       speechPanel.close();
+      historyPanel.close();
       settingsPanel.toggle(anchor);
       controlButton.updatePanelState();
     },
     onToggleSpeech: (anchor) => {
       settingsPanel.close();
+      historyPanel.close();
       speechPanel.toggle(anchor);
+      controlButton.updatePanelState();
+    },
+    onToggleHistory: (anchor) => {
+      settingsPanel.close();
+      speechPanel.close();
+      historyPanel.toggle(anchor);
       controlButton.updatePanelState();
     },
     getSettings,
     isPanelOpen: () => settingsPanel.isOpen,
     isSpeechPanelOpen: () => speechPanel.isOpen,
+    isHistoryPanelOpen: () => historyPanel.isOpen,
   });
 
   await danmaku.mount();

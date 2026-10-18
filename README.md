@@ -13,6 +13,7 @@ A Tampermonkey userscript that turns Twitch live chat into scrolling video danma
 - **Customization** — Speed, font, opacity, and scroll area (full / top half / top quarter)
 - **Read aloud** — Optional speech for each danmaku, with voice, rate, and a pace mode that speeds up long lines
 - **Super Chat pin** — Bits cheers, highlighted paid messages, and pinned chat stay on screen with fade, slide, pop, or shine. Hover pauses them
+- **Chat history download** — On a VOD page, export archived chat as JSON, CSV, or TXT, with keyword, username, Super Chat, and time-range filters
 - **Fullscreen-aware** — Adapts to resize and fullscreen automatically
 - **Translation** — Microsoft, Google, Volcengine, Caiyun, and Tencent Transmart; batches requests during busy chat and switches engines when one is rate-limited. Skips numbers and symbols
 - **Anti-flood** — No burst when joining a stream or returning to the tab
@@ -41,8 +42,8 @@ npm run build
 3. Use the buttons in the player control bar:
    - **Danmaku button** — Toggle on/off
    - **Read button** — Open speech settings
+   - **Download button** — Export archived VOD chat
    - **Settings button** — Open the options panel
-   - **Settings button** — Open options panel
 4. Hover a danmaku to pause; click to see sender info
 5. Click the copy icon in the tooltip to paste the danmaku text into the live chat input
 6. Scrolling resumes 0.3 s after the mouse leaves (hover), or click outside the tooltip and danmaku to resume after a click
@@ -65,6 +66,18 @@ npm run build
 | Super Chat pin | Pins cheers, highlighted paid messages, and pinned chat. Hover pauses the animation |
 
 Settings are saved locally and persist across sessions.
+
+## Chat history
+
+On a replay page (`/videos/…`), use the download button in the player bar.
+
+- Filter by message keyword or username. Leave a field empty to skip that filter
+- Choose whether Bits cheers (Super Chat) are included
+- Drag the time range, then export JSON, CSV, or TXT
+- After download starts, use Pause, Resume, or Cancel
+- Live pages have no archived chat. If Twitch no longer keeps that replay's chat, the panel says so
+
+Demo (no Tampermonkey): [GitHub Pages preview](https://saka1zum1.github.io/twitch-danmaku/)
 
 ## Development
 

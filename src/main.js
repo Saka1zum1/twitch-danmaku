@@ -5,6 +5,7 @@ let translateQueue = null;
 let chatObserver = null;
 let settingsPanel = null;
 let speechPanel = null;
+let historyPanel = null;
 let controlButton = null;
 let stylesInjected = false;
 let navPath = location.pathname;
@@ -56,6 +57,7 @@ function teardown() {
   translateQueue?.clear();
   settingsPanel?.close();
   speechPanel?.close();
+  historyPanel?.close();
   cancelSpeech();
   chatObserver = null;
   danmaku = null;
@@ -105,21 +107,36 @@ async function boot() {
     speechPanel.settings = settings;
   }
 
+  if (!historyPanel) {
+    historyPanel = new HistoryPanel({
+      onClose: () => controlButton?.updateHistoryState(),
+    });
+  }
+
   controlButton = new ControlButton({
     onToggleDanmaku: toggleDanmaku,
     onTogglePanel: (anchor) => {
       speechPanel.close();
+      historyPanel.close();
       settingsPanel.toggle(anchor);
       controlButton.updatePanelState();
     },
     onToggleSpeech: (anchor) => {
       settingsPanel.close();
+      historyPanel.close();
       speechPanel.toggle(anchor);
+      controlButton.updatePanelState();
+    },
+    onToggleHistory: (anchor) => {
+      settingsPanel.close();
+      speechPanel.close();
+      historyPanel.toggle(anchor);
       controlButton.updatePanelState();
     },
     getSettings,
     isPanelOpen: () => settingsPanel.isOpen,
     isSpeechPanelOpen: () => speechPanel.isOpen,
+    isHistoryPanelOpen: () => historyPanel.isOpen,
   });
 
   await danmaku.mount();
