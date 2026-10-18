@@ -70,6 +70,11 @@ No more constantly glancing at the chat panel. Messages flow across the screen s
 - UI auto-detects browser language (Chinese / English)
 - Zero external dependencies — lightweight and fast
 
+### Demo
+Open the demo in your browser. No install or build step is required:
+
+[Twitch Danmaku demo](https://saka1zum1.github.io/twitch-danmaku/)
+
 ---
 
 ## FAQ

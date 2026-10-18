@@ -5559,6 +5559,7 @@ function getSettings() {
 }
 
 function isActive() {
+  if (document.documentElement.dataset.tbcPreview === 'true') return true;
   return pageActive;
 }
 
@@ -5582,6 +5583,10 @@ function toggleDanmaku() {
 }
 
 function handleVisibilityChange() {
+  if (document.documentElement.dataset.tbcPreview === 'true') {
+    pageActive = true;
+    return;
+  }
   const wasActive = pageActive;
   pageActive = isPageActive();
 

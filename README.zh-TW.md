@@ -77,14 +77,14 @@ npm run build
 - 下載開始後可暫停、繼續或取消
 - 直播頁沒有可下載的歷史聊天。若 Twitch 已不再保留該重播的聊天，面板會提示失敗或沒有紀錄
 
-示範頁（無需油猴）：[GitHub Pages 預覽](https://saka1zum1.github.io/twitch-danmaku/)
-
 ## 開發
 
 ```bash
 npm run build
 npm run watch
 ```
+
+公開演示不需要建置：[Twitch 彈幕演示](https://saka1zum1.github.io/twitch-danmaku/)。它用頁面代替觀看頁（播放器、控制列、聊天列表）。列表裡已有的訊息不會滾動；預熱結束後新加的訊息會從畫面上飄過。朗讀按鈕和朗讀面板可以在這個頁面裡試用。預覽頁在瀏覽器分頁位於背景時也會繼續跑。
 
 ## 注意事項
 

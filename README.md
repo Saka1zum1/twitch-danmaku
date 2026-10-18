@@ -77,14 +77,14 @@ On a replay page (`/videos/…`), use the download button in the player bar.
 - After download starts, use Pause, Resume, or Cancel
 - Live pages have no archived chat. If Twitch no longer keeps that replay's chat, the panel says so
 
-Demo (no Tampermonkey): [GitHub Pages preview](https://saka1zum1.github.io/twitch-danmaku/)
-
 ## Development
 
 ```bash
 npm run build
 npm run watch
 ```
+
+The public demo needs no build step: [Twitch Danmaku demo](https://saka1zum1.github.io/twitch-danmaku/). It stands in for a watch page (player, control bar, and chat list). Lines already in the list stay put; lines added after the short warm-up scroll across the video. The read-aloud button and speech panel work on this page. The preview keeps running when its browser tab is in the background.
 
 ## Notes
 
