@@ -41,7 +41,7 @@ function getFullscreenElement() {
 }
 
 function getDanmakuMount(item) {
-  return item.closest('.tbc-danmaku-layer')?.parentElement || null;
+  return item.closest('.tbc-danmaku-layer, .tbc-superchat-layer')?.parentElement || null;
 }
 
 function getTwitchProfileUrl(usernameEl, displayName) {

@@ -10,7 +10,9 @@ A Tampermonkey userscript that turns Twitch live chat into scrolling video danma
 - **Sender colors** — Content only; each chatter gets a unique color
 - **Interactive pause** — Hover or click to pause; click to reveal sender (and original text when translated)
 - **Copy to chat** — Click a danmaku, then use the copy button in the tooltip to paste the message into the live chat input
-- **Customization** — Speed, font, scroll area (full / top half / top quarter)
+- **Customization** — Speed, font, opacity, and scroll area (full / top half / top quarter)
+- **Read aloud** — Optional speech for each danmaku, with voice, rate, and a pace mode that speeds up long lines
+- **Super Chat pin** — Bits cheers, highlighted paid messages, and pinned chat stay on screen with fade, slide, pop, or shine. Hover pauses them
 - **Fullscreen-aware** — Adapts to resize and fullscreen automatically
 - **Translation** — Microsoft, Google, Volcengine, Caiyun, and Tencent Transmart; batches requests during busy chat and switches engines when one is rate-limited. Skips numbers and symbols
 - **Anti-flood** — No burst when joining a stream or returning to the tab
@@ -36,8 +38,10 @@ npm run build
 
 1. Open any Twitch live stream
 2. New chat messages appear as danmaku on the video
-3. Use the two buttons in the player control bar:
+3. Use the buttons in the player control bar:
    - **Danmaku button** — Toggle on/off
+   - **Read button** — Open speech settings
+   - **Settings button** — Open the options panel
    - **Settings button** — Open options panel
 4. Hover a danmaku to pause; click to see sender info
 5. Click the copy icon in the tooltip to paste the danmaku text into the live chat input
@@ -57,6 +61,8 @@ npm run build
 | Target language | Source auto-detected |
 | Translation speed | 1–10 messages/sec. Busy chat is batched into fewer requests so one engine is not flooded |
 | Block keywords | Hides a danmaku when the original or the translation contains a keyword |
+| Read aloud | Speaks each danmaku. With translation on, the translated text is read |
+| Super Chat pin | Pins cheers, highlighted paid messages, and pinned chat. Hover pauses the animation |
 
 Settings are saved locally and persist across sessions.
 

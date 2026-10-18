@@ -147,6 +147,41 @@ function extractMessageParts(msgEl) {
   return dedupeParts(parts);
 }
 
+function usableCssColor(value) {
+  if (!value || value === 'transparent' || value === 'rgba(0, 0, 0, 0)') return '';
+  return value;
+}
+
+function hasCheer(msgEl) {
+  return [...msgEl.querySelectorAll('img')].some((img) => {
+    const src = img.getAttribute('src') || '';
+    const alt = img.getAttribute('alt') || '';
+    return /\/bits\//i.test(src) || /^cheer\d+/i.test(alt);
+  });
+}
+
+function paidBackground(msgEl) {
+  const nodes = [msgEl, msgEl.querySelector('.chat-line__message-container')].filter(Boolean);
+  for (const node of nodes) {
+    const color = usableCssColor(node.style?.backgroundColor);
+    if (color) return color;
+    const styled = node.querySelector?.('[style*="background"]');
+    const nested = usableCssColor(styled?.style?.backgroundColor);
+    if (nested) return nested;
+  }
+  return '';
+}
+
+function readSuperchatStyle(msgEl) {
+  const pinned = !!msgEl.closest('[data-test-selector="pinned-chat"], [data-test-selector="pinned-message"], [class*="pinned-chat"], [class*="paid-pinned"]');
+  const cheer = hasCheer(msgEl);
+  const background = paidBackground(msgEl);
+  if (!cheer && !pinned && !background) return null;
+  const textNode = msgEl.querySelector('[data-a-target="chat-message-text"], .text-fragment');
+  const color = usableCssColor(textNode && getComputedStyle(textNode).color) || '#ffffff';
+  return { background: background || '#9147ff', color };
+}
+
 function parseChatMessage(msgEl) {
   if (msgEl.classList.contains('tbc-processed')) return null;
   if (msgEl.closest('.tbc-processed')) return null;
@@ -161,7 +196,16 @@ function parseChatMessage(msgEl) {
   const profileUrl = getTwitchProfileUrl(usernameEl, username);
 
   msgEl.classList.add('tbc-processed');
-  return { message, parts, username, usernameColor, profileUrl };
+  const superchatStyle = readSuperchatStyle(msgEl);
+  return {
+    message,
+    parts,
+    username,
+    usernameColor,
+    profileUrl,
+    superchat: !!superchatStyle,
+    superchatStyle,
+  };
 }
 
 function markExistingMessages(chatRoot) {

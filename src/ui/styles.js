@@ -215,6 +215,157 @@ function injectStyles() {
       opacity: 0.55;
     }
 
+    .tbc-speech-btn .tbc-icon {
+      display: none;
+      line-height: 0;
+    }
+
+    .tbc-speech-btn.tbc-speech-on .tbc-icon-on,
+    .tbc-speech-btn.tbc-speech-mute .tbc-icon-mute,
+    .tbc-speech-btn.tbc-speech-off .tbc-icon-off {
+      display: block;
+    }
+
+    .tbc-speech-btn.tbc-speech-mute,
+    .tbc-speech-btn.tbc-speech-off {
+      opacity: 0.55;
+    }
+
+    .tbc-superchat-layer {
+      pointer-events: none;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      overflow: visible;
+    }
+
+    .tbc-superchat-item {
+      position: relative;
+      max-width: calc(100% - 24px);
+      padding: 6px 16px;
+      border-radius: 999px;
+      font-weight: 700;
+      line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      pointer-events: auto;
+      cursor: pointer;
+      animation-duration: var(--tbc-sc-duration, 6s);
+      animation-timing-function: ease;
+      animation-fill-mode: forwards;
+    }
+
+    .tbc-superchat-item.tbc-sc-fade,
+    .tbc-superchat-item.tbc-sc-shine {
+      animation-name: tbc-sc-fade;
+    }
+
+    .tbc-superchat-item.tbc-sc-slide {
+      animation-name: tbc-sc-slide;
+    }
+
+    .tbc-superchat-layer.tbc-sc-bottom .tbc-superchat-item.tbc-sc-slide {
+      animation-name: tbc-sc-slide-up;
+    }
+
+    .tbc-superchat-item.tbc-sc-pop {
+      animation-name: tbc-sc-pop;
+    }
+
+    .tbc-superchat-item.tbc-sc-shine::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(110deg, transparent 28%, rgba(255, 255, 255, 0.55) 50%, transparent 72%);
+      transform: translateX(-130%);
+      animation: tbc-sc-shine-sweep 1.15s ease 0.25s;
+      pointer-events: none;
+    }
+
+    .tbc-superchat-item.tbc-paused,
+    .tbc-superchat-item.tbc-paused.tbc-click-locked,
+    .tbc-superchat-item.tbc-paused::after {
+      animation-play-state: paused;
+    }
+
+    .tbc-superchat-item.tbc-paused,
+    .tbc-superchat-item.tbc-paused.tbc-click-locked {
+      z-index: 20;
+    }
+
+    @keyframes tbc-sc-fade {
+      0% { opacity: 0; }
+      12% { opacity: 1; }
+      88% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+    @keyframes tbc-sc-slide {
+      0% { opacity: 0; transform: translateY(-14px); }
+      14% { opacity: 1; transform: translateY(0); }
+      86% { opacity: 1; transform: translateY(0); }
+      100% { opacity: 0; transform: translateY(10px); }
+    }
+
+    @keyframes tbc-sc-slide-up {
+      0% { opacity: 0; transform: translateY(14px); }
+      14% { opacity: 1; transform: translateY(0); }
+      86% { opacity: 1; transform: translateY(0); }
+      100% { opacity: 0; transform: translateY(-10px); }
+    }
+
+    @keyframes tbc-sc-pop {
+      0% { opacity: 0; transform: scale(0.7); }
+      16% { opacity: 1; transform: scale(1); }
+      86% { opacity: 1; transform: scale(1); }
+      100% { opacity: 0; transform: scale(0.92); }
+    }
+
+    @keyframes tbc-sc-shine-sweep {
+      from { transform: translateX(-130%); }
+      to { transform: translateX(130%); }
+    }
+
+    .tbc-balloon-body--speech {
+      max-height: min(70vh, 520px);
+    }
+
+    .tbc-speech-test {
+      display: flex;
+      gap: 6px;
+    }
+
+    .tbc-balloon-input {
+      flex: 1;
+      min-width: 0;
+      padding: 6px 8px;
+      border: 1px solid #3a3a3d;
+      border-radius: 4px;
+      background: #0e0e10;
+      color: #efeff1;
+      font-size: 13px;
+    }
+
+    .tbc-speech-play {
+      flex-shrink: 0;
+      min-width: 36px;
+      border: none;
+      border-radius: 4px;
+      background: #3a3a3d;
+      color: #efeff1;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .tbc-speech-note {
+      margin: 0;
+      padding: 0 12px 8px;
+      color: #adadb8;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
     .tbc-balloon {
       background: #26262c;
       color: #efeff1;

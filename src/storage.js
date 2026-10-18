@@ -11,6 +11,19 @@ function loadSettings() {
       }
       merged.blockedKeywords = sanitizeBlockedKeywords(merged.blockedKeywords);
       merged.danmakuOpacity = clamp(Number(merged.danmakuOpacity) || DEFAULT_SETTINGS.danmakuOpacity, 10, 100);
+      merged.speechEnabled = !!merged.speechEnabled;
+      merged.speechVolume = clamp(finiteNumber(merged.speechVolume, DEFAULT_SETTINGS.speechVolume), 0, 100);
+      merged.speechPitch = clamp(finiteNumber(merged.speechPitch, DEFAULT_SETTINGS.speechPitch), 0, 200);
+      merged.speechRate = clamp(finiteNumber(merged.speechRate, DEFAULT_SETTINGS.speechRate), 50, 200);
+      merged.speechPace = merged.speechPace !== false;
+      merged.speechMaxSeconds = clamp(finiteNumber(merged.speechMaxSeconds, DEFAULT_SETTINGS.speechMaxSeconds), 1, 15);
+      merged.speechBuffer = clamp(finiteNumber(merged.speechBuffer, DEFAULT_SETTINGS.speechBuffer), 1, 25);
+      merged.speechVoice = typeof merged.speechVoice === 'string' ? merged.speechVoice : '';
+      merged.speechLang = typeof merged.speechLang === 'string' ? merged.speechLang : '';
+      merged.superchatPinned = !!merged.superchatPinned;
+      if (!['top', 'bottom'].includes(merged.superchatPosition)) merged.superchatPosition = 'top';
+      if (!['fade', 'slide', 'pop', 'shine'].includes(merged.superchatAnimation)) merged.superchatAnimation = 'slide';
+      merged.superchatDuration = clamp(finiteNumber(merged.superchatDuration, DEFAULT_SETTINGS.superchatDuration), 2, 15);
       return merged;
     }
   } catch (_) {
@@ -21,6 +34,11 @@ function loadSettings() {
 
 function saveSettings(settings) {
   GM_setValue(STORAGE_KEY, settings);
+}
+
+function finiteNumber(value, fallback) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
 }
 
 const BLOCKED_KEYWORD_LIMIT = 50;

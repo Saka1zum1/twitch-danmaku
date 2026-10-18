@@ -4,6 +4,7 @@ let danmakuEmitter = null;
 let translateQueue = null;
 let chatObserver = null;
 let settingsPanel = null;
+let speechPanel = null;
 let controlButton = null;
 let stylesInjected = false;
 let navPath = location.pathname;
@@ -21,8 +22,12 @@ function onSettingsChange(newSettings) {
   settings = newSettings;
   danmaku?.updateLayout();
   controlButton?.updateDanmakuState();
+  controlButton?.updateSpeechState();
   if (!settings.translateEnabled) {
     translateQueue?.clear();
+  }
+  if (!settings.speechEnabled || Number(settings.speechVolume) <= 0) {
+    cancelSpeech();
   }
 }
 
@@ -39,6 +44,7 @@ function handleVisibilityChange() {
   if (wasActive && !pageActive) {
     danmakuEmitter?.clear();
     translateQueue?.clear();
+    cancelSpeech();
   }
 }
 
@@ -49,6 +55,8 @@ function teardown() {
   danmakuEmitter?.clear();
   translateQueue?.clear();
   settingsPanel?.close();
+  speechPanel?.close();
+  cancelSpeech();
   chatObserver = null;
   danmaku = null;
   danmakuEmitter = null;
@@ -64,6 +72,8 @@ async function boot() {
     injectStyles();
     stylesInjected = true;
   }
+
+  ensureSpeechSpeaker(getSettings);
 
   danmaku = new DanmakuEngine(getSettings);
   danmakuEmitter = new DanmakuEmitter(danmaku, getSettings, isActive);
@@ -85,14 +95,31 @@ async function boot() {
     settingsPanel.settings = settings;
   }
 
+  if (!speechPanel) {
+    speechPanel = new SpeechPanel({
+      settings,
+      onChange: onSettingsChange,
+      onClose: () => controlButton?.updateSpeechState(),
+    });
+  } else {
+    speechPanel.settings = settings;
+  }
+
   controlButton = new ControlButton({
     onToggleDanmaku: toggleDanmaku,
     onTogglePanel: (anchor) => {
+      speechPanel.close();
       settingsPanel.toggle(anchor);
+      controlButton.updatePanelState();
+    },
+    onToggleSpeech: (anchor) => {
+      settingsPanel.close();
+      speechPanel.toggle(anchor);
       controlButton.updatePanelState();
     },
     getSettings,
     isPanelOpen: () => settingsPanel.isOpen,
+    isSpeechPanelOpen: () => speechPanel.isOpen,
   });
 
   await danmaku.mount();

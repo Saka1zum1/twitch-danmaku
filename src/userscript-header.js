@@ -2,11 +2,13 @@
 // @name         Twitch Danmaku - Bullet Chat
 // @name:zh-CN   Twitch 弹幕
 // @name:zh-TW   Twitch 弹幕
+// @name:ja      Twitch 弾幕
 // @namespace    https://github.com/saka1zum1/twitch-danmaku
-// @version      1.4.0
+// @version      1.5.0
 // @description  Convert Twitch live chat to video danmaku with real-time translation
 // @description:zh-CN  将 Twitch 直播评论转换为视频弹幕，支持实时翻译
 // @description:zh-TW  將聊天室中的新訊息轉換成影片上的滾動彈幕，支持即時翻譯
+// @description:ja      Twitch のチャットをリアルタイム翻訳付きで動画の弾幕に変換します
 // @author       KaKa
 // @license      MIT
 // @match        https://www.twitch.tv/*

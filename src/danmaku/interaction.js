@@ -25,7 +25,7 @@ function showClickLockBackdrop(mount) {
   clickLockBackdrop.className = 'tbc-click-lock-backdrop';
   clickLockBackdrop.addEventListener('pointerdown', (e) => {
     const otherDanmaku = document.elementsFromPoint(e.clientX, e.clientY)
-      .find((el) => el.classList?.contains('tbc-danmaku-item') && el !== activeTooltipItem);
+      .find((el) => (el.classList?.contains('tbc-danmaku-item') || el.classList?.contains('tbc-superchat-item')) && el !== activeTooltipItem);
 
     hideDanmakuTooltip();
 
@@ -63,7 +63,7 @@ function ensureTooltipDismissListener() {
   document.addEventListener('pointerdown', (e) => {
     if (!activeTooltip) return;
     if (activeTooltip.contains(e.target)) return;
-    if (e.target.closest('.tbc-danmaku-item') === activeTooltipItem) return;
+    if (e.target.closest('.tbc-danmaku-item, .tbc-superchat-item') === activeTooltipItem) return;
     if (clickLockBackdrop?.contains(e.target)) return;
     hideDanmakuTooltip();
   }, true);

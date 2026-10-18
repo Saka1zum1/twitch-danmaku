@@ -79,6 +79,8 @@ class ChatObserver {
       usernameColor: parsed.usernameColor,
       profileUrl: parsed.profileUrl,
       originalMessage: parsed.message,
+      superchat: !!parsed.superchat,
+      superchatStyle: parsed.superchatStyle || null,
     };
 
     const hasTranslatableText = parsed.parts.some((part) => (
