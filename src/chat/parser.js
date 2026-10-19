@@ -98,8 +98,7 @@ function dedupeParts(parts) {
 }
 
 function extractMessageParts(msgEl) {
-  const root = msgEl.querySelector('[data-a-target="chat-line-message-body"]')
-    || msgEl.querySelector('.chat-line__message-body');
+  const root = msgEl.querySelector(SELECTORS.chatMessageBody);
   if (!root) return [];
 
   const parts = [];
@@ -125,11 +124,18 @@ function extractMessageParts(msgEl) {
     }
     if (node.nodeType !== Node.ELEMENT_NODE) return;
 
-    if (node.matches('.chat-badge, [data-a-target="chat-badge"], .chat-line__icons, .chat-line__username, [data-a-target="chat-message-username"]')) {
+    if (node.matches('.chat-badge, [data-a-target="chat-badge"], .chat-line__icons, .chat-line__username, [data-a-target="chat-message-username"], .video-chat__message-author, .vod-message__header, .video-chat__message-menu')) {
+      return;
+    }
+
+    // VOD chat puts a lone ":" separator before the message body text.
+    if (!node.querySelector('img, [data-a-target="emote-name"], [data-a-target="chat-message-text"]')
+      && node.textContent?.trim() === ':') {
       return;
     }
 
     if (node.tagName === 'IMG') {
+      if (node.classList.contains('chat-badge') || node.closest('[data-a-target="chat-badge"]')) return;
       pushEmote(node);
       return;
     }

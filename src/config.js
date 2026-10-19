@@ -28,10 +28,11 @@ const DEFAULT_SETTINGS = {
 };
 
 const SELECTORS = {
-  chatScroller: '[data-a-target="chat-scroller"]',
-  chatMessage: '[data-a-target="chat-message-container"], .chat-line__message, [data-test-selector="chat-message"]',
+  chatScroller: '[data-a-target="chat-scroller"], .video-chat__message-list-wrapper',
+  chatMessage: '[data-a-target="chat-message-container"], .chat-line__message, [data-test-selector="chat-message"], .vod-message',
   chatText: 'span[data-a-target="chat-message-text"], span.text-fragment',
   chatUsername: '[data-a-target="chat-message-username"], .chat-author__display-name, .chat-line__username',
+  chatMessageBody: '[data-a-target="chat-line-message-body"], .chat-line__message-body, .video-chat__message',
   videoPlayer: '.video-player__container',
   videoOverlay: '.video-player__overlay',
   playerControlsRoot: '[data-a-target="player-controls"], .player-controls',

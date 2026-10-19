@@ -11,7 +11,7 @@ No more constantly glancing at the chat panel. Messages flow across the screen s
 ## How to Use
 
 1. Install the [Tampermonkey](https://www.tampermonkey.net/) extension
-2. Install this script, then open any Twitch live stream
+2. Install this script, then open any Twitch live stream or VOD
 3. New buttons appear in the player control bar:
    - **Danmaku button** — Toggle danmaku on/off
    - **Read button** — Open speech settings
@@ -27,6 +27,7 @@ No more constantly glancing at the chat panel. Messages flow across the screen s
 
 ### Live Danmaku
 - Automatically captures new chat messages and displays them on the video
+- Works on live streams and VOD pages (synced video chat / `.vod-message`)
 - Shows message content only — each sender gets a unique color
 - Hover or click any danmaku to pause it
 - Click to reveal a bubble shows sender, use the copy button in the bubble to paste the message into the live chat input

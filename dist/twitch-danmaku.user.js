@@ -4,7 +4,7 @@
 // @name:zh-TW   Twitch 弹幕
 // @name:ja      Twitch 弾幕
 // @namespace    https://github.com/saka1zum1/twitch-danmaku
-// @version      1.6.0
+// @version      1.6.1
 // @description  Convert Twitch live chat to video danmaku with real-time translation
 // @description:zh-CN  将 Twitch 直播评论转换为视频弹幕，支持实时翻译
 // @description:zh-TW  將聊天室中的新訊息轉換成影片上的滾動彈幕，支持即時翻譯
@@ -416,10 +416,11 @@ const DEFAULT_SETTINGS = {
 };
 
 const SELECTORS = {
-  chatScroller: '[data-a-target="chat-scroller"]',
-  chatMessage: '[data-a-target="chat-message-container"], .chat-line__message, [data-test-selector="chat-message"]',
+  chatScroller: '[data-a-target="chat-scroller"], .video-chat__message-list-wrapper',
+  chatMessage: '[data-a-target="chat-message-container"], .chat-line__message, [data-test-selector="chat-message"], .vod-message',
   chatText: 'span[data-a-target="chat-message-text"], span.text-fragment',
   chatUsername: '[data-a-target="chat-message-username"], .chat-author__display-name, .chat-line__username',
+  chatMessageBody: '[data-a-target="chat-line-message-body"], .chat-line__message-body, .video-chat__message',
   videoPlayer: '.video-player__container',
   videoOverlay: '.video-player__overlay',
   playerControlsRoot: '[data-a-target="player-controls"], .player-controls',
@@ -2969,8 +2970,7 @@ function dedupeParts(parts) {
 }
 
 function extractMessageParts(msgEl) {
-  const root = msgEl.querySelector('[data-a-target="chat-line-message-body"]')
-    || msgEl.querySelector('.chat-line__message-body');
+  const root = msgEl.querySelector(SELECTORS.chatMessageBody);
   if (!root) return [];
 
   const parts = [];
@@ -2996,11 +2996,18 @@ function extractMessageParts(msgEl) {
     }
     if (node.nodeType !== Node.ELEMENT_NODE) return;
 
-    if (node.matches('.chat-badge, [data-a-target="chat-badge"], .chat-line__icons, .chat-line__username, [data-a-target="chat-message-username"]')) {
+    if (node.matches('.chat-badge, [data-a-target="chat-badge"], .chat-line__icons, .chat-line__username, [data-a-target="chat-message-username"], .video-chat__message-author, .vod-message__header, .video-chat__message-menu')) {
+      return;
+    }
+
+    // VOD chat puts a lone ":" separator before the message body text.
+    if (!node.querySelector('img, [data-a-target="emote-name"], [data-a-target="chat-message-text"]')
+      && node.textContent?.trim() === ':') {
       return;
     }
 
     if (node.tagName === 'IMG') {
+      if (node.classList.contains('chat-badge') || node.closest('[data-a-target="chat-badge"]')) return;
       pushEmote(node);
       return;
     }
@@ -3450,6 +3457,9 @@ class ChatObserver {
 
     markExistingMessages(this.chatRoot);
     this.readyAt = Date.now();
+    this.isVodChat = !!this.chatRoot.closest('.video-chat')
+      || this.chatRoot.classList.contains('video-chat__message-list-wrapper')
+      || !!this.chatRoot.querySelector('.vod-message');
 
     this.observer = new MutationObserver((mutations) => {
       if (!this.isActive()) return;
@@ -3462,13 +3472,14 @@ class ChatObserver {
     });
 
     this.observer.observe(this.chatRoot, { childList: true, subtree: true });
-    console.log('[TBC] Chat observer started');
+    console.log(`[TBC] Chat observer started (${this.isVodChat ? 'vod' : 'live'})`);
   }
 
   stop() {
     this.observer?.disconnect();
     this.observer = null;
     this.chatRoot = null;
+    this.isVodChat = false;
   }
 
   shouldEmit(msgEl) {

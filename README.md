@@ -6,7 +6,7 @@ A Tampermonkey userscript that turns Twitch live chat into scrolling video danma
 
 ## Features
 
-- **Live danmaku** — New chat messages scroll across the video player
+- **Live danmaku** — New chat messages scroll across the video player (live streams and VOD video chat)
 - **Sender colors** — Content only; each chatter gets a unique color
 - **Interactive pause** — Hover or click to pause; click to reveal sender (and original text when translated)
 - **Copy to chat** — Click a danmaku, then use the copy button in the tooltip to paste the message into the live chat input
@@ -37,8 +37,8 @@ npm run build
 
 ## Usage
 
-1. Open any Twitch live stream
-2. New chat messages appear as danmaku on the video
+1. Open any Twitch live stream or VOD (`/videos/…`)
+2. New chat messages appear as danmaku on the video (VOD uses the synced video chat panel)
 3. Use the buttons in the player control bar:
    - **Danmaku button** — Toggle on/off
    - **Read button** — Open speech settings

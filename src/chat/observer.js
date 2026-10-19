@@ -18,6 +18,9 @@ class ChatObserver {
 
     markExistingMessages(this.chatRoot);
     this.readyAt = Date.now();
+    this.isVodChat = !!this.chatRoot.closest('.video-chat')
+      || this.chatRoot.classList.contains('video-chat__message-list-wrapper')
+      || !!this.chatRoot.querySelector('.vod-message');
 
     this.observer = new MutationObserver((mutations) => {
       if (!this.isActive()) return;
@@ -30,13 +33,14 @@ class ChatObserver {
     });
 
     this.observer.observe(this.chatRoot, { childList: true, subtree: true });
-    console.log('[TBC] Chat observer started');
+    console.log(`[TBC] Chat observer started (${this.isVodChat ? 'vod' : 'live'})`);
   }
 
   stop() {
     this.observer?.disconnect();
     this.observer = null;
     this.chatRoot = null;
+    this.isVodChat = false;
   }
 
   shouldEmit(msgEl) {
