@@ -13,9 +13,9 @@ A Tampermonkey userscript that turns Twitch live chat into scrolling video danma
 - **Customization** — Speed, font, opacity, and scroll area (full / top half / top quarter)
 - **Read aloud** — Optional speech for each danmaku, with voice, rate, and a pace mode that speeds up long lines
 - **Super Chat pin** — Bits cheers, highlighted paid messages, and pinned chat stay on screen with fade, slide, pop, or shine. Hover pauses them
-- **Chat history download** — On a VOD page, export archived chat as JSON, CSV, or TXT, with keyword, username, Super Chat, and time-range filters
+- **Chat history download** — On live pages, export messages currently in the chat panel; on VOD pages, export archived chat via Twitch. JSON, CSV, or TXT, with keyword, username, Super Chat, and (VOD) time-range filters
 - **Fullscreen-aware** — Adapts to resize and fullscreen automatically
-- **Translation** — Microsoft, Google, Volcengine, Caiyun, and Tencent Transmart; batches requests during busy chat and switches engines when one is rate-limited. Skips numbers and symbols
+- **Translation** — Microsoft, Google, Volcengine, Caiyun, and Tencent Transmart; batches requests during busy chat and switches engines when one is rate-limited. Skips numbers and symbols. Optionally shows a Twitch-purple translation under each live chat line
 - **Anti-flood** — No burst when joining a stream or returning to the tab
 - **Bilingual UI** — Auto-detects browser language (Chinese / English)
 
@@ -42,7 +42,7 @@ npm run build
 3. Use the buttons in the player control bar:
    - **Danmaku button** — Toggle on/off
    - **Read button** — Open speech settings
-   - **Download button** — Export archived VOD chat
+   - **Download button** — Export live chat buffer or archived VOD chat
    - **Settings button** — Open the options panel
 4. Hover a danmaku to pause; click to see sender info
 5. Click the copy icon in the tooltip to paste the danmaku text into the live chat input
@@ -57,7 +57,8 @@ npm run build
 | Danmaku opacity | 10–100% |
 | Font | 18 system fonts |
 | Scroll area | Full / top half / top quarter |
-| Translation | Replaces original text on screen |
+| Translation | Replaces original text on danmaku |
+| Show translation in chat | Under each chat line, with a Twitch-purple TL marker so it is distinct from the original |
 | Translation engine | Auto / Microsoft / Google / Volcengine / Caiyun / Tencent Transmart |
 | Target language | Source auto-detected |
 | Translation speed | 1–10 messages/sec. Busy chat is batched into fewer requests so one engine is not flooded |
@@ -69,13 +70,14 @@ Settings are saved locally and persist across sessions.
 
 ## Chat history
 
-On a replay page (`/videos/…`), use the download button in the player bar.
+Use the download button in the player bar on a live channel or a replay (`/videos/…`).
 
+- **Live** — Collects messages currently loaded in the chat panel (not the full stream history). No time range.
+- **VOD** — Downloads archived chat from Twitch, with an optional time range
 - Filter by message keyword or username. Leave a field empty to skip that filter
 - Choose whether Bits cheers (Super Chat) are included
-- Drag the time range, then export JSON, CSV, or TXT
-- After download starts, use Pause, Resume, or Cancel
-- Live pages have no archived chat. If Twitch no longer keeps that replay's chat, the panel says so
+- Export JSON, CSV, or TXT. On VOD downloads, use Pause, Resume, or Cancel
+- If Twitch no longer keeps that replay's chat, or the live panel is empty, the panel says so
 
 ## Development
 
@@ -84,7 +86,7 @@ npm run build
 npm run watch
 ```
 
-The public demo needs no build step: [Twitch Danmaku demo](https://saka1zum1.github.io/twitch-danmaku/). It stands in for a watch page (player, control bar, and chat list). Lines already in the list stay put; lines added after the short warm-up scroll across the video. The read-aloud button and speech panel work on this page. The preview keeps running when its browser tab is in the background.
+The public demo needs no build step: [Twitch Danmaku demo](https://saka1zum1.github.io/twitch-danmaku/). It stands in for a watch page (player, control bar, and chat list). Lines already in the list stay put; lines added after the short warm-up scroll across the video. The read-aloud button and speech panel work on this page. With translation enabled, the demo shows marked preview translations and optional purple TL lines in chat. The preview keeps running when its browser tab is in the background.
 
 ## Notes
 

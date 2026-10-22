@@ -4,7 +4,7 @@
 // @name:zh-TW   Twitch 弹幕
 // @name:ja      Twitch 弾幕
 // @namespace    https://github.com/saka1zum1/twitch-danmaku
-// @version      1.6.1
+// @version      1.7.0
 // @description  Convert Twitch live chat to video danmaku with real-time translation
 // @description:zh-CN  将 Twitch 直播评论转换为视频弹幕，支持实时翻译
 // @description:zh-TW  將聊天室中的新訊息轉換成影片上的滾動彈幕，支持即時翻譯
@@ -45,6 +45,9 @@ const LOCALES = {
     fontFamily: '字体',
     scrollArea: '滚动区域',
     translateEnable: '启用翻译',
+    translateInChat: '聊天室显示译文',
+    translateInChatHint: '在聊天消息下方显示译文，使用 Twitch 紫色样式与原文区分。关闭后只影响聊天室，不影响弹幕译文。',
+    translateBadge: '译',
     translateProvider: '翻译引擎',
     translateProviderAuto: '自动切换',
     translateProviderMicrosoft: 'Microsoft 翻译',
@@ -96,6 +99,8 @@ const LOCALES = {
     historyIncludeSuperchatHint: 'Super Chat 指 Bits Cheers。关闭后不导出这些消息。',
     historyRange: '时间范围',
     historyRangeUnknown: '未能读取时长，将下载整段聊天。',
+    historyLiveHint: '直播页会导出当前聊天面板里已加载的消息，不是完整历史。',
+    historyLiveReady: '已就绪：可导出当前聊天面板中的消息。',
     historyFormat: '导出格式',
     historyFormatJson: 'JSON',
     historyFormatCsv: 'CSV',
@@ -105,10 +110,10 @@ const LOCALES = {
     historyResume: '继续',
     historyCancel: '取消',
     historyLoading: '正在读取回放…',
-    historyNeedVod: '请先打开回放页面（网址中包含 /videos/）。直播页没有可下载的历史聊天。',
+    historyNeedSource: '请打开直播页，或打开回放页（网址中包含 /videos/）。',
     historyMissing: '找不到这个回放，或聊天记录已不可用。',
     historyFailed: '下载失败，请稍后再试。',
-    historyEmpty: '这段时间没有聊天记录。',
+    historyEmpty: '没有可导出的聊天记录。',
     historyNoMatch: '没有符合筛选条件的聊天记录。',
     historyProgress: '已获取 {count} 条',
     historyPaused: '已暂停，已获取 {count} 条',
@@ -171,6 +176,9 @@ const LOCALES = {
     fontFamily: 'Font',
     scrollArea: 'Scroll area',
     translateEnable: 'Enable translation',
+    translateInChat: 'Show translation in chat',
+    translateInChatHint: 'Show the translation under each chat line in Twitch purple so it stands out from the original. Turning this off only hides chat translations; danmaku translations are unchanged.',
+    translateBadge: 'TL',
     translateProvider: 'Translation engine',
     translateProviderAuto: 'Auto',
     translateProviderMicrosoft: 'Microsoft Translator',
@@ -222,6 +230,8 @@ const LOCALES = {
     historyIncludeSuperchatHint: 'Super Chat means Bits cheers. Turn this off to leave them out.',
     historyRange: 'Time range',
     historyRangeUnknown: 'Duration is unavailable, so the full chat will be downloaded.',
+    historyLiveHint: 'On a live page, export collects messages currently loaded in the chat panel — not the full stream history.',
+    historyLiveReady: 'Ready to export messages currently in the chat panel.',
     historyFormat: 'Format',
     historyFormatJson: 'JSON',
     historyFormatCsv: 'CSV',
@@ -231,10 +241,10 @@ const LOCALES = {
     historyResume: 'Resume',
     historyCancel: 'Cancel',
     historyLoading: 'Loading VOD…',
-    historyNeedVod: 'Open a VOD page (the URL contains /videos/). Live pages have no archived chat to download.',
+    historyNeedSource: 'Open a live channel page, or a VOD page (the URL contains /videos/).',
     historyMissing: 'This VOD was not found, or its chat is no longer available.',
     historyFailed: 'Download failed. Try again later.',
-    historyEmpty: 'No chat in this time range.',
+    historyEmpty: 'No chat available to export.',
     historyNoMatch: 'No messages match these filters.',
     historyProgress: 'Collected {count}',
     historyPaused: 'Paused, collected {count}',
@@ -396,6 +406,7 @@ const DEFAULT_SETTINGS = {
   fontFamily: 'system-ui, sans-serif',
   scrollArea: 'full',
   translateEnabled: false,
+  translateInChat: true,
   translateProvider: 'microsoft',
   translateTargetLang: getDefaultTranslateTargetLang(),
   translateSpeed: 3,
@@ -451,6 +462,8 @@ function loadSettings() {
         merged.translateProvider = DEFAULT_SETTINGS.translateProvider;
       }
       merged.blockedKeywords = sanitizeBlockedKeywords(merged.blockedKeywords);
+      merged.translateEnabled = !!merged.translateEnabled;
+      merged.translateInChat = merged.translateInChat !== false;
       merged.danmakuOpacity = clamp(Number(merged.danmakuOpacity) || DEFAULT_SETTINGS.danmakuOpacity, 10, 100);
       merged.speechEnabled = !!merged.speechEnabled;
       merged.speechVolume = clamp(finiteNumber(merged.speechVolume, DEFAULT_SETTINGS.speechVolume), 0, 100);
@@ -2445,8 +2458,31 @@ function markProviderUsed(id, startedAt) {
   providerState[id].nextAt = Date.now() + Math.max(0, PROVIDER_GAP_MS - elapsed);
 }
 
+function isPreviewPage() {
+  return typeof document !== 'undefined'
+    && document.documentElement?.dataset?.tbcPreview === 'true';
+}
+
+function previewTranslateText(text, targetLang) {
+  const source = String(text || '').trim();
+  if (!source) return source;
+  const toZh = /^zh/i.test(String(targetLang || ''));
+  const hasHan = /[\u4e00-\u9fff]/.test(source);
+  if (toZh) {
+    if (hasHan) return source;
+    return `〔演示译文〕${source}`;
+  }
+  if (hasHan) return `[Demo TL] ${source}`;
+  return source;
+}
+
 async function translateBatch(texts, targetLang, preferred) {
   if (!texts.length) return { texts: [] };
+
+  // Demo pages cannot call real translation APIs; return marked text so UI can be verified.
+  if (isPreviewPage()) {
+    return { texts: texts.map((text) => previewTranslateText(text, targetLang)) };
+  }
 
   const order = preferred && preferred !== 'auto'
     ? [preferred, ...ALL_PROVIDERS.filter((id) => id !== preferred)]
@@ -3106,10 +3142,70 @@ function isLiveMessage(msgEl, chatRoot) {
   return false;
 }
 
+function clearChatTranslations(root = document) {
+  root.querySelectorAll?.('.tbc-chat-translation').forEach((node) => node.remove());
+}
+
+function removeChatTranslation(msgEl) {
+  msgEl?.querySelectorAll?.('.tbc-chat-translation').forEach((node) => node.remove());
+}
+
+function normalizeCompareText(text) {
+  return String(text || '').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function applyChatTranslation(msgEl, translatedText, originalText) {
+  if (!msgEl?.isConnected) return false;
+  const translated = String(translatedText || '').replace(/\s+/g, ' ').trim();
+  if (!translated) {
+    removeChatTranslation(msgEl);
+    return false;
+  }
+  if (normalizeCompareText(translated) === normalizeCompareText(originalText)) {
+    removeChatTranslation(msgEl);
+    return false;
+  }
+
+  let row = msgEl.querySelector(':scope > .tbc-chat-translation');
+  if (!row) {
+    row = msgEl.querySelector('.tbc-chat-translation');
+  }
+  if (!row) {
+    row = document.createElement('div');
+    row.className = 'tbc-chat-translation';
+    row.setAttribute('data-a-target', 'tbc-chat-translation');
+
+    const badge = document.createElement('span');
+    badge.className = 'tbc-chat-translation-badge';
+    badge.textContent = t('translateBadge');
+
+    const text = document.createElement('span');
+    text.className = 'tbc-chat-translation-text';
+
+    row.append(badge, text);
+
+    const body = msgEl.querySelector(SELECTORS.chatMessageBody);
+    if (body?.parentElement) {
+      body.insertAdjacentElement('afterend', row);
+    } else {
+      msgEl.appendChild(row);
+    }
+  }
+
+  const textEl = row.querySelector('.tbc-chat-translation-text');
+  if (textEl) textEl.textContent = translated;
+  const badgeEl = row.querySelector('.tbc-chat-translation-badge');
+  if (badgeEl) badgeEl.textContent = t('translateBadge');
+  return true;
+}
+
 const TWITCH_GQL_URL = 'https://gql.twitch.tv/gql';
 const TWITCH_GQL_CLIENT_ID = 'kd1unb4b3q4t58fwlpcbzcbnm76a8fp';
 const VOD_COMMENTS_HASH = 'b70a3591ff0f4e0313d126c6a1502d79a1c02baebb288227c582044aa76adf6a';
 const BITS_PATTERN = '(?:^|\\s)(?:4Head|Anon|BibleThumb|BitBoss|bday|Cheer|Charity|Corgo|cheerwal|DansGame|DoodleCheer|EleGiggle|FrankerZ|FailFish|Goal|HeyGuys|HolidayCheer|Kappa|Kreygasm|MrDestructoid|Muxy|NotLikeThis|Party|Pride|PJSalt|RIPCheer|Scoops|ShowLove|Shamrock|SeemsGood|SwiftRage|Streamlabs|TriHard|uni|VoHiYo)([1-9]\\d{0,6})(?=\\s|$)';
+const LIVE_CHAT_CONTAINER = '[data-test-selector="chat-scrollable-area__message-container"], .chat-scrollable-area__message-container';
+const LIVE_CHAT_MESSAGE = '.chat-line__message, [data-a-target="chat-line-message"], [data-a-target="chat-message-container"]';
+const CHANNEL_PATH_BLOCKLIST = /^(videos?|directory|settings|subscriptions|inventory|wallet|downloads|search|prime|popout|turbo|products|drops|u|p)$/i;
 
 function historyError(code, message) {
   const error = new Error(message || code);
@@ -3122,6 +3218,41 @@ function currentVodId() {
   if (demoId) return String(demoId).replace(/\D/g, '');
   const match = location.pathname.match(/\/(?:videos|video)\/(\d+)/i);
   return match ? match[1] : '';
+}
+
+function currentChannelLogin() {
+  const demoLogin = typeof window !== 'undefined' ? window.__TBC_DEMO_CHANNEL__ : '';
+  if (demoLogin) return String(demoLogin).trim().toLowerCase();
+  const parts = location.pathname.split('/').filter(Boolean);
+  if (!parts.length) return '';
+  const first = parts[0].toLowerCase();
+  if (CHANNEL_PATH_BLOCKLIST.test(first)) return '';
+  if (first === 'moderator' || first === 'embed') return (parts[1] || '').toLowerCase();
+  return first;
+}
+
+function findLiveChatContainer() {
+  return document.querySelector(LIVE_CHAT_CONTAINER);
+}
+
+function readLiveChannelInfo() {
+  const login = currentChannelLogin();
+  if (!login || currentVodId()) return null;
+  if (!findLiveChatContainer()) return null;
+  const titleEl = document.querySelector('[data-a-target="stream-title"], h2[data-a-target="stream-title"]');
+  const nameEl = document.querySelector('[data-a-target="user-channel-header-name"]');
+  const title = titleEl?.textContent?.trim()
+    || document.title.replace(/\s*[-–|]\s*Twitch\s*$/i, '').trim();
+  return {
+    id: `live-${login}`,
+    title: title || login,
+    createdAt: '',
+    lengthSeconds: 0,
+    channel: nameEl?.textContent?.trim() || login,
+    login,
+    live: true,
+    source: 'live-dom',
+  };
 }
 
 function playerDurationSeconds() {
@@ -3265,6 +3396,98 @@ function commentMatchesFilters(comment, keywords, usernames, includeSuperchat) {
   return true;
 }
 
+function bitsFromText(text) {
+  const matcher = new RegExp(BITS_PATTERN, 'gi');
+  let total = 0;
+  let match = matcher.exec(text);
+  while (match) {
+    total += Number(match[1]) || 0;
+    match = matcher.exec(text);
+  }
+  return total;
+}
+
+function bitsFromCheerImages(msgEl) {
+  let total = 0;
+  for (const img of msgEl.querySelectorAll('img')) {
+    const alt = img.getAttribute('alt') || '';
+    const match = alt.match(/^cheer([1-9]\d{0,6})$/i);
+    if (match) total += Number(match[1]) || 0;
+  }
+  return total;
+}
+
+function normalizeDomComment(msgEl, index) {
+  const parts = extractMessageParts(msgEl);
+  const message = partsToPlain(parts).replace(/\s+/g, ' ').trim();
+  if (!message) return null;
+
+  const usernameEl = msgEl.querySelector(SELECTORS.chatUsername);
+  const displayName = usernameEl?.textContent?.trim() || '';
+  const login = (
+    msgEl.getAttribute('data-a-user')
+    || usernameEl?.getAttribute('data-a-user')
+    || displayName
+  ).trim().toLowerCase();
+  if (!login && !displayName) return null;
+
+  const bits = bitsFromText(message) || bitsFromCheerImages(msgEl);
+  const superchatStyle = readSuperchatStyle(msgEl);
+  const superchat = bits > 0 || !!superchatStyle;
+  const id = msgEl.id || `live-${index}-${login}-${message.slice(0, 32)}`;
+
+  return {
+    id,
+    offsetSeconds: index,
+    createdAt: '',
+    userId: '',
+    login,
+    displayName: displayName || login,
+    message,
+    color: getUsernameColor(msgEl),
+    bits,
+    superchat,
+  };
+}
+
+async function collectLiveDomChat({
+  keywords = '',
+  usernames = '',
+  includeSuperchat = true,
+  onProgress,
+  shouldCancel,
+  shouldPause,
+}) {
+  const container = findLiveChatContainer();
+  if (!container) throw historyError('missing');
+
+  const keywordTerms = splitFilterTerms(keywords);
+  const usernameTerms = splitFilterTerms(usernames);
+  const nodes = [...container.querySelectorAll(LIVE_CHAT_MESSAGE)];
+  const comments = [];
+  const seen = new Set();
+  let scanned = 0;
+
+  for (let i = 0; i < nodes.length; i++) {
+    if (i % 40 === 0) {
+      await waitWhilePaused(shouldPause, shouldCancel);
+    }
+    const comment = normalizeDomComment(nodes[i], i);
+    if (!comment) continue;
+    scanned += 1;
+    if (seen.has(comment.id)) continue;
+    seen.add(comment.id);
+    if (!commentMatchesFilters(comment, keywordTerms, usernameTerms, includeSuperchat)) continue;
+    comments.push(comment);
+    if (comments.length % 20 === 0) {
+      onProgress?.({ count: comments.length, scanned, offset: i, start: 0, end: nodes.length });
+    }
+  }
+
+  onProgress?.({ count: comments.length, scanned, offset: nodes.length, start: 0, end: nodes.length });
+  return { comments, scanned, start: 0, end: comments.length ? comments.length - 1 : 0, source: 'live-dom' };
+}
+
 async function downloadVodChat({
   videoId,
   start = 0,
@@ -3366,15 +3589,19 @@ function csvCell(value) {
 function buildChatExport(format, video, result) {
   const comments = result.comments || [];
   const start = result.start || 0;
+  const isLive = video?.source === 'live-dom' || video?.live || result?.source === 'live-dom';
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   const endLabel = Number.isFinite(result.end) ? fileClock(result.end) : 'end';
-  const base = `twitch-chat-${video.id}-${fileClock(start)}-${endLabel}`;
+  const base = isLive
+    ? `twitch-chat-live-${video.login || video.id}-${stamp}`
+    : `twitch-chat-${video.id}-${fileClock(start)}-${endLabel}`;
   const kind = ['csv', 'txt', 'json'].includes(format) ? format : 'json';
 
   if (kind === 'csv') {
     const header = ['offset_seconds', 'timestamp', 'created_at', 'login', 'display_name', 'user_id', 'message', 'bits', 'superchat'];
-    const lines = comments.map((comment) => [
-      comment.offsetSeconds,
-      formatChatClock(comment.offsetSeconds),
+    const lines = comments.map((comment, index) => [
+      isLive ? index : comment.offsetSeconds,
+      isLive ? '' : formatChatClock(comment.offsetSeconds),
       comment.createdAt,
       comment.login,
       comment.displayName,
@@ -3391,9 +3618,10 @@ function buildChatExport(format, video, result) {
   }
 
   if (kind === 'txt') {
-    const lines = comments.map((comment) => {
+    const lines = comments.map((comment, index) => {
       const bits = comment.superchat ? ` [Bits ${comment.bits}]` : '';
-      return `[${formatChatClock(comment.offsetSeconds)}] ${comment.displayName}${bits}: ${comment.message}`;
+      const prefix = isLive ? `#${index + 1}` : `[${formatChatClock(comment.offsetSeconds)}]`;
+      return `${prefix} ${comment.displayName}${bits}: ${comment.message}`;
     });
     return {
       filename: `${base}.txt`,
@@ -3413,8 +3641,9 @@ function buildChatExport(format, video, result) {
         login: video.login,
         createdAt: video.createdAt,
         lengthSeconds: video.lengthSeconds,
+        source: video.source || (isLive ? 'live-dom' : 'vod-gql'),
       },
-      range: {
+      range: isLive ? null : {
         start,
         end: Number.isFinite(result.end) ? result.end : null,
       },
@@ -3507,11 +3736,11 @@ class ChatObserver {
       if (!this.shouldEmit(msgEl)) continue;
       const parsed = parseChatMessage(msgEl);
       if (!parsed) continue;
-      this.emitDanmaku(parsed);
+      this.emitDanmaku(parsed, msgEl);
     }
   }
 
-  emitDanmaku(parsed) {
+  emitDanmaku(parsed, msgEl) {
     const settings = this.getSettings();
     if (!this.isActive()) return;
 
@@ -3546,6 +3775,11 @@ class ChatObserver {
       const message = partsToPlain(parts) || parsed.message;
       if (isKeywordBlocked(parsed.message, latest.blockedKeywords)) return;
       if (isKeywordBlocked(message, latest.blockedKeywords)) return;
+      if (latest.translateEnabled && latest.translateInChat) {
+        applyChatTranslation(msgEl, message, parsed.message);
+      } else if (msgEl) {
+        removeChatTranslation(msgEl);
+      }
       this.danmakuEmitter.enqueue({
         ...base,
         message,
@@ -4024,8 +4258,52 @@ function injectStyles() {
       background: rgba(255, 255, 255, 0.08);
     }
 
+    .tbc-chat-translation {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      margin-top: 5px;
+      padding: 6px 10px 6px 8px;
+      border: 1px solid rgba(145, 71, 255, 0.55);
+      border-left: 3px solid #9147ff;
+      border-radius: 4px;
+      background:rgba(27, 16, 48, 0.8);
+      font-size: 13px;
+      line-height: 1.45;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+
+    .tbc-chat-translation-badge {
+      flex-shrink: 0;
+      margin-top: 1px;
+      padding: 1px 6px;
+      border-radius: 3px;
+      background: #9147ff;
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      line-height: 1.45;
+      user-select: none;
+    }
+
+    .tbc-chat-translation-text {
+      color: #f3eeff;
+      font-weight: 600;
+      word-break: break-word;
+    }
+
     .tbc-keyword-hint,
     .tbc-keyword-empty {
+      color: #adadb8;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .tbc-setting-hint {
+      margin: -2px 0 0;
+      padding: 0 12px 6px;
       color: #adadb8;
       font-size: 12px;
       line-height: 1.4;
@@ -4390,7 +4668,7 @@ class SettingsPanel {
     this.onChange(this.settings);
   }
 
-  createToggle(label, key) {
+  createToggle(label, key, options = {}) {
     const row = document.createElement('div');
     row.className = 'tbc-balloon-row tbc-balloon-row--toggle';
 
@@ -4410,11 +4688,25 @@ class SettingsPanel {
 
     input.addEventListener('change', () => {
       this.updateSetting(key, input.checked);
+      options.onChange?.(input.checked);
     });
 
     switchWrap.append(input, slider);
     row.append(labelEl, switchWrap);
     return row;
+  }
+
+  createHint(text) {
+    const hint = document.createElement('p');
+    hint.className = 'tbc-setting-hint';
+    hint.textContent = text;
+    return hint;
+  }
+
+  syncTranslateDependentRows() {
+    const enabled = !!this.settings.translateEnabled;
+    if (this.translateInChatRow) this.translateInChatRow.hidden = !enabled;
+    if (this.translateInChatHint) this.translateInChatHint.hidden = !enabled;
   }
 
   createRange(label, key, min, max, step, format) {
@@ -4618,13 +4910,23 @@ class SettingsPanel {
       this.createRange(t('superchatDuration'), 'superchatDuration', 2, 15, 1, (v) => `${v} ${t('speechSeconds')}`),
       this.createSelect(t('superchatAnimation'), 'superchatAnimation', getSuperchatAnimationOptions()),
       this.createDivider(),
-      this.createToggle(t('translateEnable'), 'translateEnabled'),
+      this.createToggle(t('translateEnable'), 'translateEnabled', {
+        onChange: () => this.syncTranslateDependentRows(),
+      }),
       this.createSelect(t('translateProvider'), 'translateProvider', getTranslateProviderOptions()),
       this.createSelect(t('translateTarget'), 'translateTargetLang', getTranslateLangOptions()),
       this.createRange(t('translateSpeed'), 'translateSpeed', 1, 10, 1, (v) => `${v} ${t('translateSpeedUnit')}`),
+    );
+
+    this.translateInChatRow = this.createToggle(t('translateInChat'), 'translateInChat');
+    this.translateInChatHint = this.createHint(t('translateInChatHint'));
+    body.append(
+      this.translateInChatRow,
+      this.translateInChatHint,
       this.createDivider(),
       this.createKeywordBlock(),
     );
+    this.syncTranslateDependentRows();
 
     this.balloon.append(header, body);
     this.balloon.addEventListener('click', (e) => e.stopPropagation());
@@ -4991,6 +5293,7 @@ class HistoryPanel {
     this.lastCount = 0;
     this.video = null;
     this.videoId = '';
+    this.mode = null;
     this.duration = 0;
     this.start = 0;
     this.end = 0;
@@ -5094,16 +5397,34 @@ class HistoryPanel {
     const token = ++this.loadToken;
     this.video = null;
     this.videoId = currentVodId();
+    this.mode = null;
     this.duration = 0;
     this.metaEl.textContent = '';
     this.setDownloadState('idle');
     this.downloadBtn.disabled = true;
+
     if (!this.videoId) {
+      const liveInfo = readLiveChannelInfo();
+      if (token !== this.loadToken) return;
+      if (!liveInfo) {
+        this.syncRange();
+        this.setStatus(t('historyNeedSource'), 'error');
+        return;
+      }
+      this.mode = 'live';
+      this.video = liveInfo;
+      this.duration = 0;
+      this.start = 0;
+      this.end = 0;
+      this.metaEl.textContent = liveInfo.channel || liveInfo.login;
+      this.metaEl.title = liveInfo.title || liveInfo.login;
       this.syncRange();
-      this.setStatus(t('historyNeedVod'), 'error');
+      this.setDownloadState('idle');
+      this.setStatus(t('historyLiveReady'), '');
       return;
     }
 
+    this.mode = 'vod';
     this.setStatus(t('historyLoading'), '');
     try {
       const info = await fetchVodInfo(this.videoId);
@@ -5130,6 +5451,15 @@ class HistoryPanel {
   }
 
   syncRange() {
+    if (this.mode === 'live') {
+      this.rangeHeader.hidden = true;
+      this.rangeWrap.hidden = true;
+      this.rangeUnknown.hidden = true;
+      this.liveHint.hidden = false;
+      return;
+    }
+    this.rangeHeader.hidden = false;
+    this.liveHint.hidden = true;
     const known = this.duration > 0;
     this.rangeWrap.hidden = !known;
     this.rangeUnknown.hidden = known || !this.video;
@@ -5192,24 +5522,30 @@ class HistoryPanel {
     this.setStatus(fill('historyProgress', { count: 0 }), '');
 
     try {
-      const result = await downloadVodChat({
-        videoId: this.video.id,
-        start: this.duration ? this.start : 0,
-        end: this.duration ? this.end : Infinity,
+      const progress = ({ count }) => {
+        if (token !== this.job) return;
+        this.lastCount = count;
+        if (!this.paused) {
+          this.setStatus(fill('historyProgress', { count }), '');
+          this.reposition();
+        }
+      };
+      const controls = {
         keywords: filters.keywords,
         usernames: filters.usernames,
         includeSuperchat: filters.includeSuperchat,
         shouldCancel: () => token !== this.job,
         shouldPause: () => token === this.job && this.paused,
-        onProgress: ({ count }) => {
-          if (token !== this.job) return;
-          this.lastCount = count;
-          if (!this.paused) {
-            this.setStatus(fill('historyProgress', { count }), '');
-            this.reposition();
-          }
-        },
-      });
+        onProgress: progress,
+      };
+      const result = this.mode === 'live'
+        ? await collectLiveDomChat(controls)
+        : await downloadVodChat({
+          videoId: this.video.id,
+          start: this.duration ? this.start : 0,
+          end: this.duration ? this.end : Infinity,
+          ...controls,
+        });
       if (token !== this.job) return;
       if (!result.comments.length) {
         this.setStatus(result.scanned ? t('historyNoMatch') : t('historyEmpty'), 'error');
@@ -5220,7 +5556,8 @@ class HistoryPanel {
       this.setStatus(fill('historyDone', { count: result.comments.length }), 'ok');
     } catch (error) {
       if (token !== this.job || error?.code === 'cancel') return;
-      this.setStatus(error?.code === 'missing' ? t('historyMissing') : t('historyFailed'), 'error');
+      const missingKey = this.mode === 'live' ? 'historyEmpty' : 'historyMissing';
+      this.setStatus(error?.code === 'missing' ? t(missingKey) : t('historyFailed'), 'error');
     } finally {
       if (token === this.job) {
         this.paused = false;
@@ -5316,14 +5653,14 @@ class HistoryPanel {
   createRangeField() {
     const row = document.createElement('div');
     row.className = 'tbc-balloon-row tbc-balloon-row--field';
-    const header = document.createElement('div');
-    header.className = 'tbc-balloon-field-header';
+    this.rangeHeader = document.createElement('div');
+    this.rangeHeader.className = 'tbc-balloon-field-header';
     const label = document.createElement('span');
     label.className = 'tbc-balloon-label';
     label.textContent = t('historyRange');
     this.rangeLabel = document.createElement('span');
     this.rangeLabel.className = 'tbc-balloon-value';
-    header.append(label, this.rangeLabel);
+    this.rangeHeader.append(label, this.rangeLabel);
 
     this.rangeWrap = document.createElement('div');
     this.rangeWrap.className = 'tbc-history-range';
@@ -5358,7 +5695,11 @@ class HistoryPanel {
     this.rangeUnknown.className = 'tbc-history-hint';
     this.rangeUnknown.textContent = t('historyRangeUnknown');
     this.rangeUnknown.hidden = true;
-    row.append(header, this.rangeWrap, this.rangeUnknown);
+    this.liveHint = document.createElement('p');
+    this.liveHint.className = 'tbc-history-hint';
+    this.liveHint.textContent = t('historyLiveHint');
+    this.liveHint.hidden = true;
+    row.append(this.rangeHeader, this.rangeWrap, this.rangeUnknown, this.liveHint);
     return row;
   }
 
@@ -5581,6 +5922,9 @@ function onSettingsChange(newSettings) {
   controlButton?.updateSpeechState();
   if (!settings.translateEnabled) {
     translateQueue?.clear();
+    clearChatTranslations();
+  } else if (!settings.translateInChat) {
+    clearChatTranslations();
   }
   if (!settings.speechEnabled || Number(settings.speechVolume) <= 0) {
     cancelSpeech();
@@ -5614,6 +5958,7 @@ function teardown() {
   controlButton?.destroy();
   danmakuEmitter?.clear();
   translateQueue?.clear();
+  clearChatTranslations();
   settingsPanel?.close();
   speechPanel?.close();
   historyPanel?.close();

@@ -2,6 +2,9 @@ const TWITCH_GQL_URL = 'https://gql.twitch.tv/gql';
 const TWITCH_GQL_CLIENT_ID = 'kd1unb4b3q4t58fwlpcbzcbnm76a8fp';
 const VOD_COMMENTS_HASH = 'b70a3591ff0f4e0313d126c6a1502d79a1c02baebb288227c582044aa76adf6a';
 const BITS_PATTERN = '(?:^|\\s)(?:4Head|Anon|BibleThumb|BitBoss|bday|Cheer|Charity|Corgo|cheerwal|DansGame|DoodleCheer|EleGiggle|FrankerZ|FailFish|Goal|HeyGuys|HolidayCheer|Kappa|Kreygasm|MrDestructoid|Muxy|NotLikeThis|Party|Pride|PJSalt|RIPCheer|Scoops|ShowLove|Shamrock|SeemsGood|SwiftRage|Streamlabs|TriHard|uni|VoHiYo)([1-9]\\d{0,6})(?=\\s|$)';
+const LIVE_CHAT_CONTAINER = '[data-test-selector="chat-scrollable-area__message-container"], .chat-scrollable-area__message-container';
+const LIVE_CHAT_MESSAGE = '.chat-line__message, [data-a-target="chat-line-message"], [data-a-target="chat-message-container"]';
+const CHANNEL_PATH_BLOCKLIST = /^(videos?|directory|settings|subscriptions|inventory|wallet|downloads|search|prime|popout|turbo|products|drops|u|p)$/i;
 
 function historyError(code, message) {
   const error = new Error(message || code);
@@ -14,6 +17,41 @@ function currentVodId() {
   if (demoId) return String(demoId).replace(/\D/g, '');
   const match = location.pathname.match(/\/(?:videos|video)\/(\d+)/i);
   return match ? match[1] : '';
+}
+
+function currentChannelLogin() {
+  const demoLogin = typeof window !== 'undefined' ? window.__TBC_DEMO_CHANNEL__ : '';
+  if (demoLogin) return String(demoLogin).trim().toLowerCase();
+  const parts = location.pathname.split('/').filter(Boolean);
+  if (!parts.length) return '';
+  const first = parts[0].toLowerCase();
+  if (CHANNEL_PATH_BLOCKLIST.test(first)) return '';
+  if (first === 'moderator' || first === 'embed') return (parts[1] || '').toLowerCase();
+  return first;
+}
+
+function findLiveChatContainer() {
+  return document.querySelector(LIVE_CHAT_CONTAINER);
+}
+
+function readLiveChannelInfo() {
+  const login = currentChannelLogin();
+  if (!login || currentVodId()) return null;
+  if (!findLiveChatContainer()) return null;
+  const titleEl = document.querySelector('[data-a-target="stream-title"], h2[data-a-target="stream-title"]');
+  const nameEl = document.querySelector('[data-a-target="user-channel-header-name"]');
+  const title = titleEl?.textContent?.trim()
+    || document.title.replace(/\s*[-–|]\s*Twitch\s*$/i, '').trim();
+  return {
+    id: `live-${login}`,
+    title: title || login,
+    createdAt: '',
+    lengthSeconds: 0,
+    channel: nameEl?.textContent?.trim() || login,
+    login,
+    live: true,
+    source: 'live-dom',
+  };
 }
 
 function playerDurationSeconds() {
@@ -157,6 +195,98 @@ function commentMatchesFilters(comment, keywords, usernames, includeSuperchat) {
   return true;
 }
 
+function bitsFromText(text) {
+  const matcher = new RegExp(BITS_PATTERN, 'gi');
+  let total = 0;
+  let match = matcher.exec(text);
+  while (match) {
+    total += Number(match[1]) || 0;
+    match = matcher.exec(text);
+  }
+  return total;
+}
+
+function bitsFromCheerImages(msgEl) {
+  let total = 0;
+  for (const img of msgEl.querySelectorAll('img')) {
+    const alt = img.getAttribute('alt') || '';
+    const match = alt.match(/^cheer([1-9]\d{0,6})$/i);
+    if (match) total += Number(match[1]) || 0;
+  }
+  return total;
+}
+
+function normalizeDomComment(msgEl, index) {
+  const parts = extractMessageParts(msgEl);
+  const message = partsToPlain(parts).replace(/\s+/g, ' ').trim();
+  if (!message) return null;
+
+  const usernameEl = msgEl.querySelector(SELECTORS.chatUsername);
+  const displayName = usernameEl?.textContent?.trim() || '';
+  const login = (
+    msgEl.getAttribute('data-a-user')
+    || usernameEl?.getAttribute('data-a-user')
+    || displayName
+  ).trim().toLowerCase();
+  if (!login && !displayName) return null;
+
+  const bits = bitsFromText(message) || bitsFromCheerImages(msgEl);
+  const superchatStyle = readSuperchatStyle(msgEl);
+  const superchat = bits > 0 || !!superchatStyle;
+  const id = msgEl.id || `live-${index}-${login}-${message.slice(0, 32)}`;
+
+  return {
+    id,
+    offsetSeconds: index,
+    createdAt: '',
+    userId: '',
+    login,
+    displayName: displayName || login,
+    message,
+    color: getUsernameColor(msgEl),
+    bits,
+    superchat,
+  };
+}
+
+async function collectLiveDomChat({
+  keywords = '',
+  usernames = '',
+  includeSuperchat = true,
+  onProgress,
+  shouldCancel,
+  shouldPause,
+}) {
+  const container = findLiveChatContainer();
+  if (!container) throw historyError('missing');
+
+  const keywordTerms = splitFilterTerms(keywords);
+  const usernameTerms = splitFilterTerms(usernames);
+  const nodes = [...container.querySelectorAll(LIVE_CHAT_MESSAGE)];
+  const comments = [];
+  const seen = new Set();
+  let scanned = 0;
+
+  for (let i = 0; i < nodes.length; i++) {
+    if (i % 40 === 0) {
+      await waitWhilePaused(shouldPause, shouldCancel);
+    }
+    const comment = normalizeDomComment(nodes[i], i);
+    if (!comment) continue;
+    scanned += 1;
+    if (seen.has(comment.id)) continue;
+    seen.add(comment.id);
+    if (!commentMatchesFilters(comment, keywordTerms, usernameTerms, includeSuperchat)) continue;
+    comments.push(comment);
+    if (comments.length % 20 === 0) {
+      onProgress?.({ count: comments.length, scanned, offset: i, start: 0, end: nodes.length });
+    }
+  }
+
+  onProgress?.({ count: comments.length, scanned, offset: nodes.length, start: 0, end: nodes.length });
+  return { comments, scanned, start: 0, end: comments.length ? comments.length - 1 : 0, source: 'live-dom' };
+}
+
 async function downloadVodChat({
   videoId,
   start = 0,
@@ -258,15 +388,19 @@ function csvCell(value) {
 function buildChatExport(format, video, result) {
   const comments = result.comments || [];
   const start = result.start || 0;
+  const isLive = video?.source === 'live-dom' || video?.live || result?.source === 'live-dom';
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   const endLabel = Number.isFinite(result.end) ? fileClock(result.end) : 'end';
-  const base = `twitch-chat-${video.id}-${fileClock(start)}-${endLabel}`;
+  const base = isLive
+    ? `twitch-chat-live-${video.login || video.id}-${stamp}`
+    : `twitch-chat-${video.id}-${fileClock(start)}-${endLabel}`;
   const kind = ['csv', 'txt', 'json'].includes(format) ? format : 'json';
 
   if (kind === 'csv') {
     const header = ['offset_seconds', 'timestamp', 'created_at', 'login', 'display_name', 'user_id', 'message', 'bits', 'superchat'];
-    const lines = comments.map((comment) => [
-      comment.offsetSeconds,
-      formatChatClock(comment.offsetSeconds),
+    const lines = comments.map((comment, index) => [
+      isLive ? index : comment.offsetSeconds,
+      isLive ? '' : formatChatClock(comment.offsetSeconds),
       comment.createdAt,
       comment.login,
       comment.displayName,
@@ -283,9 +417,10 @@ function buildChatExport(format, video, result) {
   }
 
   if (kind === 'txt') {
-    const lines = comments.map((comment) => {
+    const lines = comments.map((comment, index) => {
       const bits = comment.superchat ? ` [Bits ${comment.bits}]` : '';
-      return `[${formatChatClock(comment.offsetSeconds)}] ${comment.displayName}${bits}: ${comment.message}`;
+      const prefix = isLive ? `#${index + 1}` : `[${formatChatClock(comment.offsetSeconds)}]`;
+      return `${prefix} ${comment.displayName}${bits}: ${comment.message}`;
     });
     return {
       filename: `${base}.txt`,
@@ -305,8 +440,9 @@ function buildChatExport(format, video, result) {
         login: video.login,
         createdAt: video.createdAt,
         lengthSeconds: video.lengthSeconds,
+        source: video.source || (isLive ? 'live-dom' : 'vod-gql'),
       },
-      range: {
+      range: isLive ? null : {
         start,
         end: Number.isFinite(result.end) ? result.end : null,
       },

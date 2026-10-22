@@ -68,11 +68,11 @@ class ChatObserver {
       if (!this.shouldEmit(msgEl)) continue;
       const parsed = parseChatMessage(msgEl);
       if (!parsed) continue;
-      this.emitDanmaku(parsed);
+      this.emitDanmaku(parsed, msgEl);
     }
   }
 
-  emitDanmaku(parsed) {
+  emitDanmaku(parsed, msgEl) {
     const settings = this.getSettings();
     if (!this.isActive()) return;
 
@@ -107,6 +107,11 @@ class ChatObserver {
       const message = partsToPlain(parts) || parsed.message;
       if (isKeywordBlocked(parsed.message, latest.blockedKeywords)) return;
       if (isKeywordBlocked(message, latest.blockedKeywords)) return;
+      if (latest.translateEnabled && latest.translateInChat) {
+        applyChatTranslation(msgEl, message, parsed.message);
+      } else if (msgEl) {
+        removeChatTranslation(msgEl);
+      }
       this.danmakuEmitter.enqueue({
         ...base,
         message,

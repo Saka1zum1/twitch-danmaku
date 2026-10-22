@@ -90,7 +90,7 @@ class SettingsPanel {
     this.onChange(this.settings);
   }
 
-  createToggle(label, key) {
+  createToggle(label, key, options = {}) {
     const row = document.createElement('div');
     row.className = 'tbc-balloon-row tbc-balloon-row--toggle';
 
@@ -110,11 +110,25 @@ class SettingsPanel {
 
     input.addEventListener('change', () => {
       this.updateSetting(key, input.checked);
+      options.onChange?.(input.checked);
     });
 
     switchWrap.append(input, slider);
     row.append(labelEl, switchWrap);
     return row;
+  }
+
+  createHint(text) {
+    const hint = document.createElement('p');
+    hint.className = 'tbc-setting-hint';
+    hint.textContent = text;
+    return hint;
+  }
+
+  syncTranslateDependentRows() {
+    const enabled = !!this.settings.translateEnabled;
+    if (this.translateInChatRow) this.translateInChatRow.hidden = !enabled;
+    if (this.translateInChatHint) this.translateInChatHint.hidden = !enabled;
   }
 
   createRange(label, key, min, max, step, format) {
@@ -318,13 +332,23 @@ class SettingsPanel {
       this.createRange(t('superchatDuration'), 'superchatDuration', 2, 15, 1, (v) => `${v} ${t('speechSeconds')}`),
       this.createSelect(t('superchatAnimation'), 'superchatAnimation', getSuperchatAnimationOptions()),
       this.createDivider(),
-      this.createToggle(t('translateEnable'), 'translateEnabled'),
+      this.createToggle(t('translateEnable'), 'translateEnabled', {
+        onChange: () => this.syncTranslateDependentRows(),
+      }),
       this.createSelect(t('translateProvider'), 'translateProvider', getTranslateProviderOptions()),
       this.createSelect(t('translateTarget'), 'translateTargetLang', getTranslateLangOptions()),
       this.createRange(t('translateSpeed'), 'translateSpeed', 1, 10, 1, (v) => `${v} ${t('translateSpeedUnit')}`),
+    );
+
+    this.translateInChatRow = this.createToggle(t('translateInChat'), 'translateInChat');
+    this.translateInChatHint = this.createHint(t('translateInChatHint'));
+    body.append(
+      this.translateInChatRow,
+      this.translateInChatHint,
       this.createDivider(),
       this.createKeywordBlock(),
     );
+    this.syncTranslateDependentRows();
 
     this.balloon.append(header, body);
     this.balloon.addEventListener('click', (e) => e.stopPropagation());

@@ -1,5 +1,7 @@
 **English** · [简体中文](https://greasyfork.org/zh-CN/scripts/586579-twitch-danmaku-bullet-chat) · [繁體中文](https://greasyfork.org/zh-TW/scripts/586579-twitch-danmaku-bullet-chat) · [日本語](https://greasyfork.org/ja/scripts/586579-twitch-danmaku-bullet-chat)
 
+[Twitch Danmaku demo](https://saka1zum1.github.io/twitch-danmaku/)
+
 ## Introduction
 
 **Twitch Danmaku** turns live Twitch chat messages into scrolling danmaku over the video player — just like on Bilibili.
@@ -15,7 +17,7 @@ No more constantly glancing at the chat panel. Messages flow across the screen s
 3. New buttons appear in the player control bar:
    - **Danmaku button** — Toggle danmaku on/off
    - **Read button** — Open speech settings
-   - **Download button** — Export archived VOD chat
+   - **Download button** — Export the live chat buffer or archived VOD chat
    - **Settings button** — Open the options panel
 4. Customize appearance, opacity, keyword blocking, or enable translation in the settings panel
 
@@ -49,11 +51,12 @@ No more constantly glancing at the chat panel. Messages flow across the screen s
 - Animations: fade, slide, pop, or shine. Hover pauses the animation and shows the sender
 
 ### Chat History Download
-- On a VOD page (`/videos/…`), download archived chat as JSON, CSV, or TXT
+- **Live** — Export messages currently loaded in the chat panel (not the full stream history)
+- **VOD** (`/videos/…`) — Download archived chat from Twitch, with an optional time range
 - Filter by keyword and username. Leave a field empty to skip that filter
-- Choose whether to include Bits cheers (Super Chat), and drag a time range
-- After download starts, pause, resume, or cancel the job
-- Live pages have no archived chat. If the replay has none, the panel says so
+- Choose whether to include Bits cheers (Super Chat)
+- Export JSON, CSV, or TXT. On VOD jobs, pause, resume, or cancel after download starts
+- If the live panel is empty, or the replay has no chat left, the panel says so
 
 ### Keyword Block
 - Add or remove blocked keywords in the settings panel (up to 50, case-insensitive substring match)
@@ -62,7 +65,8 @@ No more constantly glancing at the chat panel. Messages flow across the screen s
 
 ### Real-Time Translation (Optional)
 - Multiple translation engines (Microsoft, Google, Volcengine, Caiyun, Tencent Transmart, and auto-failover)
-- Source language auto-detected; translation replaces the original text on screen
+- Source language auto-detected; translation replaces the original text on danmaku
+- Optional: show a Twitch-purple translation under each live chat line (toggle in settings)
 - Choose target language and translation speed
 
 ### Quality of Life

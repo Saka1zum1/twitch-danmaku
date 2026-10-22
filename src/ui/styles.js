@@ -466,8 +466,52 @@ function injectStyles() {
       background: rgba(255, 255, 255, 0.08);
     }
 
+    .tbc-chat-translation {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      margin-top: 5px;
+      padding: 6px 10px 6px 8px;
+      border: 1px solid rgba(145, 71, 255, 0.55);
+      border-left: 3px solid #9147ff;
+      border-radius: 4px;
+      background:rgba(27, 16, 48, 0.8);
+      font-size: 13px;
+      line-height: 1.45;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+
+    .tbc-chat-translation-badge {
+      flex-shrink: 0;
+      margin-top: 1px;
+      padding: 1px 6px;
+      border-radius: 3px;
+      background: #9147ff;
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      line-height: 1.45;
+      user-select: none;
+    }
+
+    .tbc-chat-translation-text {
+      color: #f3eeff;
+      font-weight: 600;
+      word-break: break-word;
+    }
+
     .tbc-keyword-hint,
     .tbc-keyword-empty {
+      color: #adadb8;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .tbc-setting-hint {
+      margin: -2px 0 0;
+      padding: 0 12px 6px;
       color: #adadb8;
       font-size: 12px;
       line-height: 1.4;

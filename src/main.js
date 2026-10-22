@@ -27,6 +27,9 @@ function onSettingsChange(newSettings) {
   controlButton?.updateSpeechState();
   if (!settings.translateEnabled) {
     translateQueue?.clear();
+    clearChatTranslations();
+  } else if (!settings.translateInChat) {
+    clearChatTranslations();
   }
   if (!settings.speechEnabled || Number(settings.speechVolume) <= 0) {
     cancelSpeech();
@@ -60,6 +63,7 @@ function teardown() {
   controlButton?.destroy();
   danmakuEmitter?.clear();
   translateQueue?.clear();
+  clearChatTranslations();
   settingsPanel?.close();
   speechPanel?.close();
   historyPanel?.close();

@@ -1,5 +1,7 @@
 [English](https://greasyfork.org/en/scripts/586579-twitch-danmaku-bullet-chat) · [简体中文](https://greasyfork.org/zh-CN/scripts/586579-twitch-danmaku-bullet-chat) · **繁體中文** · [日本語](https://greasyfork.org/ja/scripts/586579-twitch-danmaku-bullet-chat)
 
+[Twitch 彈幕演示](https://saka1zum1.github.io/twitch-danmaku/)
+
 ## 簡介
 
 **Twitch 彈幕** 讓你在觀看 Twitch 直播時，將聊天室中的新訊息轉換成影片上的滾動彈幕，就像 Bilibili（B站）的彈幕效果一樣。
@@ -16,7 +18,7 @@
 
    * **彈幕按鈕** — 一鍵開啟／關閉彈幕
    * **朗讀按鈕** — 開啟朗讀設定
-   * **下載按鈕** — 匯出重播聊天紀錄
+   * **下載按鈕** — 匯出直播面板聊天或重播歷史聊天
    * **設定按鈕** — 開啟設定面板
 4. 在設定面板中調整樣式、透明度、關鍵詞屏蔽或啟用即時翻譯
 
@@ -55,11 +57,12 @@
 
 ### 聊天紀錄下載
 
-* 在重播頁（`/videos/…`）把歷史聊天匯出成 JSON、CSV 或 TXT
+* **直播** — 匯出目前聊天面板裡已載入的訊息（不是完整歷史）
+* **重播**（`/videos/…`）— 從 Twitch 拉取歷史聊天，可選時間範圍
 * 可依內容關鍵詞和使用者名稱篩選，留空表示不過濾
-* 可選擇是否包含 Bits Cheers（Super Chat），並拖曳截取時間範圍
-* 下載開始後可暫停、繼續或取消
-* 直播頁沒有歷史聊天。若該重播已無聊天紀錄，面板會提示
+* 可選擇是否包含 Bits Cheers（Super Chat）
+* 匯出 JSON、CSV 或 TXT；重播下載過程中可暫停、繼續或取消
+* 若直播面板為空，或該重播已無聊天紀錄，面板會提示
 
 ### 關鍵詞屏蔽
 
@@ -71,6 +74,7 @@
 
 * 支援 Microsoft、Google、火山翻譯、彩雲小譯、騰訊互動翻譯及自動切換
 * 自動偵測來源語言，並直接以譯文取代彈幕內容
+* 可選在聊天室訊息下方顯示 Twitch 紫色樣式譯文（設定面板開關）
 * 可自行設定目標語言及翻譯速度
 
 ### 貼心設計

@@ -473,8 +473,31 @@ function markProviderUsed(id, startedAt) {
   providerState[id].nextAt = Date.now() + Math.max(0, PROVIDER_GAP_MS - elapsed);
 }
 
+function isPreviewPage() {
+  return typeof document !== 'undefined'
+    && document.documentElement?.dataset?.tbcPreview === 'true';
+}
+
+function previewTranslateText(text, targetLang) {
+  const source = String(text || '').trim();
+  if (!source) return source;
+  const toZh = /^zh/i.test(String(targetLang || ''));
+  const hasHan = /[\u4e00-\u9fff]/.test(source);
+  if (toZh) {
+    if (hasHan) return source;
+    return `〔演示译文〕${source}`;
+  }
+  if (hasHan) return `[Demo TL] ${source}`;
+  return source;
+}
+
 async function translateBatch(texts, targetLang, preferred) {
   if (!texts.length) return { texts: [] };
+
+  // Demo pages cannot call real translation APIs; return marked text so UI can be verified.
+  if (isPreviewPage()) {
+    return { texts: texts.map((text) => previewTranslateText(text, targetLang)) };
+  }
 
   const order = preferred && preferred !== 'auto'
     ? [preferred, ...ALL_PROVIDERS.filter((id) => id !== preferred)]

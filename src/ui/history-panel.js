@@ -11,6 +11,7 @@ class HistoryPanel {
     this.lastCount = 0;
     this.video = null;
     this.videoId = '';
+    this.mode = null;
     this.duration = 0;
     this.start = 0;
     this.end = 0;
@@ -114,16 +115,34 @@ class HistoryPanel {
     const token = ++this.loadToken;
     this.video = null;
     this.videoId = currentVodId();
+    this.mode = null;
     this.duration = 0;
     this.metaEl.textContent = '';
     this.setDownloadState('idle');
     this.downloadBtn.disabled = true;
+
     if (!this.videoId) {
+      const liveInfo = readLiveChannelInfo();
+      if (token !== this.loadToken) return;
+      if (!liveInfo) {
+        this.syncRange();
+        this.setStatus(t('historyNeedSource'), 'error');
+        return;
+      }
+      this.mode = 'live';
+      this.video = liveInfo;
+      this.duration = 0;
+      this.start = 0;
+      this.end = 0;
+      this.metaEl.textContent = liveInfo.channel || liveInfo.login;
+      this.metaEl.title = liveInfo.title || liveInfo.login;
       this.syncRange();
-      this.setStatus(t('historyNeedVod'), 'error');
+      this.setDownloadState('idle');
+      this.setStatus(t('historyLiveReady'), '');
       return;
     }
 
+    this.mode = 'vod';
     this.setStatus(t('historyLoading'), '');
     try {
       const info = await fetchVodInfo(this.videoId);
@@ -150,6 +169,15 @@ class HistoryPanel {
   }
 
   syncRange() {
+    if (this.mode === 'live') {
+      this.rangeHeader.hidden = true;
+      this.rangeWrap.hidden = true;
+      this.rangeUnknown.hidden = true;
+      this.liveHint.hidden = false;
+      return;
+    }
+    this.rangeHeader.hidden = false;
+    this.liveHint.hidden = true;
     const known = this.duration > 0;
     this.rangeWrap.hidden = !known;
     this.rangeUnknown.hidden = known || !this.video;
@@ -212,24 +240,30 @@ class HistoryPanel {
     this.setStatus(fill('historyProgress', { count: 0 }), '');
 
     try {
-      const result = await downloadVodChat({
-        videoId: this.video.id,
-        start: this.duration ? this.start : 0,
-        end: this.duration ? this.end : Infinity,
+      const progress = ({ count }) => {
+        if (token !== this.job) return;
+        this.lastCount = count;
+        if (!this.paused) {
+          this.setStatus(fill('historyProgress', { count }), '');
+          this.reposition();
+        }
+      };
+      const controls = {
         keywords: filters.keywords,
         usernames: filters.usernames,
         includeSuperchat: filters.includeSuperchat,
         shouldCancel: () => token !== this.job,
         shouldPause: () => token === this.job && this.paused,
-        onProgress: ({ count }) => {
-          if (token !== this.job) return;
-          this.lastCount = count;
-          if (!this.paused) {
-            this.setStatus(fill('historyProgress', { count }), '');
-            this.reposition();
-          }
-        },
-      });
+        onProgress: progress,
+      };
+      const result = this.mode === 'live'
+        ? await collectLiveDomChat(controls)
+        : await downloadVodChat({
+          videoId: this.video.id,
+          start: this.duration ? this.start : 0,
+          end: this.duration ? this.end : Infinity,
+          ...controls,
+        });
       if (token !== this.job) return;
       if (!result.comments.length) {
         this.setStatus(result.scanned ? t('historyNoMatch') : t('historyEmpty'), 'error');
@@ -240,7 +274,8 @@ class HistoryPanel {
       this.setStatus(fill('historyDone', { count: result.comments.length }), 'ok');
     } catch (error) {
       if (token !== this.job || error?.code === 'cancel') return;
-      this.setStatus(error?.code === 'missing' ? t('historyMissing') : t('historyFailed'), 'error');
+      const missingKey = this.mode === 'live' ? 'historyEmpty' : 'historyMissing';
+      this.setStatus(error?.code === 'missing' ? t(missingKey) : t('historyFailed'), 'error');
     } finally {
       if (token === this.job) {
         this.paused = false;
@@ -336,14 +371,14 @@ class HistoryPanel {
   createRangeField() {
     const row = document.createElement('div');
     row.className = 'tbc-balloon-row tbc-balloon-row--field';
-    const header = document.createElement('div');
-    header.className = 'tbc-balloon-field-header';
+    this.rangeHeader = document.createElement('div');
+    this.rangeHeader.className = 'tbc-balloon-field-header';
     const label = document.createElement('span');
     label.className = 'tbc-balloon-label';
     label.textContent = t('historyRange');
     this.rangeLabel = document.createElement('span');
     this.rangeLabel.className = 'tbc-balloon-value';
-    header.append(label, this.rangeLabel);
+    this.rangeHeader.append(label, this.rangeLabel);
 
     this.rangeWrap = document.createElement('div');
     this.rangeWrap.className = 'tbc-history-range';
@@ -378,7 +413,11 @@ class HistoryPanel {
     this.rangeUnknown.className = 'tbc-history-hint';
     this.rangeUnknown.textContent = t('historyRangeUnknown');
     this.rangeUnknown.hidden = true;
-    row.append(header, this.rangeWrap, this.rangeUnknown);
+    this.liveHint = document.createElement('p');
+    this.liveHint.className = 'tbc-history-hint';
+    this.liveHint.textContent = t('historyLiveHint');
+    this.liveHint.hidden = true;
+    row.append(this.rangeHeader, this.rangeWrap, this.rangeUnknown, this.liveHint);
     return row;
   }
 
