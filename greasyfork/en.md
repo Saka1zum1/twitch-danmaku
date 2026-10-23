@@ -51,7 +51,8 @@ No more constantly glancing at the chat panel. Messages flow across the screen s
 - Animations: fade, slide, pop, or shine. Hover pauses the animation and shows the sender
 
 ### Chat History Download
-- **Live** — Export messages currently loaded in the chat panel (not the full stream history)
+- **Live** — Export messages currently loaded in the chat panel, or from the IRC buffer when FrankerFaceZ is detected (not the full stream history)
+- Compatible with FrankerFaceZ on live pages: danmaku uses Twitch IRC instead of the chat DOM
 - **VOD** (`/videos/…`) — Download archived chat from Twitch, with an optional time range
 - Filter by keyword and username. Leave a field empty to skip that filter
 - Choose whether to include Bits cheers (Super Chat)

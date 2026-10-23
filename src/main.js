@@ -119,7 +119,14 @@ async function boot() {
   if (!historyPanel) {
     historyPanel = new HistoryPanel({
       onClose: () => controlButton?.updateHistoryState(),
+      getIrcComments: () => (
+        chatObserver?.mode === 'irc' ? chatObserver.getIrcHistoryComments() : null
+      ),
     });
+  } else {
+    historyPanel.getIrcComments = () => (
+      chatObserver?.mode === 'irc' ? chatObserver.getIrcHistoryComments() : null
+    );
   }
 
   controlButton = new ControlButton({
@@ -148,11 +155,14 @@ async function boot() {
     isHistoryPanelOpen: () => historyPanel.isOpen,
   });
 
-  await danmaku.mount();
+  // Mount player UI first so FFZ/chat delays cannot block controls.
+  await Promise.all([
+    danmaku.mount(),
+    controlButton.mount(),
+  ]);
   await chatObserver.start();
-  await controlButton.mount();
 
-  console.log('[TBC] Twitch Danmaku initialized');
+  console.log(`[TBC] Twitch Danmaku initialized${chatObserver.ffzActive ? ' (FFZ compat)' : ''}`);
 }
 
 function watchNavigation() {

@@ -1,6 +1,7 @@
 class HistoryPanel {
-  constructor({ onClose }) {
+  constructor({ onClose, getIrcComments }) {
     this.onClose = onClose;
+    this.getIrcComments = getIrcComments;
     this.balloon = null;
     this.anchor = null;
     this.isOpen = false;
@@ -256,8 +257,14 @@ class HistoryPanel {
         shouldPause: () => token === this.job && this.paused,
         onProgress: progress,
       };
+      const ircComments = this.mode === 'live' && typeof this.getIrcComments === 'function'
+        ? this.getIrcComments()
+        : null;
       const result = this.mode === 'live'
-        ? await collectLiveDomChat(controls)
+        ? await collectLiveDomChat({
+          ...controls,
+          ircComments: Array.isArray(ircComments) ? ircComments : null,
+        })
         : await downloadVodChat({
           videoId: this.video.id,
           start: this.duration ? this.start : 0,

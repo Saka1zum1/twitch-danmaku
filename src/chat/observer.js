@@ -7,17 +7,44 @@ class ChatObserver {
     this.observer = null;
     this.chatRoot = null;
     this.readyAt = 0;
+    this.isVodChat = false;
+    this.mode = 'dom';
+    this.ffzActive = false;
+    this.ircSource = null;
+    this.ircBuffer = [];
   }
 
   async start() {
-    this.chatRoot = await waitForElement(SELECTORS.chatScroller);
+    this.stop();
+    this.readyAt = Date.now();
+    this.ffzActive = await waitForFrankerFaceZ(1600);
+    const vodId = currentVodId();
+    const channel = currentChannelLogin();
+    const preferIrc = !vodId && !!channel && this.ffzActive;
+
+    if (preferIrc) {
+      this.mode = 'irc';
+      this.isVodChat = false;
+      this.startIrc(channel);
+      console.log('[TBC] Chat source: IRC (FrankerFaceZ detected)');
+      return;
+    }
+
+    this.mode = 'dom';
+    this.chatRoot = await waitForElement(SELECTORS.chatScroller, document, this.ffzActive ? 4000 : 30000);
     if (!this.chatRoot) {
+      if (!vodId && channel) {
+        this.mode = 'irc';
+        this.isVodChat = false;
+        this.startIrc(channel);
+        console.warn('[TBC] Chat scroller missing; falling back to IRC');
+        return;
+      }
       console.warn('[TBC] Chat scroller not found');
       return;
     }
 
     markExistingMessages(this.chatRoot);
-    this.readyAt = Date.now();
     this.isVodChat = !!this.chatRoot.closest('.video-chat')
       || this.chatRoot.classList.contains('video-chat__message-list-wrapper')
       || !!this.chatRoot.querySelector('.vod-message');
@@ -33,7 +60,17 @@ class ChatObserver {
     });
 
     this.observer.observe(this.chatRoot, { childList: true, subtree: true });
-    console.log(`[TBC] Chat observer started (${this.isVodChat ? 'vod' : 'live'})`);
+    console.log(`[TBC] Chat observer started (${this.isVodChat ? 'vod' : 'live'}${this.ffzActive ? ', ffz-dom' : ''})`);
+  }
+
+  startIrc(fallbackChannel) {
+    this.ircBuffer = [];
+    this.ircSource = new TwitchIrcChatSource({
+      getChannel: () => currentChannelLogin() || fallbackChannel || '',
+      isActive: this.isActive,
+      onMessage: (parsed) => this.handleIrcMessage(parsed),
+    });
+    this.ircSource.start();
   }
 
   stop() {
@@ -41,6 +78,10 @@ class ChatObserver {
     this.observer = null;
     this.chatRoot = null;
     this.isVodChat = false;
+    this.mode = 'dom';
+    this.ircSource?.stop();
+    this.ircSource = null;
+    this.ircBuffer = [];
   }
 
   shouldEmit(msgEl) {
@@ -72,6 +113,43 @@ class ChatObserver {
     }
   }
 
+  handleIrcMessage(parsed) {
+    if (!this.isActive()) return;
+    if (Date.now() - this.readyAt < WARMUP_MS) return;
+
+    this.pushIrcBuffer(parsed);
+    this.emitDanmaku({
+      username: parsed.username,
+      usernameColor: parsed.usernameColor,
+      profileUrl: parsed.profileUrl,
+      message: parsed.message,
+      parts: parsed.parts,
+      originalMessage: parsed.originalMessage,
+      superchat: !!parsed.superchat,
+      superchatStyle: parsed.superchatStyle || null,
+    }, null);
+  }
+
+  pushIrcBuffer(parsed) {
+    this.ircBuffer.push({
+      id: `irc-${Date.now()}-${this.ircBuffer.length}-${parsed.login}`,
+      offsetSeconds: this.ircBuffer.length,
+      createdAt: new Date().toISOString(),
+      userId: '',
+      login: parsed.login || '',
+      displayName: parsed.username || parsed.login || '',
+      message: parsed.message || '',
+      color: parsed.usernameColor || '',
+      bits: Number(parsed.bits) || 0,
+      superchat: !!parsed.superchat,
+    });
+    while (this.ircBuffer.length > 500) this.ircBuffer.shift();
+  }
+
+  getIrcHistoryComments() {
+    return this.ircBuffer.slice();
+  }
+
   emitDanmaku(parsed, msgEl) {
     const settings = this.getSettings();
     if (!this.isActive()) return;
@@ -91,6 +169,9 @@ class ChatObserver {
       part.type === 'text' && translatableCore(part.value)
     ));
 
+    // Avoid injecting translations into FFZ-managed chat DOM.
+    const allowChatTranslation = !!msgEl && !this.ffzActive && this.mode === 'dom';
+
     if (!settings.translateEnabled || !hasTranslatableText) {
       this.danmakuEmitter.enqueue({
         ...base,
@@ -107,7 +188,7 @@ class ChatObserver {
       const message = partsToPlain(parts) || parsed.message;
       if (isKeywordBlocked(parsed.message, latest.blockedKeywords)) return;
       if (isKeywordBlocked(message, latest.blockedKeywords)) return;
-      if (latest.translateEnabled && latest.translateInChat) {
+      if (latest.translateEnabled && latest.translateInChat && allowChatTranslation) {
         applyChatTranslation(msgEl, message, parsed.message);
       } else if (msgEl) {
         removeChatTranslation(msgEl);

@@ -37,7 +37,9 @@ function findLiveChatContainer() {
 function readLiveChannelInfo() {
   const login = currentChannelLogin();
   if (!login || currentVodId()) return null;
-  if (!findLiveChatContainer()) return null;
+  const hasDomChat = !!findLiveChatContainer();
+  const ffz = typeof detectFrankerFaceZ === 'function' && detectFrankerFaceZ();
+  if (!hasDomChat && !ffz) return null;
   const titleEl = document.querySelector('[data-a-target="stream-title"], h2[data-a-target="stream-title"]');
   const nameEl = document.querySelector('[data-a-target="user-channel-header-name"]');
   const title = titleEl?.textContent?.trim()
@@ -50,7 +52,7 @@ function readLiveChannelInfo() {
     channel: nameEl?.textContent?.trim() || login,
     login,
     live: true,
-    source: 'live-dom',
+    source: ffz && !hasDomChat ? 'live-irc' : 'live-dom',
   };
 }
 
@@ -249,7 +251,8 @@ function normalizeDomComment(msgEl, index) {
   };
 }
 
-async function collectLiveDomChat({
+async function collectLiveIrcChat({
+  comments: sourceComments = [],
   keywords = '',
   usernames = '',
   includeSuperchat = true,
@@ -257,6 +260,56 @@ async function collectLiveDomChat({
   shouldCancel,
   shouldPause,
 }) {
+  const keywordTerms = splitFilterTerms(keywords);
+  const usernameTerms = splitFilterTerms(usernames);
+  const comments = [];
+  let scanned = 0;
+
+  for (let i = 0; i < sourceComments.length; i++) {
+    if (i % 40 === 0) {
+      await waitWhilePaused(shouldPause, shouldCancel);
+    }
+    const comment = sourceComments[i];
+    if (!comment?.message) continue;
+    scanned += 1;
+    if (!commentMatchesFilters(comment, keywordTerms, usernameTerms, includeSuperchat)) continue;
+    comments.push(comment);
+    if (comments.length % 20 === 0) {
+      onProgress?.({ count: comments.length, scanned, offset: i, start: 0, end: sourceComments.length });
+    }
+  }
+
+  onProgress?.({
+    count: comments.length,
+    scanned,
+    offset: sourceComments.length,
+    start: 0,
+    end: sourceComments.length,
+  });
+  return { comments, scanned, start: 0, end: comments.length ? comments.length - 1 : 0, source: 'live-irc' };
+}
+
+async function collectLiveDomChat({
+  keywords = '',
+  usernames = '',
+  includeSuperchat = true,
+  onProgress,
+  shouldCancel,
+  shouldPause,
+  ircComments = null,
+}) {
+  if (Array.isArray(ircComments)) {
+    return collectLiveIrcChat({
+      comments: ircComments,
+      keywords,
+      usernames,
+      includeSuperchat,
+      onProgress,
+      shouldCancel,
+      shouldPause,
+    });
+  }
+
   const container = findLiveChatContainer();
   if (!container) throw historyError('missing');
 

@@ -72,7 +72,8 @@ Settings are saved locally and persist across sessions.
 
 Use the download button in the player bar on a live channel or a replay (`/videos/…`).
 
-- **Live** — Collects messages currently loaded in the chat panel (not the full stream history). No time range.
+- **Live** — Collects messages currently loaded in the chat panel, or from an IRC buffer when FrankerFaceZ is detected (not the full stream history). No time range.
+- **FrankerFaceZ** — When FFZ is present on a live channel, danmaku reads chat over Twitch IRC instead of the chat DOM so both can run together
 - **VOD** — Downloads archived chat from Twitch, with an optional time range
 - Filter by message keyword or username. Leave a field empty to skip that filter
 - Choose whether Bits cheers (Super Chat) are included

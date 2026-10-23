@@ -37,7 +37,7 @@ const SELECTORS = {
   videoPlayer: '.video-player__container',
   videoOverlay: '.video-player__overlay',
   playerControlsRoot: '[data-a-target="player-controls"], .player-controls',
-  playerControls: '.player-controls__right-control-group',
+  playerControls: '.video-player__default-player .player-controls__right-control-group, .player-controls__right-control-group',
   chatInput: 'textarea[data-a-target="chat-input"]',
   chatInputSlate: '[data-a-target="chat-input"][contenteditable="true"], .chat-wysiwyg-input__editor[contenteditable="true"]',
   chatInputEditable: '[data-a-target="chat-input"][contenteditable="true"], [data-a-target="chat-input-text"]',

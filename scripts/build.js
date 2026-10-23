@@ -27,6 +27,8 @@ const MODULES = [
   'chat/parser.js',
   'chat/inline-translate.js',
   'chat/history.js',
+  'chat/ffz-detect.js',
+  'chat/irc-source.js',
   'chat/observer.js',
   'ui/styles.js',
   'ui/icons.js',

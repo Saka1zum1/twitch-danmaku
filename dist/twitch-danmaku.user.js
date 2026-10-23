@@ -4,7 +4,7 @@
 // @name:zh-TW   Twitch 弹幕
 // @name:ja      Twitch 弾幕
 // @namespace    https://github.com/saka1zum1/twitch-danmaku
-// @version      1.7.0
+// @version      1.8.0
 // @description  Convert Twitch live chat to video danmaku with real-time translation
 // @description:zh-CN  将 Twitch 直播评论转换为视频弹幕，支持实时翻译
 // @description:zh-TW  將聊天室中的新訊息轉換成影片上的滾動彈幕，支持即時翻譯
@@ -25,6 +25,7 @@
 // @connect      translate.volcengine.com
 // @connect      api.interpreter.caiyunai.com
 // @connect      gql.twitch.tv
+// @connect      irc-ws.chat.twitch.tv
 // @run-at       document-idle
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=twitch.com
 // ==/UserScript==
@@ -99,8 +100,8 @@ const LOCALES = {
     historyIncludeSuperchatHint: 'Super Chat 指 Bits Cheers。关闭后不导出这些消息。',
     historyRange: '时间范围',
     historyRangeUnknown: '未能读取时长，将下载整段聊天。',
-    historyLiveHint: '直播页会导出当前聊天面板里已加载的消息，不是完整历史。',
-    historyLiveReady: '已就绪：可导出当前聊天面板中的消息。',
+    historyLiveHint: '直播页会导出当前聊天面板或 IRC 缓冲中的消息，不是完整历史。检测到 FrankerFaceZ 时自动改用 IRC。',
+    historyLiveReady: '已就绪：可导出当前聊天面板或 IRC 缓冲中的消息。',
     historyFormat: '导出格式',
     historyFormatJson: 'JSON',
     historyFormatCsv: 'CSV',
@@ -230,8 +231,8 @@ const LOCALES = {
     historyIncludeSuperchatHint: 'Super Chat means Bits cheers. Turn this off to leave them out.',
     historyRange: 'Time range',
     historyRangeUnknown: 'Duration is unavailable, so the full chat will be downloaded.',
-    historyLiveHint: 'On a live page, export collects messages currently loaded in the chat panel — not the full stream history.',
-    historyLiveReady: 'Ready to export messages currently in the chat panel.',
+    historyLiveHint: 'On a live page, export collects messages from the chat panel or the IRC buffer — not the full stream history. FrankerFaceZ triggers the IRC path automatically.',
+    historyLiveReady: 'Ready to export messages from the chat panel or IRC buffer.',
     historyFormat: 'Format',
     historyFormatJson: 'JSON',
     historyFormatCsv: 'CSV',
@@ -435,7 +436,7 @@ const SELECTORS = {
   videoPlayer: '.video-player__container',
   videoOverlay: '.video-player__overlay',
   playerControlsRoot: '[data-a-target="player-controls"], .player-controls',
-  playerControls: '.player-controls__right-control-group',
+  playerControls: '.video-player__default-player .player-controls__right-control-group, .player-controls__right-control-group',
   chatInput: 'textarea[data-a-target="chat-input"]',
   chatInputSlate: '[data-a-target="chat-input"][contenteditable="true"], .chat-wysiwyg-input__editor[contenteditable="true"]',
   chatInputEditable: '[data-a-target="chat-input"][contenteditable="true"], [data-a-target="chat-input-text"]',
@@ -3238,7 +3239,9 @@ function findLiveChatContainer() {
 function readLiveChannelInfo() {
   const login = currentChannelLogin();
   if (!login || currentVodId()) return null;
-  if (!findLiveChatContainer()) return null;
+  const hasDomChat = !!findLiveChatContainer();
+  const ffz = typeof detectFrankerFaceZ === 'function' && detectFrankerFaceZ();
+  if (!hasDomChat && !ffz) return null;
   const titleEl = document.querySelector('[data-a-target="stream-title"], h2[data-a-target="stream-title"]');
   const nameEl = document.querySelector('[data-a-target="user-channel-header-name"]');
   const title = titleEl?.textContent?.trim()
@@ -3251,7 +3254,7 @@ function readLiveChannelInfo() {
     channel: nameEl?.textContent?.trim() || login,
     login,
     live: true,
-    source: 'live-dom',
+    source: ffz && !hasDomChat ? 'live-irc' : 'live-dom',
   };
 }
 
@@ -3450,7 +3453,8 @@ function normalizeDomComment(msgEl, index) {
   };
 }
 
-async function collectLiveDomChat({
+async function collectLiveIrcChat({
+  comments: sourceComments = [],
   keywords = '',
   usernames = '',
   includeSuperchat = true,
@@ -3458,6 +3462,56 @@ async function collectLiveDomChat({
   shouldCancel,
   shouldPause,
 }) {
+  const keywordTerms = splitFilterTerms(keywords);
+  const usernameTerms = splitFilterTerms(usernames);
+  const comments = [];
+  let scanned = 0;
+
+  for (let i = 0; i < sourceComments.length; i++) {
+    if (i % 40 === 0) {
+      await waitWhilePaused(shouldPause, shouldCancel);
+    }
+    const comment = sourceComments[i];
+    if (!comment?.message) continue;
+    scanned += 1;
+    if (!commentMatchesFilters(comment, keywordTerms, usernameTerms, includeSuperchat)) continue;
+    comments.push(comment);
+    if (comments.length % 20 === 0) {
+      onProgress?.({ count: comments.length, scanned, offset: i, start: 0, end: sourceComments.length });
+    }
+  }
+
+  onProgress?.({
+    count: comments.length,
+    scanned,
+    offset: sourceComments.length,
+    start: 0,
+    end: sourceComments.length,
+  });
+  return { comments, scanned, start: 0, end: comments.length ? comments.length - 1 : 0, source: 'live-irc' };
+}
+
+async function collectLiveDomChat({
+  keywords = '',
+  usernames = '',
+  includeSuperchat = true,
+  onProgress,
+  shouldCancel,
+  shouldPause,
+  ircComments = null,
+}) {
+  if (Array.isArray(ircComments)) {
+    return collectLiveIrcChat({
+      comments: ircComments,
+      keywords,
+      usernames,
+      includeSuperchat,
+      onProgress,
+      shouldCancel,
+      shouldPause,
+    });
+  }
+
   const container = findLiveChatContainer();
   if (!container) throw historyError('missing');
 
@@ -3666,6 +3720,279 @@ function saveChatFile(filename, text, mime) {
   setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
 
+function detectFrankerFaceZ() {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return false;
+  if (window.FrankerFaceZ || window.ffz || window.ffz_from_cdn) return true;
+  if (document.documentElement?.classList?.contains('ffz')) return true;
+  if (document.getElementById('ffz-script') || document.querySelector('script[src*="frankerfacez"]')) return true;
+  if (document.querySelector('.ffz-topbar, #ffz-menu-button, [class*="ffz--"], [data-a-target="ffz-control"]')) return true;
+  return false;
+}
+
+function waitForFrankerFaceZ(timeoutMs = 1500) {
+  if (detectFrankerFaceZ()) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    const started = Date.now();
+    const timer = setInterval(() => {
+      if (detectFrankerFaceZ()) {
+        clearInterval(timer);
+        resolve(true);
+        return;
+      }
+      if (Date.now() - started >= timeoutMs) {
+        clearInterval(timer);
+        resolve(false);
+      }
+    }, 120);
+  });
+}
+
+const TWITCH_IRC_URL = 'wss://irc-ws.chat.twitch.tv:443';
+const IRC_RECONNECT_BASE_MS = 1200;
+const IRC_RECONNECT_MAX_MS = 15000;
+
+function randomJustinFanNick() {
+  return `justinfan${Math.floor(80000 + Math.random() * 10000)}`;
+}
+
+function parseIrcTags(raw) {
+  const tags = {};
+  if (!raw) return tags;
+  for (const part of raw.split(';')) {
+    const eq = part.indexOf('=');
+    if (eq === -1) {
+      tags[part] = true;
+      continue;
+    }
+    tags[part.slice(0, eq)] = part.slice(eq + 1);
+  }
+  return tags;
+}
+
+function unescapeIrcTag(value) {
+  return String(value || '')
+    .replace(/\\:/g, ';')
+    .replace(/\\s/g, ' ')
+    .replace(/\\\\/g, '\\')
+    .replace(/\\r/g, '\r')
+    .replace(/\\n/g, '\n');
+}
+
+function parseIrcEmoteParts(message, emotesTag) {
+  if (!emotesTag || !message) return [{ type: 'text', value: message }];
+
+  const ranges = [];
+  for (const entry of emotesTag.split('/')) {
+    if (!entry) continue;
+    const [id, positions] = entry.split(':');
+    if (!id || !positions) continue;
+    for (const span of positions.split(',')) {
+      const [startRaw, endRaw] = span.split('-');
+      const start = Number(startRaw);
+      const end = Number(endRaw);
+      if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) continue;
+      ranges.push({ id, start, end });
+    }
+  }
+  if (!ranges.length) return [{ type: 'text', value: message }];
+
+  ranges.sort((a, b) => a.start - b.start);
+  const parts = [];
+  let cursor = 0;
+  for (const range of ranges) {
+    if (range.start > cursor) {
+      parts.push({ type: 'text', value: message.slice(cursor, range.start) });
+    }
+    const name = message.slice(range.start, range.end + 1);
+    parts.push({
+      type: 'emote',
+      name,
+      src: `https://static-cdn.jtvnw.net/emoticons/v2/${encodeURIComponent(range.id)}/default/dark/1.0`,
+    });
+    cursor = range.end + 1;
+  }
+  if (cursor < message.length) {
+    parts.push({ type: 'text', value: message.slice(cursor) });
+  }
+  return parts.length ? parts : [{ type: 'text', value: message }];
+}
+
+function bitsFromIrcTags(tags, message) {
+  const spent = Number(tags.bits);
+  if (Number.isFinite(spent) && spent > 0) return spent;
+  const cheer = String(message || '').match(/(?:^|\s)Cheer([1-9]\d{0,6})(?=\s|$)/i);
+  return cheer ? (Number(cheer[1]) || 0) : 0;
+}
+
+function normalizeIrcPrivmsg(line) {
+  // @tags :nick!user@host PRIVMSG #channel :message
+  const match = line.match(/^(?:@(\S+)\s+)?:(\S+?)(?:!(\S+?))?(?:@\S+)?\s+PRIVMSG\s+#(\S+)\s+:([\s\S]*)$/i);
+  if (!match) return null;
+
+  const tags = parseIrcTags(match[1] || '');
+  const login = (match[3] || match[2] || tags.login || '').toLowerCase();
+  const channel = String(match[4] || '').toLowerCase();
+  const message = match[5] || '';
+  if (!message.trim()) return null;
+
+  const displayName = unescapeIrcTag(tags['display-name']) || login;
+  const color = unescapeIrcTag(tags.color) || '#ffffff';
+  const bits = bitsFromIrcTags(tags, message);
+  const parts = parseIrcEmoteParts(message, tags.emotes);
+
+  return {
+    channel,
+    login,
+    username: displayName,
+    usernameColor: color,
+    profileUrl: login ? `https://www.twitch.tv/${encodeURIComponent(login)}` : null,
+    message,
+    parts,
+    originalMessage: message,
+    superchat: bits > 0,
+    superchatStyle: bits > 0 ? { background: '#9147ff', color: '#ffffff' } : null,
+    bits,
+  };
+}
+
+class TwitchIrcChatSource {
+  constructor({ getChannel, onMessage, isActive }) {
+    this.getChannel = getChannel;
+    this.onMessage = onMessage;
+    this.isActive = isActive;
+    this.socket = null;
+    this.channel = '';
+    this.nick = '';
+    this.wanted = false;
+    this.reconnectAttempt = 0;
+    this.reconnectTimer = null;
+    this.pingTimer = null;
+  }
+
+  start() {
+    this.wanted = true;
+    this.connect();
+  }
+
+  stop() {
+    this.wanted = false;
+    this.clearReconnect();
+    this.clearPing();
+    try {
+      this.socket?.close();
+    } catch {
+      /* ignore */
+    }
+    this.socket = null;
+    this.channel = '';
+  }
+
+  clearReconnect() {
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = null;
+  }
+
+  clearPing() {
+    if (this.pingTimer) clearInterval(this.pingTimer);
+    this.pingTimer = null;
+  }
+
+  scheduleReconnect() {
+    if (!this.wanted) return;
+    this.clearReconnect();
+    const delay = Math.min(
+      IRC_RECONNECT_MAX_MS,
+      IRC_RECONNECT_BASE_MS * (2 ** Math.min(this.reconnectAttempt, 4)),
+    );
+    this.reconnectAttempt += 1;
+    this.reconnectTimer = setTimeout(() => this.connect(), delay);
+  }
+
+  connect() {
+    if (!this.wanted) return;
+    const channel = String(this.getChannel?.() || '').trim().toLowerCase().replace(/^#/, '');
+    if (!channel) {
+      this.scheduleReconnect();
+      return;
+    }
+
+    this.clearReconnect();
+    this.clearPing();
+    try {
+      this.socket?.close();
+    } catch {
+      /* ignore */
+    }
+
+    this.channel = channel;
+    this.nick = randomJustinFanNick();
+    let socket;
+    try {
+      socket = new WebSocket(TWITCH_IRC_URL);
+    } catch (error) {
+      console.warn('[TBC] IRC WebSocket unavailable:', error);
+      this.scheduleReconnect();
+      return;
+    }
+    this.socket = socket;
+
+    socket.addEventListener('open', () => {
+      if (this.socket !== socket || !this.wanted) return;
+      this.reconnectAttempt = 0;
+      socket.send('CAP REQ :twitch.tv/tags twitch.tv/commands');
+      socket.send('PASS SCHMOOPIIE');
+      socket.send(`NICK ${this.nick}`);
+      socket.send(`JOIN #${this.channel}`);
+      this.pingTimer = setInterval(() => {
+        if (this.socket === socket && socket.readyState === WebSocket.OPEN) {
+          socket.send('PING :tmi.twitch.tv');
+        }
+      }, 4 * 60 * 1000);
+      console.log(`[TBC] IRC connected (#${this.channel})`);
+    });
+
+    socket.addEventListener('message', (event) => {
+      if (this.socket !== socket) return;
+      this.handlePayload(String(event.data || ''));
+    });
+
+    socket.addEventListener('close', () => {
+      if (this.socket !== socket) return;
+      this.socket = null;
+      this.clearPing();
+      if (this.wanted) this.scheduleReconnect();
+    });
+
+    socket.addEventListener('error', () => {
+      try {
+        socket.close();
+      } catch {
+        /* ignore */
+      }
+    });
+  }
+
+  handlePayload(payload) {
+    const lines = payload.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+    for (const line of lines) {
+      if (line.startsWith('PING ')) {
+        this.socket?.send(`PONG ${line.slice(5)}`);
+        continue;
+      }
+      if (!/\sPRIVMSG\s/i.test(line)) continue;
+      if (this.isActive && !this.isActive()) continue;
+      const parsed = normalizeIrcPrivmsg(line);
+      if (!parsed) continue;
+      if (parsed.channel && this.channel && parsed.channel !== this.channel) continue;
+      try {
+        this.onMessage?.(parsed);
+      } catch (error) {
+        console.warn('[TBC] IRC message handler failed:', error);
+      }
+    }
+  }
+}
+
 class ChatObserver {
   constructor({ getSettings, danmakuEmitter, translateQueue, isActive }) {
     this.getSettings = getSettings;
@@ -3675,17 +4002,44 @@ class ChatObserver {
     this.observer = null;
     this.chatRoot = null;
     this.readyAt = 0;
+    this.isVodChat = false;
+    this.mode = 'dom';
+    this.ffzActive = false;
+    this.ircSource = null;
+    this.ircBuffer = [];
   }
 
   async start() {
-    this.chatRoot = await waitForElement(SELECTORS.chatScroller);
+    this.stop();
+    this.readyAt = Date.now();
+    this.ffzActive = await waitForFrankerFaceZ(1600);
+    const vodId = currentVodId();
+    const channel = currentChannelLogin();
+    const preferIrc = !vodId && !!channel && this.ffzActive;
+
+    if (preferIrc) {
+      this.mode = 'irc';
+      this.isVodChat = false;
+      this.startIrc(channel);
+      console.log('[TBC] Chat source: IRC (FrankerFaceZ detected)');
+      return;
+    }
+
+    this.mode = 'dom';
+    this.chatRoot = await waitForElement(SELECTORS.chatScroller, document, this.ffzActive ? 4000 : 30000);
     if (!this.chatRoot) {
+      if (!vodId && channel) {
+        this.mode = 'irc';
+        this.isVodChat = false;
+        this.startIrc(channel);
+        console.warn('[TBC] Chat scroller missing; falling back to IRC');
+        return;
+      }
       console.warn('[TBC] Chat scroller not found');
       return;
     }
 
     markExistingMessages(this.chatRoot);
-    this.readyAt = Date.now();
     this.isVodChat = !!this.chatRoot.closest('.video-chat')
       || this.chatRoot.classList.contains('video-chat__message-list-wrapper')
       || !!this.chatRoot.querySelector('.vod-message');
@@ -3701,7 +4055,17 @@ class ChatObserver {
     });
 
     this.observer.observe(this.chatRoot, { childList: true, subtree: true });
-    console.log(`[TBC] Chat observer started (${this.isVodChat ? 'vod' : 'live'})`);
+    console.log(`[TBC] Chat observer started (${this.isVodChat ? 'vod' : 'live'}${this.ffzActive ? ', ffz-dom' : ''})`);
+  }
+
+  startIrc(fallbackChannel) {
+    this.ircBuffer = [];
+    this.ircSource = new TwitchIrcChatSource({
+      getChannel: () => currentChannelLogin() || fallbackChannel || '',
+      isActive: this.isActive,
+      onMessage: (parsed) => this.handleIrcMessage(parsed),
+    });
+    this.ircSource.start();
   }
 
   stop() {
@@ -3709,6 +4073,10 @@ class ChatObserver {
     this.observer = null;
     this.chatRoot = null;
     this.isVodChat = false;
+    this.mode = 'dom';
+    this.ircSource?.stop();
+    this.ircSource = null;
+    this.ircBuffer = [];
   }
 
   shouldEmit(msgEl) {
@@ -3740,6 +4108,43 @@ class ChatObserver {
     }
   }
 
+  handleIrcMessage(parsed) {
+    if (!this.isActive()) return;
+    if (Date.now() - this.readyAt < WARMUP_MS) return;
+
+    this.pushIrcBuffer(parsed);
+    this.emitDanmaku({
+      username: parsed.username,
+      usernameColor: parsed.usernameColor,
+      profileUrl: parsed.profileUrl,
+      message: parsed.message,
+      parts: parsed.parts,
+      originalMessage: parsed.originalMessage,
+      superchat: !!parsed.superchat,
+      superchatStyle: parsed.superchatStyle || null,
+    }, null);
+  }
+
+  pushIrcBuffer(parsed) {
+    this.ircBuffer.push({
+      id: `irc-${Date.now()}-${this.ircBuffer.length}-${parsed.login}`,
+      offsetSeconds: this.ircBuffer.length,
+      createdAt: new Date().toISOString(),
+      userId: '',
+      login: parsed.login || '',
+      displayName: parsed.username || parsed.login || '',
+      message: parsed.message || '',
+      color: parsed.usernameColor || '',
+      bits: Number(parsed.bits) || 0,
+      superchat: !!parsed.superchat,
+    });
+    while (this.ircBuffer.length > 500) this.ircBuffer.shift();
+  }
+
+  getIrcHistoryComments() {
+    return this.ircBuffer.slice();
+  }
+
   emitDanmaku(parsed, msgEl) {
     const settings = this.getSettings();
     if (!this.isActive()) return;
@@ -3759,6 +4164,9 @@ class ChatObserver {
       part.type === 'text' && translatableCore(part.value)
     ));
 
+    // Avoid injecting translations into FFZ-managed chat DOM.
+    const allowChatTranslation = !!msgEl && !this.ffzActive && this.mode === 'dom';
+
     if (!settings.translateEnabled || !hasTranslatableText) {
       this.danmakuEmitter.enqueue({
         ...base,
@@ -3775,7 +4183,7 @@ class ChatObserver {
       const message = partsToPlain(parts) || parsed.message;
       if (isKeywordBlocked(parsed.message, latest.blockedKeywords)) return;
       if (isKeywordBlocked(message, latest.blockedKeywords)) return;
-      if (latest.translateEnabled && latest.translateInChat) {
+      if (latest.translateEnabled && latest.translateInChat && allowChatTranslation) {
         applyChatTranslation(msgEl, message, parsed.message);
       } else if (msgEl) {
         removeChatTranslation(msgEl);
@@ -5281,8 +5689,9 @@ class SpeechPanel {
 }
 
 class HistoryPanel {
-  constructor({ onClose }) {
+  constructor({ onClose, getIrcComments }) {
     this.onClose = onClose;
+    this.getIrcComments = getIrcComments;
     this.balloon = null;
     this.anchor = null;
     this.isOpen = false;
@@ -5538,8 +5947,14 @@ class HistoryPanel {
         shouldPause: () => token === this.job && this.paused,
         onProgress: progress,
       };
+      const ircComments = this.mode === 'live' && typeof this.getIrcComments === 'function'
+        ? this.getIrcComments()
+        : null;
       const result = this.mode === 'live'
-        ? await collectLiveDomChat(controls)
+        ? await collectLiveDomChat({
+          ...controls,
+          ircComments: Array.isArray(ircComments) ? ircComments : null,
+        })
         : await downloadVodChat({
           videoId: this.video.id,
           start: this.duration ? this.start : 0,
@@ -6014,7 +6429,14 @@ async function boot() {
   if (!historyPanel) {
     historyPanel = new HistoryPanel({
       onClose: () => controlButton?.updateHistoryState(),
+      getIrcComments: () => (
+        chatObserver?.mode === 'irc' ? chatObserver.getIrcHistoryComments() : null
+      ),
     });
+  } else {
+    historyPanel.getIrcComments = () => (
+      chatObserver?.mode === 'irc' ? chatObserver.getIrcHistoryComments() : null
+    );
   }
 
   controlButton = new ControlButton({
@@ -6043,11 +6465,14 @@ async function boot() {
     isHistoryPanelOpen: () => historyPanel.isOpen,
   });
 
-  await danmaku.mount();
+  // Mount player UI first so FFZ/chat delays cannot block controls.
+  await Promise.all([
+    danmaku.mount(),
+    controlButton.mount(),
+  ]);
   await chatObserver.start();
-  await controlButton.mount();
 
-  console.log('[TBC] Twitch Danmaku initialized');
+  console.log(`[TBC] Twitch Danmaku initialized${chatObserver.ffzActive ? ' (FFZ compat)' : ''}`);
 }
 
 function watchNavigation() {
