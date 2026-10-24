@@ -30,6 +30,8 @@ const MODULES = [
   'chat/history.js',
   'chat/ffz-detect.js',
   'chat/irc-source.js',
+  'chat/twitch-block.js',
+  'chat/send-message.js',
   'chat/observer.js',
   'ui/styles.js',
   'ui/icons.js',
@@ -37,6 +39,8 @@ const MODULES = [
   'ui/speech-panel.js',
   'ui/history-panel.js',
   'ui/chat-context-menu.js',
+  'ui/chat-clear-button.js',
+  'ui/fullscreen-chat.js',
   'ui/control-button.js',
   'main.js',
 ];

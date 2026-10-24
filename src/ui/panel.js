@@ -38,6 +38,12 @@ class SettingsPanel {
     this.anchor = null;
     this.balloon?.remove();
     this.balloon = null;
+    this.twitchBlockInput = null;
+    this.twitchBlockAddBtn = null;
+    this.twitchBlockStatus = null;
+    this.twitchBlockList = null;
+    this.twitchBlockRefreshBtn = null;
+    this.twitchBlockBusy = false;
 
     window.removeEventListener('resize', this.boundReposition);
     document.removeEventListener('fullscreenchange', this.boundReposition);
@@ -128,7 +134,6 @@ class SettingsPanel {
   syncTranslateDependentRows() {
     const enabled = !!this.settings.translateEnabled;
     if (this.translateInChatRow) this.translateInChatRow.hidden = !enabled;
-    if (this.translateInChatHint) this.translateInChatHint.hidden = !enabled;
   }
 
   createRange(label, key, min, max, step, format) {
@@ -190,6 +195,203 @@ class SettingsPanel {
 
     row.append(labelEl, select);
     return row;
+  }
+
+  createTwitchBlockUsersRow() {
+    const row = document.createElement('div');
+    row.className = 'tbc-balloon-row tbc-balloon-row--field';
+
+    const header = document.createElement('div');
+    header.className = 'tbc-block-users-header';
+
+    const labelEl = document.createElement('div');
+    labelEl.className = 'tbc-balloon-label';
+    labelEl.textContent = t('blockUsers');
+
+    const refreshBtn = document.createElement('button');
+    refreshBtn.type = 'button';
+    refreshBtn.className = 'tbc-block-users-refresh';
+    refreshBtn.textContent = t('blockUsersRefresh');
+    refreshBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.loadTwitchBlockedUsers();
+    });
+    header.append(labelEl, refreshBtn);
+
+    const hint = document.createElement('div');
+    hint.className = 'tbc-keyword-hint';
+    hint.textContent = t('blockUsersHint');
+
+    const form = document.createElement('div');
+    form.className = 'tbc-keyword-form';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'tbc-keyword-input';
+    input.maxLength = 25;
+    input.placeholder = t('blockUsersPlaceholder');
+    input.setAttribute('aria-label', t('blockUsers'));
+
+    const addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.className = 'tbc-keyword-add';
+    addBtn.textContent = t('blockUsersAdd');
+
+    const status = document.createElement('div');
+    status.className = 'tbc-block-users-status';
+
+    const list = document.createElement('div');
+    list.className = 'tbc-block-users-list';
+
+    this.twitchBlockInput = input;
+    this.twitchBlockAddBtn = addBtn;
+    this.twitchBlockStatus = status;
+    this.twitchBlockList = list;
+    this.twitchBlockRefreshBtn = refreshBtn;
+
+    const commit = async () => {
+      const login = normalizeTwitchLogin(input.value);
+      if (!login || this.twitchBlockBusy) return;
+      this.setTwitchBlockBusy(true);
+      this.setTwitchBlockStatus('');
+      try {
+        await blockTwitchUser(login, { sourceContext: 'SETTINGS' });
+        input.value = '';
+        await this.loadTwitchBlockedUsers({ silent: true });
+      } catch (error) {
+        const code = error?.code || '';
+        if (code === 'not_logged_in') this.setTwitchBlockStatus(t('blockUsersNeedLogin'));
+        else if (code === 'user_not_found') this.setTwitchBlockStatus(t('chatMenuBlockNotFound'));
+        else this.setTwitchBlockStatus(t('blockUsersAddFailed'));
+      } finally {
+        this.setTwitchBlockBusy(false);
+      }
+    };
+
+    addBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      commit();
+    });
+    input.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        commit();
+      }
+    });
+
+    form.append(input, addBtn);
+    row.append(header, hint, form, status, list);
+    this.loadTwitchBlockedUsers();
+    return row;
+  }
+
+  setTwitchBlockStatus(text) {
+    if (!this.twitchBlockStatus) return;
+    this.twitchBlockStatus.textContent = text || '';
+    this.twitchBlockStatus.hidden = !text;
+  }
+
+  setTwitchBlockBusy(busy) {
+    this.twitchBlockBusy = !!busy;
+    if (this.twitchBlockInput) this.twitchBlockInput.disabled = !!busy;
+    if (this.twitchBlockAddBtn) this.twitchBlockAddBtn.disabled = !!busy;
+    if (this.twitchBlockRefreshBtn) this.twitchBlockRefreshBtn.disabled = !!busy;
+    this.twitchBlockList?.querySelectorAll('button').forEach((btn) => {
+      btn.disabled = !!busy;
+    });
+  }
+
+  async loadTwitchBlockedUsers({ silent = false } = {}) {
+    if (!this.twitchBlockList) return;
+    if (!silent) {
+      this.twitchBlockList.replaceChildren();
+      this.setTwitchBlockStatus(t('blockUsersLoading'));
+    }
+    this.setTwitchBlockBusy(true);
+    try {
+      const users = await fetchTwitchBlockedUsers();
+      this.renderTwitchBlockedUsers(users);
+      if (!silent) this.setTwitchBlockStatus('');
+    } catch (error) {
+      this.twitchBlockList.replaceChildren();
+      const code = error?.code || '';
+      this.setTwitchBlockStatus(
+        code === 'not_logged_in' ? t('blockUsersNeedLogin') : t('blockUsersLoadFailed'),
+      );
+    } finally {
+      this.setTwitchBlockBusy(false);
+    }
+  }
+
+  renderTwitchBlockedUsers(users) {
+    if (!this.twitchBlockList) return;
+    this.twitchBlockList.replaceChildren();
+    if (!users.length) {
+      const empty = document.createElement('div');
+      empty.className = 'tbc-keyword-empty';
+      empty.textContent = t('blockUsersEmpty');
+      this.twitchBlockList.appendChild(empty);
+      return;
+    }
+
+    users.forEach((user) => {
+      const item = document.createElement('div');
+      item.className = 'tbc-block-user';
+
+      const avatar = document.createElement('img');
+      avatar.className = 'tbc-block-user-avatar';
+      avatar.alt = '';
+      avatar.width = 28;
+      avatar.height = 28;
+      avatar.loading = 'lazy';
+      avatar.referrerPolicy = 'no-referrer';
+      avatar.src = user.profileImageURL || '';
+
+      const meta = document.createElement('div');
+      meta.className = 'tbc-block-user-meta';
+
+      const name = document.createElement('div');
+      name.className = 'tbc-block-user-name';
+      name.textContent = user.displayName || user.login;
+      name.title = user.login ? `${user.displayName || user.login} (@${user.login})` : (user.displayName || '');
+
+      const date = document.createElement('div');
+      date.className = 'tbc-block-user-date';
+      date.textContent = user.blockedAtLabel || '';
+
+      meta.append(name, date);
+
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'tbc-block-user-remove';
+      removeBtn.textContent = t('blockUsersRemove');
+      removeBtn.setAttribute(
+        'aria-label',
+        `${t('blockUsersRemove')} ${user.displayName || user.login}`,
+      );
+      removeBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (this.twitchBlockBusy) return;
+        this.setTwitchBlockBusy(true);
+        this.setTwitchBlockStatus('');
+        try {
+          if (user.id) await unblockTwitchUserById(user.id);
+          else await unblockTwitchUser(user.login);
+          await this.loadTwitchBlockedUsers({ silent: true });
+        } catch (error) {
+          const code = error?.code || '';
+          this.setTwitchBlockStatus(
+            code === 'not_logged_in' ? t('blockUsersNeedLogin') : t('blockUsersRemoveFailed'),
+          );
+        } finally {
+          this.setTwitchBlockBusy(false);
+        }
+      });
+
+      item.append(avatar, meta, removeBtn);
+      this.twitchBlockList.appendChild(item);
+    });
   }
 
   createKeywordBlock() {
@@ -341,12 +543,12 @@ class SettingsPanel {
     );
 
     this.translateInChatRow = this.createToggle(t('translateInChat'), 'translateInChat');
-    this.translateInChatHint = this.createHint(t('translateInChatHint'));
     body.append(
       this.translateInChatRow,
-      this.translateInChatHint,
       this.createDivider(),
       this.createKeywordBlock(),
+      this.createDivider(),
+      this.createTwitchBlockUsersRow(),
     );
     this.syncTranslateDependentRows();
 

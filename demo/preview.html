@@ -75,11 +75,42 @@
       flex-direction: column;
       overflow: hidden;
     }
-    .chat-header {
-      padding: 12px 14px;
+    .stream-chat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 40px;
+      padding: 0 8px 0 14px;
       border-bottom: 1px solid rgba(255, 255, 255, 0.08);
       font-weight: 600;
       font-size: 14px;
+      box-sizing: border-box;
+    }
+    .stream-chat-header__title {
+      flex: 1;
+      min-width: 0;
+    }
+    .stream-chat-header__actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      flex-shrink: 0;
+    }
+    .stream-chat-header__actions button[data-test-selector="chat-viewer-list"] {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      border: none;
+      border-radius: 4px;
+      background: transparent;
+      color: #efeff1;
+      cursor: pointer;
+    }
+    .stream-chat-header__actions button[data-test-selector="chat-viewer-list"]:hover {
+      background: rgba(255, 255, 255, 0.15);
     }
     [data-a-target="chat-scroller"] {
       flex: 1;
@@ -156,8 +187,15 @@
     </div>
 
     <div class="chat-column">
-      <div class="chat-header">Live Chat</div>
-      <div data-a-target="chat-scroller">
+      <div class="stream-chat-header" role="region">
+        <div class="stream-chat-header__title">Live Chat</div>
+        <div class="stream-chat-header__actions">
+          <button type="button" data-test-selector="chat-viewer-list" aria-label="Community" title="Community">
+            <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path fill="currentColor" d="M7 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM4 10a3 3 0 0 0-3 3v2h8v-2a3 3 0 0 0-3-3H4zm9-1a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zm-1.5 1h3a2.5 2.5 0 0 1 2.5 2.5V15h-8v-2.5A2.5 2.5 0 0 1 11.5 10z"/></svg>
+          </button>
+        </div>
+      </div>
+      <div data-a-target="chat-scroller" data-test-selector="chat-scrollable-area__message-container" class="chat-scrollable-area__message-container">
         <div class="chat-line__message" data-a-target="chat-message-container" data-a-user="history">
           <a href="/history">
             <span data-a-target="chat-message-username" class="chat-author__display-name" style="color:#aaaaaa">History</span>
@@ -174,7 +212,7 @@
         <button id="add-chat" type="button">Add chat</button>
         <button id="add-cheer" class="secondary" type="button">Add cheer</button>
       </div>
-      <p class="hint">列表里已有的消息不会变成弹幕。预热结束后，点按钮或等待自动插入的新消息会从视频上飘过。可试用朗读、悬停暂停、复制到输入框、Super Chat（Bits 预设 300 / 1000 / 5000 / 10000）、右键聊天行（翻译 / 朗读 / 重发弹幕），以及设置里的「启用翻译 / 聊天室显示译文」（演示环境用标记译文，聊天室里会显示紫色译文行）。</p>
+      <p class="hint">列表里已有的消息不会变成弹幕。预热结束后，点按钮或等待自动插入的新消息会从视频上飘过。可试用朗读、悬停暂停、复制到输入框、顶栏清空聊天、Super Chat（Bits 预设 300 / 1000 / 5000 / 10000，悬停右上角可关闭）、右键聊天行（翻译 / 朗读 / 重发 / 屏蔽），以及设置里的「启用翻译 / 聊天室显示译文 / 屏蔽用户列表」（演示环境用标记译文，聊天室里会显示紫色译文行；屏蔽与全屏发消息需真实 Twitch 登录）。</p>
     </div>
   </div>
 

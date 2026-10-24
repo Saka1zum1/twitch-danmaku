@@ -68,17 +68,25 @@ class ChatContextMenu {
     this.menu.setAttribute('role', 'menu');
 
     const hasTranslation = !!msgEl.querySelector('.tbc-chat-translation');
+    const login = normalizeTwitchLogin(snapshot.login || snapshot.username);
     this.menu.append(
       this.createItem(hasTranslation ? t('chatMenuRetranslate') : t('chatMenuTranslate'), () => {
         this.runTranslate(msgEl, snapshot, true);
       }),
       this.createItem(t('chatMenuSpeak'), () => {
-        this.runSpeak(snapshot);
+        this.runSpeak(msgEl, snapshot);
       }),
       this.createItem(t('chatMenuResend'), () => {
         this.runResend(msgEl, snapshot, false);
       }),
     );
+    if (login) {
+      this.menu.append(
+        this.createItem(t('chatMenuBlockUser'), () => {
+          this.runBlockUser(login);
+        }),
+      );
+    }
 
     const mount = getFullscreenElement() || document.body;
     mount.appendChild(this.menu);
@@ -152,16 +160,37 @@ class ChatContextMenu {
     return { parts, message, translated: message !== snapshot.message, failed: false };
   }
 
-  async runTranslate(msgEl, snapshot, bustCache) {
-    const result = await this.translateParts(snapshot, bustCache);
-    if (result.failed) return;
-    applyChatTranslation(msgEl, result.message, snapshot.message);
+  async runBlockUser(login) {
+    try {
+      await blockTwitchUser(login, { sourceContext: 'CHAT' });
+      console.info(`[TBC] ${t('chatMenuBlockDone')}: ${login}`);
+    } catch (error) {
+      const code = error?.code || '';
+      if (code === 'not_logged_in') {
+        console.warn(`[TBC] ${t('chatMenuBlockNeedLogin')}`);
+        return;
+      }
+      if (code === 'user_not_found') {
+        console.warn(`[TBC] ${t('chatMenuBlockNotFound')}: ${login}`);
+        return;
+      }
+      console.warn(`[TBC] ${t('chatMenuBlockFailed')}`, error);
+    }
   }
 
-  runSpeak(snapshot) {
+  async runTranslate(msgEl, snapshot, bustCache) {
+    // Context-menu translate is always available; does not require settings.translateEnabled.
+    const result = await this.translateParts(snapshot, bustCache);
+    if (result.failed) return;
+    applyChatTranslation(msgEl, result.message, snapshot.message, { manual: true });
+  }
+
+  runSpeak(msgEl, snapshot) {
     const settings = this.getSettings();
     if (!speechSupported()) return;
-    const source = speechSourceText(snapshot.message, snapshot.parts);
+    // Prefer the on-screen chat translation when the user already translated this line.
+    const translated = readChatTranslationText(msgEl);
+    const source = translated || speechSourceText(snapshot.message, snapshot.parts);
     // Explicit menu action: use panel voice/rate/volume, even if auto-speak is off.
     if (Number(settings.speechVolume) <= 0) return;
     speakTextNow(source);
@@ -180,8 +209,10 @@ class ChatContextMenu {
         message = result.message;
         parts = result.parts;
         translated = result.translated;
-        if (settings.translateInChat) {
-          applyChatTranslation(msgEl, message, snapshot.message);
+        if (settings.translateInChat || forceTranslate) {
+          applyChatTranslation(msgEl, message, snapshot.message, {
+            manual: !!forceTranslate,
+          });
         }
       }
     }

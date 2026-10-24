@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         Twitch Danmaku - Bullet Chat
-// @name:zh-CN   Twitch 弹幕
-// @name:zh-TW   Twitch 弹幕
-// @name:ja      Twitch 弾幕
+// @name:zh-CN   Twitch 弹幕姬 | 实时翻译
+// @name:zh-TW   Twitch 彈幕 | 即時翻譯
+// @name:ja      Twitch 弾幕 | リアルタイム翻訳
 // @namespace    https://github.com/saka1zum1/twitch-danmaku
-// @version      1.9.0
+// @version      1.9.1
 // @description  Convert Twitch live chat to video danmaku with real-time translation
 // @description:zh-CN  将 Twitch 直播评论转换为视频弹幕，支持实时翻译
 // @description:zh-TW  將聊天室中的新訊息轉換成影片上的滾動彈幕，支持即時翻譯
@@ -47,7 +47,6 @@ const LOCALES = {
     scrollArea: '滚动区域',
     translateEnable: '启用翻译',
     translateInChat: '聊天室显示译文',
-    translateInChatHint: '在聊天消息下方显示译文，使用 Twitch 紫色样式与原文区分。关闭后只影响聊天室，不影响弹幕译文。',
     translateBadge: '译',
     translateProvider: '翻译引擎',
     translateProviderAuto: '自动切换',
@@ -65,6 +64,22 @@ const LOCALES = {
     blockKeywordsAdd: '添加',
     blockKeywordsRemove: '移除',
     blockKeywordsEmpty: '暂无关键词',
+    blockUsers: '屏蔽用户列表',
+    blockUsersHint: '使用 Twitch 原生屏蔽。可在此查看、添加或取消屏蔽。',
+    blockUsersPlaceholder: '用户名',
+    blockUsersAdd: '添加',
+    blockUsersRemove: '取消屏蔽',
+    blockUsersEmpty: '暂无屏蔽用户',
+    blockUsersLoading: '正在加载屏蔽列表…',
+    blockUsersRefresh: '刷新',
+    blockUsersNeedLogin: '请先登录 Twitch',
+    blockUsersLoadFailed: '无法加载屏蔽列表',
+    blockUsersAddFailed: '添加屏蔽失败',
+    blockUsersRemoveFailed: '取消屏蔽失败',
+    chatMenuBlockNeedLogin: '请先登录 Twitch',
+    chatMenuBlockDone: '已通过 Twitch 屏蔽该用户',
+    chatMenuBlockFailed: 'Twitch 屏蔽失败，请稍后重试',
+    chatMenuBlockNotFound: '找不到该用户',
     speechToggle: '弹幕朗读',
     speechPanelTitle: '弹幕朗读',
     speechEnable: '启用朗读',
@@ -124,6 +139,7 @@ const LOCALES = {
     chatMenuRetranslate: '重新翻译',
     chatMenuSpeak: '朗读',
     chatMenuResend: '重新发送弹幕',
+    chatMenuBlockUser: '屏蔽该用户',
     superchatPinned: 'Super Chat 悬停',
     superchatPosition: '悬停位置',
     superchatDuration: '悬停时间',
@@ -134,6 +150,14 @@ const LOCALES = {
     superchatSlide: '滑入',
     superchatPop: '弹出',
     superchatShine: '闪光',
+    superchatClose: '关闭悬停弹幕',
+    fsChatPlaceholder: '发送聊天消息…',
+    fsChatSend: '发送',
+    fsChatClose: '关闭',
+    fsChatHint: 'Enter 发送 · 内容为空时点击外侧关闭',
+    fsChatNeedLogin: '请先登录 Twitch',
+    fsChatFailed: '发送失败，请稍后重试',
+    fsChatSent: '已发送',
     scrollAreaFull: '全屏',
     scrollAreaTopHalf: '上半屏',
     scrollAreaTopQuarter: '顶部 1/4',
@@ -167,6 +191,7 @@ const LOCALES = {
     langPt: 'Português',
     tooltipCopy: '复制到聊天框',
     tooltipOpenProfile: '打开发送者主页',
+    chatClear: '清空聊天',
   },
   en: {
     danmakuToggle: 'Danmaku toggle',
@@ -182,7 +207,6 @@ const LOCALES = {
     scrollArea: 'Scroll area',
     translateEnable: 'Enable translation',
     translateInChat: 'Show translation in chat',
-    translateInChatHint: 'Show the translation under each chat line in Twitch purple so it stands out from the original. Turning this off only hides chat translations; danmaku translations are unchanged.',
     translateBadge: 'TL',
     translateProvider: 'Translation engine',
     translateProviderAuto: 'Auto',
@@ -200,6 +224,22 @@ const LOCALES = {
     blockKeywordsAdd: 'Add',
     blockKeywordsRemove: 'Remove',
     blockKeywordsEmpty: 'No keywords',
+    blockUsers: 'Blocked users',
+    blockUsersHint: 'Uses Twitch’s native block. View, add, or remove blocked users here.',
+    blockUsersPlaceholder: 'Username',
+    blockUsersAdd: 'Add',
+    blockUsersRemove: 'Unblock',
+    blockUsersEmpty: 'No blocked users',
+    blockUsersLoading: 'Loading blocked users…',
+    blockUsersRefresh: 'Refresh',
+    blockUsersNeedLogin: 'Log in to Twitch first',
+    blockUsersLoadFailed: 'Could not load blocked users',
+    blockUsersAddFailed: 'Failed to block user',
+    blockUsersRemoveFailed: 'Failed to unblock user',
+    chatMenuBlockNeedLogin: 'Log in to Twitch first',
+    chatMenuBlockDone: 'User blocked on Twitch',
+    chatMenuBlockFailed: 'Twitch block failed. Try again later',
+    chatMenuBlockNotFound: 'User not found',
     speechToggle: 'Read danmaku',
     speechPanelTitle: 'Read danmaku',
     speechEnable: 'Read danmaku aloud',
@@ -259,6 +299,7 @@ const LOCALES = {
     chatMenuRetranslate: 'Re-translate',
     chatMenuSpeak: 'Read aloud',
     chatMenuResend: 'Send as danmaku',
+    chatMenuBlockUser: 'Block this user',
     superchatPinned: 'Pin Super Chats',
     superchatPosition: 'Pin position',
     superchatDuration: 'Pin time',
@@ -269,6 +310,14 @@ const LOCALES = {
     superchatSlide: 'Slide',
     superchatPop: 'Pop',
     superchatShine: 'Shine',
+    superchatClose: 'Dismiss Super Chat',
+    fsChatPlaceholder: 'Send a message…',
+    fsChatSend: 'Chat',
+    fsChatClose: 'Close',
+    fsChatHint: 'Enter to send · Click outside when empty to close',
+    fsChatNeedLogin: 'Log in to Twitch first',
+    fsChatFailed: 'Failed to send. Try again.',
+    fsChatSent: 'Sent',
     scrollAreaFull: 'Full screen',
     scrollAreaTopHalf: 'Top half',
     scrollAreaTopQuarter: 'Top quarter',
@@ -302,6 +351,7 @@ const LOCALES = {
     langPt: 'Portuguese',
     tooltipCopy: 'Copy to chat',
     tooltipOpenProfile: 'Open sender profile',
+    chatClear: 'Clear chat',
   },
 };
 
@@ -448,6 +498,9 @@ const SELECTORS = {
   chatInput: 'textarea[data-a-target="chat-input"]',
   chatInputSlate: '[data-a-target="chat-input"][contenteditable="true"], .chat-wysiwyg-input__editor[contenteditable="true"]',
   chatInputEditable: '[data-a-target="chat-input"][contenteditable="true"], [data-a-target="chat-input-text"]',
+  chatHeader: '.stream-chat-header, [class*="stream-chat-header"]',
+  chatViewerListBtn: '[data-test-selector="chat-viewer-list"]',
+  chatMessageContainer: '[data-test-selector="chat-scrollable-area__message-container"], .chat-scrollable-area__message-container',
 };
 
 const TRANSLATE_PROVIDERS = ['auto', 'microsoft', 'google', 'volcengine', 'caiyun', 'tencent'];
@@ -482,6 +535,7 @@ function loadSettings() {
         merged.translateProvider = DEFAULT_SETTINGS.translateProvider;
       }
       merged.blockedKeywords = sanitizeBlockedKeywords(merged.blockedKeywords);
+      delete merged.blockedUsers;
       merged.translateEnabled = !!merged.translateEnabled;
       merged.translateInChat = merged.translateInChat !== false;
       merged.danmakuOpacity = clamp(Number(merged.danmakuOpacity) || DEFAULT_SETTINGS.danmakuOpacity, 10, 100);
@@ -1451,7 +1505,14 @@ class DanmakuEngine {
     this.appendParts(track, parts?.length ? parts : [{ type: 'text', value: message }]);
     body.appendChild(track);
     main.append(head, body);
-    item.append(avatar, main);
+
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'tbc-sc-close';
+    closeBtn.setAttribute('aria-label', t('superchatClose'));
+    closeBtn.textContent = t('superchatClose');
+
+    item.append(avatar, main, closeBtn);
     this.superchatLayer.appendChild(item);
     this.pinnedItems.push(item);
     this.updateLayout();
@@ -1476,6 +1537,16 @@ class DanmakuEngine {
       if (event.target !== item) return;
       if (/shine-sweep|marquee/i.test(event.animationName || '')) return;
       clearTimeout(fallback);
+      this.finishSuperchat(item);
+    });
+
+    closeBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      clearTimeout(fallback);
+      if (typeof hideDanmakuTooltip === 'function' && activeTooltipItem === item) {
+        hideDanmakuTooltip();
+      }
       this.finishSuperchat(item);
     });
 
@@ -3476,29 +3547,49 @@ function isLiveMessage(msgEl, chatRoot) {
   return false;
 }
 
-function clearChatTranslations(root = document) {
-  root.querySelectorAll?.('.tbc-chat-translation').forEach((node) => node.remove());
+function clearChatTranslations(root = document, { force = false } = {}) {
+  root.querySelectorAll?.('.tbc-chat-translation').forEach((node) => {
+    if (!force && node.getAttribute('data-tbc-manual-tl') === 'true') return;
+    node.remove();
+  });
 }
 
-function removeChatTranslation(msgEl) {
-  msgEl?.querySelectorAll?.('.tbc-chat-translation').forEach((node) => node.remove());
+function removeChatTranslation(msgEl, { force = false } = {}) {
+  msgEl?.querySelectorAll?.('.tbc-chat-translation').forEach((node) => {
+    if (!force && node.getAttribute('data-tbc-manual-tl') === 'true') return;
+    node.remove();
+  });
+}
+
+function hasManualChatTranslation(msgEl) {
+  return !!msgEl?.querySelector?.('.tbc-chat-translation[data-tbc-manual-tl="true"]');
+}
+
+function readChatTranslationText(msgEl) {
+  return String(msgEl?.querySelector?.('.tbc-chat-translation-text')?.textContent || '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function normalizeCompareText(text) {
   return String(text || '').replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
-function applyChatTranslation(msgEl, translatedText, originalText) {
+function applyChatTranslation(msgEl, translatedText, originalText, options = {}) {
   if (!msgEl?.isConnected) return false;
+  const manual = !!options.manual;
   const translated = String(translatedText || '').replace(/\s+/g, ' ').trim();
   if (!translated) {
-    removeChatTranslation(msgEl);
+    removeChatTranslation(msgEl, { force: manual });
     return false;
   }
   if (normalizeCompareText(translated) === normalizeCompareText(originalText)) {
-    removeChatTranslation(msgEl);
+    removeChatTranslation(msgEl, { force: manual });
     return false;
   }
+
+  // Auto pipeline must not overwrite a context-menu translation.
+  if (!manual && hasManualChatTranslation(msgEl)) return true;
 
   let row = msgEl.querySelector(':scope > .tbc-chat-translation');
   if (!row) {
@@ -3525,6 +3616,9 @@ function applyChatTranslation(msgEl, translatedText, originalText) {
       msgEl.appendChild(row);
     }
   }
+
+  if (manual) row.setAttribute('data-tbc-manual-tl', 'true');
+  else row.removeAttribute('data-tbc-manual-tl');
 
   const textEl = row.querySelector('.tbc-chat-translation-text');
   if (textEl) textEl.textContent = translated;
@@ -4366,6 +4460,278 @@ class TwitchIrcChatSource {
   }
 }
 
+const TWITCH_WEB_CLIENT_ID = 'kimne78kx3ncx6brgo4mv6wki5h1ko';
+const TWITCH_GQL_ENDPOINT = 'https://gql.twitch.tv/gql';
+
+const TWITCH_GQL_HASH = {
+  blockedUsersWithDetails: '031dd899a18968df9fe917bfb1293508f0c106c385283792c4620f8c994e95a7',
+  blockedUserDetail: 'f1e276239a93802a4c533616dcb9f79d5e9b439e8b3cafb782be297b99d2d413',
+  blockUser: 'c58b580efdc4187fa30c144c57425d7051602c848069be705f07e8d590a12515',
+  unblockUser: 'f1b612a6df709cfa5fea630b20c78c9ba7f4c0be386bfd51486eaf02afbfbf92',
+};
+
+function getCookieValue(name) {
+  const match = document.cookie.match(new RegExp(`(?:^|;\\s*)${name}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : '';
+}
+
+function getTwitchAuthToken() {
+  return getCookieValue('auth-token') || '';
+}
+
+function getTwitchDeviceId() {
+  return getCookieValue('unique_id')
+    || getCookieValue('unique_id_durable')
+    || localStorage.getItem('twilight.device_id')
+    || '';
+}
+
+function normalizeTwitchLogin(value) {
+  return String(value || '').trim().replace(/^@+/, '').toLowerCase();
+}
+
+function formatTwitchBlockedAt(iso) {
+  if (!iso) return '';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return String(iso);
+  try {
+    return date.toLocaleString();
+  } catch {
+    return date.toISOString();
+  }
+}
+
+function twitchGqlRequest(payload) {
+  const token = getTwitchAuthToken();
+  if (!token) {
+    return Promise.reject(Object.assign(new Error('not_logged_in'), { code: 'not_logged_in' }));
+  }
+
+  const headers = {
+    Accept: '*/*',
+    'Client-ID': TWITCH_WEB_CLIENT_ID,
+    Authorization: `OAuth ${token}`,
+    'Content-Type': 'text/plain;charset=UTF-8',
+  };
+  const deviceId = getTwitchDeviceId();
+  if (deviceId) headers['X-Device-Id'] = deviceId;
+
+  return new Promise((resolve, reject) => {
+    GM_xmlhttpRequest({
+      method: 'POST',
+      url: TWITCH_GQL_ENDPOINT,
+      headers,
+      data: JSON.stringify(payload),
+      timeout: 15000,
+      onload: (res) => {
+        if (res.status < 200 || res.status >= 300) {
+          reject(Object.assign(new Error(`http_${res.status}`), {
+            code: 'http_error',
+            status: res.status,
+            body: res.responseText,
+          }));
+          return;
+        }
+        try {
+          resolve(JSON.parse(res.responseText));
+        } catch (error) {
+          reject(Object.assign(error || new Error('bad_json'), { code: 'bad_json' }));
+        }
+      },
+      onerror: () => reject(Object.assign(new Error('network'), { code: 'network' })),
+      ontimeout: () => reject(Object.assign(new Error('timeout'), { code: 'timeout' })),
+    });
+  });
+}
+
+function gqlPersisted(operationName, variables, sha256Hash) {
+  return {
+    operationName,
+    variables,
+    extensions: {
+      persistedQuery: {
+        version: 1,
+        sha256Hash,
+      },
+    },
+  };
+}
+
+function unwrapGqlPayload(data) {
+  return Array.isArray(data) ? data[0] : data;
+}
+
+function assertNoGqlErrors(payload, fallbackCode = 'gql_error') {
+  if (payload?.errors?.length) {
+    const error = new Error(payload.errors[0]?.message || fallbackCode);
+    error.code = 'gql_error';
+    error.details = payload.errors;
+    throw error;
+  }
+}
+
+async function fetchTwitchBlockedUsers() {
+  const data = await twitchGqlRequest(
+    gqlPersisted('CommonHooks_BlockedUsersWithDetails', {}, TWITCH_GQL_HASH.blockedUsersWithDetails),
+  );
+  const payload = unwrapGqlPayload(data);
+  assertNoGqlErrors(payload, 'list_failed');
+
+  const edges = payload?.data?.currentUser?.blockedUsersWithMetadata?.edges;
+  if (!Array.isArray(edges)) return [];
+
+  return edges.map((edge) => {
+    const node = edge?.node || {};
+    return {
+      id: node.id ? String(node.id) : '',
+      login: normalizeTwitchLogin(node.login),
+      displayName: String(node.displayName || node.login || '').trim(),
+      profileImageURL: String(node.profileImageURL || '').trim(),
+      blockedAt: edge?.blockedAt || '',
+      blockedAtLabel: formatTwitchBlockedAt(edge?.blockedAt),
+    };
+  }).filter((user) => user.id || user.login);
+}
+
+async function resolveTwitchUserId(login) {
+  const normalized = normalizeTwitchLogin(login);
+  if (!normalized) return '';
+
+  const data = await twitchGqlRequest([
+    gqlPersisted('BlockedUserDetail', { login: normalized }, TWITCH_GQL_HASH.blockedUserDetail),
+  ]);
+  const payload = unwrapGqlPayload(data);
+  assertNoGqlErrors(payload, 'lookup_failed');
+  const user = payload?.data?.user;
+  return user?.id ? String(user.id) : '';
+}
+
+async function blockTwitchUser(login, { sourceContext = 'CHAT' } = {}) {
+  const targetUserID = await resolveTwitchUserId(login);
+  if (!targetUserID) {
+    const error = new Error('user_not_found');
+    error.code = 'user_not_found';
+    throw error;
+  }
+
+  const data = await twitchGqlRequest([
+    gqlPersisted(
+      'CommonHooks_BlockUser',
+      { input: { targetUserID, sourceContext } },
+      TWITCH_GQL_HASH.blockUser,
+    ),
+  ]);
+  const payload = unwrapGqlPayload(data);
+  assertNoGqlErrors(payload, 'block_failed');
+  return { targetUserID, login: normalizeTwitchLogin(login) };
+}
+
+async function unblockTwitchUserById(targetUserID) {
+  const id = String(targetUserID || '').trim();
+  if (!id) {
+    const error = new Error('user_not_found');
+    error.code = 'user_not_found';
+    throw error;
+  }
+
+  const data = await twitchGqlRequest([
+    gqlPersisted(
+      'CommonHooks_UnblockUser',
+      { input: { targetUserID: id } },
+      TWITCH_GQL_HASH.unblockUser,
+    ),
+  ]);
+  const payload = unwrapGqlPayload(data);
+  assertNoGqlErrors(payload, 'unblock_failed');
+  return { targetUserID: id };
+}
+
+async function unblockTwitchUser(login) {
+  const targetUserID = await resolveTwitchUserId(login);
+  if (!targetUserID) {
+    const error = new Error('user_not_found');
+    error.code = 'user_not_found';
+    throw error;
+  }
+  await unblockTwitchUserById(targetUserID);
+  return { targetUserID, login: normalizeTwitchLogin(login) };
+}
+
+const SEND_CHAT_MESSAGE_HASH = '0435464292cf380ed4b3d905e4edcb73078362e82c06367a5b2181c76c822fa2';
+
+let cachedChatChannel = { login: '', id: '' };
+
+function createChatNonce() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID().replace(/-/g, '');
+  }
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+  }
+  return `${Date.now().toString(16)}${Math.random().toString(16).slice(2, 10)}`;
+}
+
+async function resolveLiveChannelId() {
+  const login = currentChannelLogin();
+  if (!login) {
+    const error = new Error('no_channel');
+    error.code = 'no_channel';
+    throw error;
+  }
+  if (cachedChatChannel.login === login && cachedChatChannel.id) {
+    return cachedChatChannel.id;
+  }
+  const id = await resolveTwitchUserId(login);
+  if (!id) {
+    const error = new Error('channel_not_found');
+    error.code = 'channel_not_found';
+    throw error;
+  }
+  cachedChatChannel = { login, id };
+  return id;
+}
+
+async function sendTwitchChatMessage(message) {
+  const text = String(message || '').trim();
+  if (!text) {
+    const error = new Error('empty_message');
+    error.code = 'empty_message';
+    throw error;
+  }
+
+  const channelID = await resolveLiveChannelId();
+  const nonce = createChatNonce();
+  const data = await twitchGqlRequest([
+    gqlPersisted(
+      'sendChatMessage',
+      {
+        input: {
+          channelID,
+          message: text,
+          nonce,
+          replyParentMessageID: null,
+        },
+      },
+      SEND_CHAT_MESSAGE_HASH,
+    ),
+  ]);
+
+  const payload = unwrapGqlPayload(data);
+  assertNoGqlErrors(payload, 'send_failed');
+
+  const result = payload?.data?.sendChatMessage;
+  if (result?.errorCode || result?.error) {
+    const error = new Error(result.errorCode || result.error || 'send_failed');
+    error.code = 'send_failed';
+    error.details = result;
+    throw error;
+  }
+
+  return { channelID, nonce, result };
+}
+
 class ChatObserver {
   constructor({ getSettings, danmakuEmitter, translateQueue, isActive }) {
     this.getSettings = getSettings;
@@ -4521,6 +4887,10 @@ class ChatObserver {
     return this.ircBuffer.slice();
   }
 
+  clearIrcHistory() {
+    this.ircBuffer = [];
+  }
+
   emitDanmaku(parsed, msgEl) {
     const settings = this.getSettings();
     if (!this.isActive()) return;
@@ -4562,9 +4932,10 @@ class ChatObserver {
       const message = partsToPlain(parts) || parsed.message;
       if (isKeywordBlocked(parsed.message, latest.blockedKeywords)) return;
       if (isKeywordBlocked(message, latest.blockedKeywords)) return;
-      if (latest.translateEnabled && latest.translateInChat && allowChatTranslation) {
+      const manualTl = hasManualChatTranslation(msgEl);
+      if (latest.translateEnabled && latest.translateInChat && allowChatTranslation && !manualTl) {
         applyChatTranslation(msgEl, message, parsed.message);
-      } else if (msgEl) {
+      } else if (msgEl && !manualTl) {
         removeChatTranslation(msgEl);
       }
       this.danmakuEmitter.enqueue({
@@ -4810,6 +5181,50 @@ function injectStyles() {
       opacity: 0.55;
     }
 
+    /* Cloned InjectLayout keeps Twitch button chrome; fallback is for demo / missing shell. */
+    .tbc-chat-clear-wrap {
+      flex-shrink: 0;
+    }
+
+    .tbc-chat-clear-btn svg {
+      pointer-events: none;
+    }
+
+    .tbc-chat-clear-btn--fallback {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      box-sizing: border-box;
+      width: 32px;
+      height: 32px;
+      margin: 0;
+      padding: 0;
+      border: none;
+      border-radius: 0.4rem;
+      background: transparent;
+      color: var(--color-fill-button-icon, var(--color-text-base, #efeff1));
+      cursor: pointer;
+      transition: background-color 0.1s ease, color 0.1s ease;
+    }
+
+    .tbc-chat-clear-btn--fallback:hover {
+      background-color: var(--color-background-interactable-hover, rgba(83, 83, 95, 0.48));
+      color: var(--color-fill-button-icon-hover, var(--color-text-base, #efeff1));
+    }
+
+    .tbc-chat-clear-btn--fallback:active {
+      background-color: var(--color-background-interactable-active, rgba(83, 83, 95, 0.7));
+    }
+
+    .tbc-chat-clear-btn--fallback svg {
+      width: 20px;
+      height: 20px;
+      fill: currentColor;
+      display: block;
+      pointer-events: none;
+    }
+
     .tbc-superchat-layer {
       pointer-events: none;
       display: none;
@@ -4833,7 +5248,7 @@ function injectStyles() {
       gap: 10px;
       max-width: min(720px, calc(100% - 24px));
       min-width: min(280px, calc(100% - 24px));
-      padding: 8px 14px 8px 8px;
+      padding: 8px 28px 8px 8px;
       border-radius: 12px;
       border: 1px solid rgba(255, 255, 255, 0.18);
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
@@ -4845,6 +5260,50 @@ function injectStyles() {
       animation-duration: var(--tbc-sc-duration, 6s);
       animation-timing-function: ease;
       animation-fill-mode: forwards;
+    }
+
+    .tbc-sc-close {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      z-index: 3;
+      width: 22px;
+      height: 22px;
+      padding: 0;
+      border: none;
+      border-radius: 4px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(14, 14, 16, 0.45);
+      color: #efeff1;
+      cursor: pointer;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+    }
+
+    .tbc-superchat-item:hover .tbc-sc-close,
+    .tbc-superchat-item.tbc-paused .tbc-sc-close,
+    .tbc-superchat-item:focus-within .tbc-sc-close {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .tbc-sc-close:hover {
+      background: #9147ff;
+      color: #ffffff;
+    }
+
+    .tbc-sc-close:active {
+      background: #772ce8;
+    }
+
+    .tbc-sc-close svg {
+      width: 14px;
+      height: 14px;
+      display: block;
+      pointer-events: none;
     }
 
     .tbc-sc-avatar {
@@ -5235,6 +5694,105 @@ function injectStyles() {
       font-size: 13px;
     }
 
+    .tbc-block-users-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .tbc-block-users-header .tbc-balloon-label {
+      margin: 0;
+    }
+
+    .tbc-block-users-refresh {
+      flex-shrink: 0;
+      border: none;
+      border-radius: 4px;
+      background: #3a3a3d;
+      color: #efeff1;
+      padding: 4px 8px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .tbc-block-users-refresh:hover {
+      background: #4a4a4d;
+    }
+
+    .tbc-block-users-refresh:disabled,
+    .tbc-block-user-remove:disabled {
+      opacity: 0.55;
+      cursor: default;
+    }
+
+    .tbc-block-users-status {
+      color: #adadb8;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .tbc-block-users-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 180px;
+      overflow-y: auto;
+    }
+
+    .tbc-block-user {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .tbc-block-user-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: #3a3a3d;
+      flex-shrink: 0;
+    }
+
+    .tbc-block-user-meta {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .tbc-block-user-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: #efeff1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .tbc-block-user-date {
+      margin-top: 2px;
+      font-size: 11px;
+      color: #adadb8;
+    }
+
+    .tbc-block-user-remove {
+      flex-shrink: 0;
+      border: none;
+      border-radius: 4px;
+      background: transparent;
+      color: #bf94ff;
+      padding: 4px 6px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .tbc-block-user-remove:hover {
+      background: rgba(145, 71, 255, 0.2);
+    }
+
     .tbc-keyword-add {
       flex-shrink: 0;
       border: none;
@@ -5467,6 +6025,154 @@ function injectStyles() {
       opacity: 0.45;
       cursor: default;
     }
+
+    .tbc-fs-chat {
+      position: absolute;
+      left: 50%;
+      bottom: max(72px, 10%);
+      transform: translateX(-50%);
+      z-index: 100020;
+      width: min(560px, calc(100% - 48px));
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      pointer-events: auto;
+      font-family: Roobert, Inter, "Helvetica Neue", Helvetica, Arial, sans-serif;
+    }
+
+    .tbc-fs-chat-row {
+      display: flex;
+      align-items: stretch;
+      gap: 8px;
+      padding: 8px;
+      border-radius: 8px;
+      background: rgba(14, 14, 16, 0.92);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      box-shadow: 0 10px 36px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(10px);
+    }
+
+    .tbc-fs-chat-input {
+      flex: 1;
+      min-width: 0;
+      box-sizing: border-box;
+      height: 40px;
+      padding: 0 12px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      background: #18181b;
+      color: #efeff1;
+      font-size: 14px;
+      line-height: 40px;
+      outline: none;
+      caret-color: #bf94ff;
+    }
+
+    .tbc-fs-chat-input::placeholder {
+      color: #adadb8;
+    }
+
+    .tbc-fs-chat-input:focus {
+      border-color: #9147ff;
+      box-shadow: 0 0 0 1px #9147ff;
+    }
+
+    .tbc-fs-chat-send {
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-width: 72px;
+      height: 40px;
+      padding: 0 14px;
+      border: none;
+      border-radius: 6px;
+      background: #9147ff;
+      color: #ffffff;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    .tbc-fs-chat-send:hover:not(:disabled) {
+      background: #772ce8;
+    }
+
+    .tbc-fs-chat-send:active:not(:disabled) {
+      background: #5c16c5;
+    }
+
+    .tbc-fs-chat-send:disabled {
+      opacity: 0.45;
+      cursor: default;
+    }
+
+    .tbc-fs-chat-send svg {
+      width: 16px;
+      height: 16px;
+      display: block;
+    }
+
+    .tbc-fs-chat-close {
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      min-width: 72px;
+      padding: 0 14px;
+      border: none;
+      border-radius: 6px;
+      background: #eb0400;
+      color: #ffffff;
+      cursor: pointer;
+      transition: background 0.15s ease, filter 0.15s ease;
+    }
+
+    .tbc-fs-chat-close:hover {
+      background: #c50300;
+      filter: brightness(1.05);
+    }
+
+    .tbc-fs-chat-close:active {
+      background: #a80300;
+    }
+
+    .tbc-fs-chat-close svg {
+      width: 16px;
+      height: 16px;
+      display: block;
+      pointer-events: none;
+    }
+
+    .tbc-fs-chat-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0 4px;
+      min-height: 16px;
+    }
+
+    .tbc-fs-chat-hint {
+      color: rgba(239, 239, 241, 0.55);
+      font-size: 12px;
+      line-height: 1.3;
+    }
+
+    .tbc-fs-chat-status {
+      color: #ff8280;
+      font-size: 12px;
+      line-height: 1.3;
+      text-align: right;
+    }
+
+    .tbc-fs-chat-status.is-ok {
+      color: #00f593;
+    }
   `);
 }
 
@@ -5485,6 +6191,11 @@ const ICON_SPEECH_MUTE = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2
 const ICON_SPEECH_OFF = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3z"/></svg>`;
 
 const ICON_DOWNLOAD = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a1 1 0 0 1 1 1v8.59l2.3-2.3a1 1 0 0 1 1.4 1.42l-4 4a1 1 0 0 1-1.4 0l-4-4a1 1 0 1 1 1.4-1.42l2.3 2.3V4a1 1 0 0 1 1-1zM5 19a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H6a1 1 0 0 1-1-1z"/></svg>`;
+
+const ICON_CHAT_CLEAR_PATH = 'M360 184h-8c4.4 0 8-3.6 8-8v8h304v-8c0 4.4 3.6 8 8 8h-8v72h72v-80c0-35.3-28.7-64-64-64H352c-35.3 0-64 28.7-64 64v80h72v-72zm504 72H160c-17.7 0-32 14.3-32 32v32c0 4.4 3.6 8 8 8h60.4l24.7 523c1.6 34.1 29.8 61 63.9 61h454c34.2 0 62.3-26.8 63.9-61l24.7-523H888c4.4 0 8-3.6 8-8v-32c0-17.7-14.3-32-32-32zM731.3 840H292.7l-24.2-512h487l-24.2 512z';
+const ICON_CHAT_CLEAR = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 1024 1024" fill="currentColor" aria-hidden="true"><path d="${ICON_CHAT_CLEAR_PATH}"></path></svg>`;
+
+const ICON_CHAT_SEND = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3.4 20.6 21 12 3.4 3.4l-.1 6.8L15 12 3.3 13.8z"/></svg>`;
 
 class SettingsPanel {
   constructor({ settings, onChange, onClose }) {
@@ -5526,6 +6237,12 @@ class SettingsPanel {
     this.anchor = null;
     this.balloon?.remove();
     this.balloon = null;
+    this.twitchBlockInput = null;
+    this.twitchBlockAddBtn = null;
+    this.twitchBlockStatus = null;
+    this.twitchBlockList = null;
+    this.twitchBlockRefreshBtn = null;
+    this.twitchBlockBusy = false;
 
     window.removeEventListener('resize', this.boundReposition);
     document.removeEventListener('fullscreenchange', this.boundReposition);
@@ -5616,7 +6333,6 @@ class SettingsPanel {
   syncTranslateDependentRows() {
     const enabled = !!this.settings.translateEnabled;
     if (this.translateInChatRow) this.translateInChatRow.hidden = !enabled;
-    if (this.translateInChatHint) this.translateInChatHint.hidden = !enabled;
   }
 
   createRange(label, key, min, max, step, format) {
@@ -5678,6 +6394,203 @@ class SettingsPanel {
 
     row.append(labelEl, select);
     return row;
+  }
+
+  createTwitchBlockUsersRow() {
+    const row = document.createElement('div');
+    row.className = 'tbc-balloon-row tbc-balloon-row--field';
+
+    const header = document.createElement('div');
+    header.className = 'tbc-block-users-header';
+
+    const labelEl = document.createElement('div');
+    labelEl.className = 'tbc-balloon-label';
+    labelEl.textContent = t('blockUsers');
+
+    const refreshBtn = document.createElement('button');
+    refreshBtn.type = 'button';
+    refreshBtn.className = 'tbc-block-users-refresh';
+    refreshBtn.textContent = t('blockUsersRefresh');
+    refreshBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.loadTwitchBlockedUsers();
+    });
+    header.append(labelEl, refreshBtn);
+
+    const hint = document.createElement('div');
+    hint.className = 'tbc-keyword-hint';
+    hint.textContent = t('blockUsersHint');
+
+    const form = document.createElement('div');
+    form.className = 'tbc-keyword-form';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'tbc-keyword-input';
+    input.maxLength = 25;
+    input.placeholder = t('blockUsersPlaceholder');
+    input.setAttribute('aria-label', t('blockUsers'));
+
+    const addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.className = 'tbc-keyword-add';
+    addBtn.textContent = t('blockUsersAdd');
+
+    const status = document.createElement('div');
+    status.className = 'tbc-block-users-status';
+
+    const list = document.createElement('div');
+    list.className = 'tbc-block-users-list';
+
+    this.twitchBlockInput = input;
+    this.twitchBlockAddBtn = addBtn;
+    this.twitchBlockStatus = status;
+    this.twitchBlockList = list;
+    this.twitchBlockRefreshBtn = refreshBtn;
+
+    const commit = async () => {
+      const login = normalizeTwitchLogin(input.value);
+      if (!login || this.twitchBlockBusy) return;
+      this.setTwitchBlockBusy(true);
+      this.setTwitchBlockStatus('');
+      try {
+        await blockTwitchUser(login, { sourceContext: 'SETTINGS' });
+        input.value = '';
+        await this.loadTwitchBlockedUsers({ silent: true });
+      } catch (error) {
+        const code = error?.code || '';
+        if (code === 'not_logged_in') this.setTwitchBlockStatus(t('blockUsersNeedLogin'));
+        else if (code === 'user_not_found') this.setTwitchBlockStatus(t('chatMenuBlockNotFound'));
+        else this.setTwitchBlockStatus(t('blockUsersAddFailed'));
+      } finally {
+        this.setTwitchBlockBusy(false);
+      }
+    };
+
+    addBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      commit();
+    });
+    input.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        commit();
+      }
+    });
+
+    form.append(input, addBtn);
+    row.append(header, hint, form, status, list);
+    this.loadTwitchBlockedUsers();
+    return row;
+  }
+
+  setTwitchBlockStatus(text) {
+    if (!this.twitchBlockStatus) return;
+    this.twitchBlockStatus.textContent = text || '';
+    this.twitchBlockStatus.hidden = !text;
+  }
+
+  setTwitchBlockBusy(busy) {
+    this.twitchBlockBusy = !!busy;
+    if (this.twitchBlockInput) this.twitchBlockInput.disabled = !!busy;
+    if (this.twitchBlockAddBtn) this.twitchBlockAddBtn.disabled = !!busy;
+    if (this.twitchBlockRefreshBtn) this.twitchBlockRefreshBtn.disabled = !!busy;
+    this.twitchBlockList?.querySelectorAll('button').forEach((btn) => {
+      btn.disabled = !!busy;
+    });
+  }
+
+  async loadTwitchBlockedUsers({ silent = false } = {}) {
+    if (!this.twitchBlockList) return;
+    if (!silent) {
+      this.twitchBlockList.replaceChildren();
+      this.setTwitchBlockStatus(t('blockUsersLoading'));
+    }
+    this.setTwitchBlockBusy(true);
+    try {
+      const users = await fetchTwitchBlockedUsers();
+      this.renderTwitchBlockedUsers(users);
+      if (!silent) this.setTwitchBlockStatus('');
+    } catch (error) {
+      this.twitchBlockList.replaceChildren();
+      const code = error?.code || '';
+      this.setTwitchBlockStatus(
+        code === 'not_logged_in' ? t('blockUsersNeedLogin') : t('blockUsersLoadFailed'),
+      );
+    } finally {
+      this.setTwitchBlockBusy(false);
+    }
+  }
+
+  renderTwitchBlockedUsers(users) {
+    if (!this.twitchBlockList) return;
+    this.twitchBlockList.replaceChildren();
+    if (!users.length) {
+      const empty = document.createElement('div');
+      empty.className = 'tbc-keyword-empty';
+      empty.textContent = t('blockUsersEmpty');
+      this.twitchBlockList.appendChild(empty);
+      return;
+    }
+
+    users.forEach((user) => {
+      const item = document.createElement('div');
+      item.className = 'tbc-block-user';
+
+      const avatar = document.createElement('img');
+      avatar.className = 'tbc-block-user-avatar';
+      avatar.alt = '';
+      avatar.width = 28;
+      avatar.height = 28;
+      avatar.loading = 'lazy';
+      avatar.referrerPolicy = 'no-referrer';
+      avatar.src = user.profileImageURL || '';
+
+      const meta = document.createElement('div');
+      meta.className = 'tbc-block-user-meta';
+
+      const name = document.createElement('div');
+      name.className = 'tbc-block-user-name';
+      name.textContent = user.displayName || user.login;
+      name.title = user.login ? `${user.displayName || user.login} (@${user.login})` : (user.displayName || '');
+
+      const date = document.createElement('div');
+      date.className = 'tbc-block-user-date';
+      date.textContent = user.blockedAtLabel || '';
+
+      meta.append(name, date);
+
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'tbc-block-user-remove';
+      removeBtn.textContent = t('blockUsersRemove');
+      removeBtn.setAttribute(
+        'aria-label',
+        `${t('blockUsersRemove')} ${user.displayName || user.login}`,
+      );
+      removeBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (this.twitchBlockBusy) return;
+        this.setTwitchBlockBusy(true);
+        this.setTwitchBlockStatus('');
+        try {
+          if (user.id) await unblockTwitchUserById(user.id);
+          else await unblockTwitchUser(user.login);
+          await this.loadTwitchBlockedUsers({ silent: true });
+        } catch (error) {
+          const code = error?.code || '';
+          this.setTwitchBlockStatus(
+            code === 'not_logged_in' ? t('blockUsersNeedLogin') : t('blockUsersRemoveFailed'),
+          );
+        } finally {
+          this.setTwitchBlockBusy(false);
+        }
+      });
+
+      item.append(avatar, meta, removeBtn);
+      this.twitchBlockList.appendChild(item);
+    });
   }
 
   createKeywordBlock() {
@@ -5829,12 +6742,12 @@ class SettingsPanel {
     );
 
     this.translateInChatRow = this.createToggle(t('translateInChat'), 'translateInChat');
-    this.translateInChatHint = this.createHint(t('translateInChatHint'));
     body.append(
       this.translateInChatRow,
-      this.translateInChatHint,
       this.createDivider(),
       this.createKeywordBlock(),
+      this.createDivider(),
+      this.createTwitchBlockUsersRow(),
     );
     this.syncTranslateDependentRows();
 
@@ -6741,17 +7654,25 @@ class ChatContextMenu {
     this.menu.setAttribute('role', 'menu');
 
     const hasTranslation = !!msgEl.querySelector('.tbc-chat-translation');
+    const login = normalizeTwitchLogin(snapshot.login || snapshot.username);
     this.menu.append(
       this.createItem(hasTranslation ? t('chatMenuRetranslate') : t('chatMenuTranslate'), () => {
         this.runTranslate(msgEl, snapshot, true);
       }),
       this.createItem(t('chatMenuSpeak'), () => {
-        this.runSpeak(snapshot);
+        this.runSpeak(msgEl, snapshot);
       }),
       this.createItem(t('chatMenuResend'), () => {
         this.runResend(msgEl, snapshot, false);
       }),
     );
+    if (login) {
+      this.menu.append(
+        this.createItem(t('chatMenuBlockUser'), () => {
+          this.runBlockUser(login);
+        }),
+      );
+    }
 
     const mount = getFullscreenElement() || document.body;
     mount.appendChild(this.menu);
@@ -6825,16 +7746,37 @@ class ChatContextMenu {
     return { parts, message, translated: message !== snapshot.message, failed: false };
   }
 
-  async runTranslate(msgEl, snapshot, bustCache) {
-    const result = await this.translateParts(snapshot, bustCache);
-    if (result.failed) return;
-    applyChatTranslation(msgEl, result.message, snapshot.message);
+  async runBlockUser(login) {
+    try {
+      await blockTwitchUser(login, { sourceContext: 'CHAT' });
+      console.info(`[TBC] ${t('chatMenuBlockDone')}: ${login}`);
+    } catch (error) {
+      const code = error?.code || '';
+      if (code === 'not_logged_in') {
+        console.warn(`[TBC] ${t('chatMenuBlockNeedLogin')}`);
+        return;
+      }
+      if (code === 'user_not_found') {
+        console.warn(`[TBC] ${t('chatMenuBlockNotFound')}: ${login}`);
+        return;
+      }
+      console.warn(`[TBC] ${t('chatMenuBlockFailed')}`, error);
+    }
   }
 
-  runSpeak(snapshot) {
+  async runTranslate(msgEl, snapshot, bustCache) {
+    // Context-menu translate is always available; does not require settings.translateEnabled.
+    const result = await this.translateParts(snapshot, bustCache);
+    if (result.failed) return;
+    applyChatTranslation(msgEl, result.message, snapshot.message, { manual: true });
+  }
+
+  runSpeak(msgEl, snapshot) {
     const settings = this.getSettings();
     if (!speechSupported()) return;
-    const source = speechSourceText(snapshot.message, snapshot.parts);
+    // Prefer the on-screen chat translation when the user already translated this line.
+    const translated = readChatTranslationText(msgEl);
+    const source = translated || speechSourceText(snapshot.message, snapshot.parts);
     // Explicit menu action: use panel voice/rate/volume, even if auto-speak is off.
     if (Number(settings.speechVolume) <= 0) return;
     speakTextNow(source);
@@ -6853,8 +7795,10 @@ class ChatContextMenu {
         message = result.message;
         parts = result.parts;
         translated = result.translated;
-        if (settings.translateInChat) {
-          applyChatTranslation(msgEl, message, snapshot.message);
+        if (settings.translateInChat || forceTranslate) {
+          applyChatTranslation(msgEl, message, snapshot.message, {
+            manual: !!forceTranslate,
+          });
         }
       }
     }
@@ -6872,6 +7816,396 @@ class ChatContextMenu {
       superchatStyle: snapshot.superchatStyle,
       superchatMeta: snapshot.superchatMeta,
     });
+  }
+}
+
+const CHAT_CLEAR_MESSAGE_SELECTOR = [
+  '.chat-line__message',
+  '[data-a-target="chat-line-message"]',
+  '[data-a-target="chat-message-container"]',
+  '.user-notice-line',
+  '[data-a-target="chat-welcome-message"]',
+  '.chat-line__status',
+].join(', ');
+
+class ChatClearButton {
+  constructor({ onClear } = {}) {
+    this.onClear = onClear;
+    this.wrap = null;
+    this.btn = null;
+    this.retryTimer = null;
+  }
+
+  findNativeInjectLayout() {
+    const viewerBtn = document.querySelector(SELECTORS.chatViewerListBtn);
+    if (!viewerBtn) return null;
+    // Twitch wraps each header icon button in its own InjectLayout — clone that shell.
+    const wrap = viewerBtn.closest('[class*="InjectLayout"]') || viewerBtn.parentElement;
+    if (!wrap?.parentElement) return null;
+    return { wrap, host: wrap.parentElement };
+  }
+
+  clearLiveChat() {
+    const containers = document.querySelectorAll(SELECTORS.chatMessageContainer);
+    let removed = 0;
+    containers.forEach((container) => {
+      container.querySelectorAll(CHAT_CLEAR_MESSAGE_SELECTOR).forEach((node) => {
+        node.remove();
+        removed += 1;
+      });
+    });
+
+    if (!containers.length) {
+      document.querySelectorAll('[data-a-target="chat-scroller"]').forEach((scroller) => {
+        scroller.querySelectorAll(CHAT_CLEAR_MESSAGE_SELECTOR).forEach((node) => {
+          node.remove();
+          removed += 1;
+        });
+      });
+    }
+
+    this.onClear?.(removed);
+    return removed;
+  }
+
+  applyClearIcon(btn) {
+    const svg = btn.querySelector('svg');
+    if (!svg) {
+      btn.insertAdjacentHTML('beforeend', ICON_CHAT_CLEAR);
+      return;
+    }
+
+    svg.setAttribute('viewBox', '0 0 1024 1024');
+    svg.setAttribute('fill', 'currentColor');
+    svg.removeAttribute('stroke');
+    svg.removeAttribute('stroke-width');
+    svg.setAttribute('aria-hidden', 'true');
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', ICON_CHAT_CLEAR_PATH);
+    svg.appendChild(path);
+  }
+
+  applyLabel(btn, label = t('chatClear')) {
+    btn.setAttribute('title', label);
+    btn.setAttribute('data-a-target', 'tbc-chat-clear');
+    btn.setAttribute('data-tbc-chat-clear', 'true');
+    btn.removeAttribute('data-test-selector');
+    btn.removeAttribute('id');
+  }
+
+  createFromInjectLayout(nativeWrap) {
+    const wrap = nativeWrap.cloneNode(true);
+    wrap.classList.add('tbc-chat-clear-wrap');
+    wrap.setAttribute('data-tbc-chat-clear-wrap', 'true');
+    wrap.removeAttribute('id');
+
+    const btn = wrap.querySelector('button') || wrap.querySelector('[role="button"]');
+    if (!btn) return null;
+
+    btn.classList.add('tbc-chat-clear-btn');
+    this.applyClearIcon(btn);
+    this.applyLabel(btn);
+    btn.type = 'button';
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.clearLiveChat();
+    });
+
+    return { wrap, btn };
+  }
+
+  createFallbackButton() {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'tbc-chat-clear-btn tbc-chat-clear-btn--fallback';
+    btn.innerHTML = ICON_CHAT_CLEAR;
+    this.applyLabel(btn);
+    btn.setAttribute('title', t('chatClear'));
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.clearLiveChat();
+    });
+    return btn;
+  }
+
+  async mount() {
+    if (this.wrap?.isConnected || this.btn?.isConnected) {
+      this.refreshLabel();
+      return;
+    }
+
+    const header = await waitForElement(SELECTORS.chatHeader, document, 12000);
+    if (!header) return;
+    if (header.querySelector('[data-tbc-chat-clear-wrap="true"], [data-tbc-chat-clear="true"]')) return;
+
+    const native = this.findNativeInjectLayout();
+    if (native?.wrap && native.host) {
+      const created = this.createFromInjectLayout(native.wrap);
+      if (created) {
+        this.wrap = created.wrap;
+        this.btn = created.btn;
+        native.host.appendChild(this.wrap);
+        return;
+      }
+    }
+
+    // Preview / missing community button: plain styled control in the header actions row.
+    const actions = header.querySelector(':scope > div:last-child') || header;
+    this.btn = this.createFallbackButton();
+    this.wrap = this.btn;
+    actions.appendChild(this.btn);
+  }
+
+  refreshLabel() {
+    if (!this.btn) return;
+    this.applyLabel(this.btn);
+    if (this.btn.classList.contains('tbc-chat-clear-btn--fallback')) {
+      this.btn.setAttribute('title', t('chatClear'));
+    }
+  }
+
+  remount() {
+    if (this.wrap?.isConnected || this.btn?.isConnected) {
+      this.refreshLabel();
+      return;
+    }
+    this.wrap?.remove();
+    this.btn?.remove();
+    this.wrap = null;
+    this.btn = null;
+    clearTimeout(this.retryTimer);
+    this.retryTimer = setTimeout(() => this.mount(), 500);
+  }
+
+  destroy() {
+    clearTimeout(this.retryTimer);
+    this.wrap?.remove();
+    if (this.btn && this.btn !== this.wrap) this.btn.remove();
+    this.wrap = null;
+    this.btn = null;
+  }
+}
+
+class FullscreenChatInput {
+  constructor() {
+    this.root = null;
+    this.input = null;
+    this.sendBtn = null;
+    this.closeBtn = null;
+    this.statusEl = null;
+    this.sending = false;
+    this.boundKeyDown = (e) => this.onKeyDown(e);
+    this.boundFsChange = () => this.onFullscreenChange();
+    this.boundPointerDown = (e) => this.onPointerDownOutside(e);
+  }
+
+  attach() {
+    document.addEventListener('keydown', this.boundKeyDown, true);
+    document.addEventListener('pointerdown', this.boundPointerDown, true);
+    document.addEventListener('fullscreenchange', this.boundFsChange);
+    document.addEventListener('webkitfullscreenchange', this.boundFsChange);
+  }
+
+  destroy() {
+    this.close();
+    document.removeEventListener('keydown', this.boundKeyDown, true);
+    document.removeEventListener('pointerdown', this.boundPointerDown, true);
+    document.removeEventListener('fullscreenchange', this.boundFsChange);
+    document.removeEventListener('webkitfullscreenchange', this.boundFsChange);
+  }
+
+  isEditableTarget(target) {
+    if (!target || target === document.body || target === document.documentElement) return false;
+    const el = target.nodeType === 1 ? target : target.parentElement;
+    if (!el) return false;
+    const tag = el.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+    if (el.isContentEditable) return true;
+    return !!el.closest?.('input, textarea, select, [contenteditable="true"], [role="textbox"]');
+  }
+
+  canOpen() {
+    if (!getFullscreenElement()) return false;
+    if (currentVodId()) return false;
+    return !!currentChannelLogin();
+  }
+
+  stopEvent(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+  }
+
+  onKeyDown(e) {
+    if (e.isComposing) return;
+    if (e.key !== 'Enter') return;
+    if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+
+    if (this.root) {
+      if (e.target === this.input || this.root.contains(e.target)) {
+        this.stopEvent(e);
+        this.submit();
+      }
+      return;
+    }
+
+    if (!this.canOpen()) return;
+    if (this.isEditableTarget(e.target)) return;
+
+    this.stopEvent(e);
+    this.open();
+  }
+
+  onPointerDownOutside(e) {
+    if (!this.root) return;
+    if (this.root.contains(e.target)) return;
+    if (this.input?.value.trim()) return;
+    this.close();
+  }
+
+  onFullscreenChange() {
+    if (!getFullscreenElement()) this.close();
+  }
+
+  setStatus(message, ok = false) {
+    if (!this.statusEl) return;
+    this.statusEl.textContent = message || '';
+    this.statusEl.classList.toggle('is-ok', !!ok && !!message);
+  }
+
+  open() {
+    if (this.root) {
+      this.input?.focus();
+      return;
+    }
+
+    const mount = getFullscreenElement();
+    if (!mount) return;
+
+    if (getComputedStyle(mount).position === 'static') {
+      mount.style.position = 'relative';
+    }
+
+    const root = document.createElement('div');
+    root.className = 'tbc-fs-chat';
+    root.setAttribute('role', 'dialog');
+    root.setAttribute('aria-label', t('fsChatPlaceholder'));
+
+    const row = document.createElement('div');
+    row.className = 'tbc-fs-chat-row';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'tbc-fs-chat-input';
+    input.maxLength = 500;
+    input.autocomplete = 'off';
+    input.spellcheck = true;
+    input.placeholder = t('fsChatPlaceholder');
+
+    const sendBtn = document.createElement('button');
+    sendBtn.type = 'button';
+    sendBtn.className = 'tbc-fs-chat-send';
+    sendBtn.setAttribute('aria-label', t('fsChatSend'));
+    sendBtn.innerHTML = `${ICON_CHAT_SEND}<span>${t('fsChatSend')}</span>`;
+
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'tbc-fs-chat-close';
+    closeBtn.setAttribute('aria-label', t('fsChatClose'));
+    closeBtn.textContent = t('fsChatClose');
+
+    const meta = document.createElement('div');
+    meta.className = 'tbc-fs-chat-meta';
+
+    const hint = document.createElement('div');
+    hint.className = 'tbc-fs-chat-hint';
+    hint.textContent = t('fsChatHint');
+
+    const status = document.createElement('div');
+    status.className = 'tbc-fs-chat-status';
+
+    row.append(input, sendBtn, closeBtn);
+    meta.append(hint, status);
+    root.append(row, meta);
+
+    const trap = (e) => {
+      e.stopPropagation();
+    };
+    root.addEventListener('keydown', trap);
+    root.addEventListener('keyup', trap);
+    root.addEventListener('keypress', trap);
+    root.addEventListener('mousedown', trap);
+    root.addEventListener('pointerdown', trap);
+    root.addEventListener('click', trap);
+
+    sendBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.submit();
+    });
+
+    closeBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.close();
+    });
+
+    mount.appendChild(root);
+    this.root = root;
+    this.input = input;
+    this.sendBtn = sendBtn;
+    this.closeBtn = closeBtn;
+    this.statusEl = status;
+
+    requestAnimationFrame(() => {
+      input.focus();
+    });
+  }
+
+  close() {
+    this.root?.remove();
+    this.root = null;
+    this.input = null;
+    this.sendBtn = null;
+    this.closeBtn = null;
+    this.statusEl = null;
+    this.sending = false;
+  }
+
+  async submit() {
+    if (!this.input || this.sending) return;
+    const text = this.input.value.trim();
+    if (!text) {
+      this.setStatus('');
+      return;
+    }
+
+    this.sending = true;
+    if (this.sendBtn) this.sendBtn.disabled = true;
+    this.setStatus('');
+
+    try {
+      await sendTwitchChatMessage(text);
+      this.input.value = '';
+      this.setStatus(t('fsChatSent'), true);
+      setTimeout(() => {
+        if (this.statusEl?.textContent === t('fsChatSent')) this.setStatus('');
+      }, 1200);
+    } catch (error) {
+      const code = error?.code || '';
+      if (code === 'not_logged_in') {
+        this.setStatus(t('fsChatNeedLogin'));
+      } else {
+        this.setStatus(t('fsChatFailed'));
+      }
+    } finally {
+      this.sending = false;
+      if (this.sendBtn) this.sendBtn.disabled = false;
+      this.input?.focus();
+    }
   }
 }
 
@@ -7020,6 +8354,8 @@ let danmakuEmitter = null;
 let translateQueue = null;
 let chatObserver = null;
 let chatContextMenu = null;
+let chatClearButton = null;
+let fullscreenChat = null;
 let settingsPanel = null;
 let speechPanel = null;
 let historyPanel = null;
@@ -7077,17 +8413,21 @@ function handleVisibilityChange() {
 function teardown() {
   chatObserver?.stop();
   chatContextMenu?.detach();
+  chatClearButton?.destroy();
+  fullscreenChat?.destroy();
   danmaku?.destroy();
   controlButton?.destroy();
   danmakuEmitter?.clear();
   translateQueue?.clear();
-  clearChatTranslations();
+  clearChatTranslations(document, { force: true });
   settingsPanel?.close();
   speechPanel?.close();
   historyPanel?.close();
   cancelSpeech();
   chatObserver = null;
   chatContextMenu = null;
+  chatClearButton = null;
+  fullscreenChat = null;
   danmaku = null;
   danmakuEmitter = null;
   translateQueue = null;
@@ -7121,6 +8461,13 @@ async function boot() {
     isActive,
   });
   chatContextMenu.attach(document);
+
+  chatClearButton = new ChatClearButton({
+    onClear: () => chatObserver?.clearIrcHistory?.(),
+  });
+
+  fullscreenChat = new FullscreenChatInput();
+  fullscreenChat.attach();
 
   if (!settingsPanel) {
     settingsPanel = new SettingsPanel({
@@ -7185,6 +8532,7 @@ async function boot() {
   await Promise.all([
     danmaku.mount(),
     controlButton.mount(),
+    chatClearButton.mount(),
   ]);
   await chatObserver.start();
 
@@ -7199,6 +8547,7 @@ function watchNavigation() {
       boot().catch((err) => console.error('[TBC] Reinit failed:', err));
     } else {
       controlButton?.remount();
+      chatClearButton?.remount();
     }
   }, 1500);
 }

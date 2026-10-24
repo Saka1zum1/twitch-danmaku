@@ -1,26 +1,46 @@
-function clearChatTranslations(root = document) {
-  root.querySelectorAll?.('.tbc-chat-translation').forEach((node) => node.remove());
+function clearChatTranslations(root = document, { force = false } = {}) {
+  root.querySelectorAll?.('.tbc-chat-translation').forEach((node) => {
+    if (!force && node.getAttribute('data-tbc-manual-tl') === 'true') return;
+    node.remove();
+  });
 }
 
-function removeChatTranslation(msgEl) {
-  msgEl?.querySelectorAll?.('.tbc-chat-translation').forEach((node) => node.remove());
+function removeChatTranslation(msgEl, { force = false } = {}) {
+  msgEl?.querySelectorAll?.('.tbc-chat-translation').forEach((node) => {
+    if (!force && node.getAttribute('data-tbc-manual-tl') === 'true') return;
+    node.remove();
+  });
+}
+
+function hasManualChatTranslation(msgEl) {
+  return !!msgEl?.querySelector?.('.tbc-chat-translation[data-tbc-manual-tl="true"]');
+}
+
+function readChatTranslationText(msgEl) {
+  return String(msgEl?.querySelector?.('.tbc-chat-translation-text')?.textContent || '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function normalizeCompareText(text) {
   return String(text || '').replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
-function applyChatTranslation(msgEl, translatedText, originalText) {
+function applyChatTranslation(msgEl, translatedText, originalText, options = {}) {
   if (!msgEl?.isConnected) return false;
+  const manual = !!options.manual;
   const translated = String(translatedText || '').replace(/\s+/g, ' ').trim();
   if (!translated) {
-    removeChatTranslation(msgEl);
+    removeChatTranslation(msgEl, { force: manual });
     return false;
   }
   if (normalizeCompareText(translated) === normalizeCompareText(originalText)) {
-    removeChatTranslation(msgEl);
+    removeChatTranslation(msgEl, { force: manual });
     return false;
   }
+
+  // Auto pipeline must not overwrite a context-menu translation.
+  if (!manual && hasManualChatTranslation(msgEl)) return true;
 
   let row = msgEl.querySelector(':scope > .tbc-chat-translation');
   if (!row) {
@@ -47,6 +67,9 @@ function applyChatTranslation(msgEl, translatedText, originalText) {
       msgEl.appendChild(row);
     }
   }
+
+  if (manual) row.setAttribute('data-tbc-manual-tl', 'true');
+  else row.removeAttribute('data-tbc-manual-tl');
 
   const textEl = row.querySelector('.tbc-chat-translation-text');
   if (textEl) textEl.textContent = translated;

@@ -41,6 +41,9 @@ const SELECTORS = {
   chatInput: 'textarea[data-a-target="chat-input"]',
   chatInputSlate: '[data-a-target="chat-input"][contenteditable="true"], .chat-wysiwyg-input__editor[contenteditable="true"]',
   chatInputEditable: '[data-a-target="chat-input"][contenteditable="true"], [data-a-target="chat-input-text"]',
+  chatHeader: '.stream-chat-header, [class*="stream-chat-header"]',
+  chatViewerListBtn: '[data-test-selector="chat-viewer-list"]',
+  chatMessageContainer: '[data-test-selector="chat-scrollable-area__message-container"], .chat-scrollable-area__message-container',
 };
 
 const TRANSLATE_PROVIDERS = ['auto', 'microsoft', 'google', 'volcengine', 'caiyun', 'tencent'];

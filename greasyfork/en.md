@@ -50,11 +50,18 @@ No more constantly glancing at the chat panel. Messages flow across the screen s
 - Shows avatar, truncated username, amount/Sub badge, and Twitch cheer-tier colors (1 / 100 / 1000 / 5000 / 10000 / 100000)
 - Bits amounts follow cheermote tokens and image assets (including Bits card presets such as 300 / 1000 / 5000 / 10000); cheer badges are ignored so they are not misread as 1 Bit
 - Multiple pins can show at once without covering each other; long text marquees inside the bubble
-- Animations: fade, slide, pop, or shine. Hover pauses the animation and shows the sender
+- Animations: fade, slide, pop, or shine. Hover pauses the animation and shows the sender; a corner dismiss button closes a pin early
 
 ### Chat Context Menu
-- Right-click a live chat line to translate / re-translate, read aloud, or resend as danmaku
+- Right-click a live chat line to translate / re-translate (always available, independent of the settings toggle), read aloud (prefers the on-screen chat translation), resend as danmaku, or block the user via Twitch’s native block
 - Translation follows the settings engine (with auto failover); speech follows speech panel voice/rate/volume
+
+### Clear Live Chat & Fullscreen Composer
+- Twitch-styled clear button in the live chat header empties the panel (and the IRC buffer when FrankerFaceZ is active)
+- In live fullscreen, press Enter to open a Twitch-themed composer and send chat via GraphQL; click outside when empty or use the red close button to dismiss without exiting fullscreen
+
+### Blocked Users
+- View, add, or unblock Twitch’s native block list in the settings panel
 
 ### Chat History Download
 - **Live** — Export messages currently loaded in the chat panel, or from the IRC buffer when FrankerFaceZ is detected (not the full stream history)
@@ -69,6 +76,7 @@ No more constantly glancing at the chat panel. Messages flow across the screen s
 - Add or remove blocked keywords in the settings panel (up to 50, case-insensitive substring match)
 - Hides a danmaku when the **original text** or the **translation** contains any keyword
 - Messages blocked by the original text are not sent for translation
+- Separately, manage Twitch **user** blocks in settings (independent of keyword block)
 
 ### Real-Time Translation (Optional)
 - Multiple translation engines (Microsoft, Google, Volcengine, Caiyun, Tencent Transmart, and auto-failover)
@@ -83,7 +91,7 @@ No more constantly glancing at the chat panel. Messages flow across the screen s
 - Zero external dependencies — lightweight and fast
 
 ### Demo
-Open the demo in your browser. No install or build step is required. Try Add cheer (Bits presets), right-click a chat line, speech, and in-chat translations:
+Open the demo in your browser. No install or build step is required. Try Add cheer (Bits presets; hover to dismiss), the chat-header clear button, right-click a chat line (translate / speak / resend / block), speech, and in-chat translations:
 
 [Twitch Danmaku demo](https://saka1zum1.github.io/twitch-danmaku/)
 

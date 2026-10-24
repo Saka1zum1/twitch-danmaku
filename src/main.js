@@ -4,6 +4,8 @@ let danmakuEmitter = null;
 let translateQueue = null;
 let chatObserver = null;
 let chatContextMenu = null;
+let chatClearButton = null;
+let fullscreenChat = null;
 let settingsPanel = null;
 let speechPanel = null;
 let historyPanel = null;
@@ -61,17 +63,21 @@ function handleVisibilityChange() {
 function teardown() {
   chatObserver?.stop();
   chatContextMenu?.detach();
+  chatClearButton?.destroy();
+  fullscreenChat?.destroy();
   danmaku?.destroy();
   controlButton?.destroy();
   danmakuEmitter?.clear();
   translateQueue?.clear();
-  clearChatTranslations();
+  clearChatTranslations(document, { force: true });
   settingsPanel?.close();
   speechPanel?.close();
   historyPanel?.close();
   cancelSpeech();
   chatObserver = null;
   chatContextMenu = null;
+  chatClearButton = null;
+  fullscreenChat = null;
   danmaku = null;
   danmakuEmitter = null;
   translateQueue = null;
@@ -105,6 +111,13 @@ async function boot() {
     isActive,
   });
   chatContextMenu.attach(document);
+
+  chatClearButton = new ChatClearButton({
+    onClear: () => chatObserver?.clearIrcHistory?.(),
+  });
+
+  fullscreenChat = new FullscreenChatInput();
+  fullscreenChat.attach();
 
   if (!settingsPanel) {
     settingsPanel = new SettingsPanel({
@@ -169,6 +182,7 @@ async function boot() {
   await Promise.all([
     danmaku.mount(),
     controlButton.mount(),
+    chatClearButton.mount(),
   ]);
   await chatObserver.start();
 
@@ -183,6 +197,7 @@ function watchNavigation() {
       boot().catch((err) => console.error('[TBC] Reinit failed:', err));
     } else {
       controlButton?.remount();
+      chatClearButton?.remount();
     }
   }, 1500);
 }

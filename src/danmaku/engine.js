@@ -365,7 +365,14 @@ class DanmakuEngine {
     this.appendParts(track, parts?.length ? parts : [{ type: 'text', value: message }]);
     body.appendChild(track);
     main.append(head, body);
-    item.append(avatar, main);
+
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'tbc-sc-close';
+    closeBtn.setAttribute('aria-label', t('superchatClose'));
+    closeBtn.textContent = t('superchatClose');
+
+    item.append(avatar, main, closeBtn);
     this.superchatLayer.appendChild(item);
     this.pinnedItems.push(item);
     this.updateLayout();
@@ -390,6 +397,16 @@ class DanmakuEngine {
       if (event.target !== item) return;
       if (/shine-sweep|marquee/i.test(event.animationName || '')) return;
       clearTimeout(fallback);
+      this.finishSuperchat(item);
+    });
+
+    closeBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      clearTimeout(fallback);
+      if (typeof hideDanmakuTooltip === 'function' && activeTooltipItem === item) {
+        hideDanmakuTooltip();
+      }
       this.finishSuperchat(item);
     });
 

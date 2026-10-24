@@ -10,6 +10,7 @@ function loadSettings() {
         merged.translateProvider = DEFAULT_SETTINGS.translateProvider;
       }
       merged.blockedKeywords = sanitizeBlockedKeywords(merged.blockedKeywords);
+      delete merged.blockedUsers;
       merged.translateEnabled = !!merged.translateEnabled;
       merged.translateInChat = merged.translateInChat !== false;
       merged.danmakuOpacity = clamp(Number(merged.danmakuOpacity) || DEFAULT_SETTINGS.danmakuOpacity, 10, 100);

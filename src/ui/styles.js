@@ -231,6 +231,50 @@ function injectStyles() {
       opacity: 0.55;
     }
 
+    /* Cloned InjectLayout keeps Twitch button chrome; fallback is for demo / missing shell. */
+    .tbc-chat-clear-wrap {
+      flex-shrink: 0;
+    }
+
+    .tbc-chat-clear-btn svg {
+      pointer-events: none;
+    }
+
+    .tbc-chat-clear-btn--fallback {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      box-sizing: border-box;
+      width: 32px;
+      height: 32px;
+      margin: 0;
+      padding: 0;
+      border: none;
+      border-radius: 0.4rem;
+      background: transparent;
+      color: var(--color-fill-button-icon, var(--color-text-base, #efeff1));
+      cursor: pointer;
+      transition: background-color 0.1s ease, color 0.1s ease;
+    }
+
+    .tbc-chat-clear-btn--fallback:hover {
+      background-color: var(--color-background-interactable-hover, rgba(83, 83, 95, 0.48));
+      color: var(--color-fill-button-icon-hover, var(--color-text-base, #efeff1));
+    }
+
+    .tbc-chat-clear-btn--fallback:active {
+      background-color: var(--color-background-interactable-active, rgba(83, 83, 95, 0.7));
+    }
+
+    .tbc-chat-clear-btn--fallback svg {
+      width: 20px;
+      height: 20px;
+      fill: currentColor;
+      display: block;
+      pointer-events: none;
+    }
+
     .tbc-superchat-layer {
       pointer-events: none;
       display: none;
@@ -254,7 +298,7 @@ function injectStyles() {
       gap: 10px;
       max-width: min(720px, calc(100% - 24px));
       min-width: min(280px, calc(100% - 24px));
-      padding: 8px 14px 8px 8px;
+      padding: 8px 28px 8px 8px;
       border-radius: 12px;
       border: 1px solid rgba(255, 255, 255, 0.18);
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
@@ -266,6 +310,50 @@ function injectStyles() {
       animation-duration: var(--tbc-sc-duration, 6s);
       animation-timing-function: ease;
       animation-fill-mode: forwards;
+    }
+
+    .tbc-sc-close {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      z-index: 3;
+      width: 22px;
+      height: 22px;
+      padding: 0;
+      border: none;
+      border-radius: 4px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(14, 14, 16, 0.45);
+      color: #efeff1;
+      cursor: pointer;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+    }
+
+    .tbc-superchat-item:hover .tbc-sc-close,
+    .tbc-superchat-item.tbc-paused .tbc-sc-close,
+    .tbc-superchat-item:focus-within .tbc-sc-close {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .tbc-sc-close:hover {
+      background: #9147ff;
+      color: #ffffff;
+    }
+
+    .tbc-sc-close:active {
+      background: #772ce8;
+    }
+
+    .tbc-sc-close svg {
+      width: 14px;
+      height: 14px;
+      display: block;
+      pointer-events: none;
     }
 
     .tbc-sc-avatar {
@@ -656,6 +744,105 @@ function injectStyles() {
       font-size: 13px;
     }
 
+    .tbc-block-users-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .tbc-block-users-header .tbc-balloon-label {
+      margin: 0;
+    }
+
+    .tbc-block-users-refresh {
+      flex-shrink: 0;
+      border: none;
+      border-radius: 4px;
+      background: #3a3a3d;
+      color: #efeff1;
+      padding: 4px 8px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .tbc-block-users-refresh:hover {
+      background: #4a4a4d;
+    }
+
+    .tbc-block-users-refresh:disabled,
+    .tbc-block-user-remove:disabled {
+      opacity: 0.55;
+      cursor: default;
+    }
+
+    .tbc-block-users-status {
+      color: #adadb8;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .tbc-block-users-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 180px;
+      overflow-y: auto;
+    }
+
+    .tbc-block-user {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .tbc-block-user-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: #3a3a3d;
+      flex-shrink: 0;
+    }
+
+    .tbc-block-user-meta {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .tbc-block-user-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: #efeff1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .tbc-block-user-date {
+      margin-top: 2px;
+      font-size: 11px;
+      color: #adadb8;
+    }
+
+    .tbc-block-user-remove {
+      flex-shrink: 0;
+      border: none;
+      border-radius: 4px;
+      background: transparent;
+      color: #bf94ff;
+      padding: 4px 6px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .tbc-block-user-remove:hover {
+      background: rgba(145, 71, 255, 0.2);
+    }
+
     .tbc-keyword-add {
       flex-shrink: 0;
       border: none;
@@ -887,6 +1074,154 @@ function injectStyles() {
     .tbc-history-download:disabled {
       opacity: 0.45;
       cursor: default;
+    }
+
+    .tbc-fs-chat {
+      position: absolute;
+      left: 50%;
+      bottom: max(72px, 10%);
+      transform: translateX(-50%);
+      z-index: 100020;
+      width: min(560px, calc(100% - 48px));
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      pointer-events: auto;
+      font-family: Roobert, Inter, "Helvetica Neue", Helvetica, Arial, sans-serif;
+    }
+
+    .tbc-fs-chat-row {
+      display: flex;
+      align-items: stretch;
+      gap: 8px;
+      padding: 8px;
+      border-radius: 8px;
+      background: rgba(14, 14, 16, 0.92);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      box-shadow: 0 10px 36px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(10px);
+    }
+
+    .tbc-fs-chat-input {
+      flex: 1;
+      min-width: 0;
+      box-sizing: border-box;
+      height: 40px;
+      padding: 0 12px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      background: #18181b;
+      color: #efeff1;
+      font-size: 14px;
+      line-height: 40px;
+      outline: none;
+      caret-color: #bf94ff;
+    }
+
+    .tbc-fs-chat-input::placeholder {
+      color: #adadb8;
+    }
+
+    .tbc-fs-chat-input:focus {
+      border-color: #9147ff;
+      box-shadow: 0 0 0 1px #9147ff;
+    }
+
+    .tbc-fs-chat-send {
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-width: 72px;
+      height: 40px;
+      padding: 0 14px;
+      border: none;
+      border-radius: 6px;
+      background: #9147ff;
+      color: #ffffff;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    .tbc-fs-chat-send:hover:not(:disabled) {
+      background: #772ce8;
+    }
+
+    .tbc-fs-chat-send:active:not(:disabled) {
+      background: #5c16c5;
+    }
+
+    .tbc-fs-chat-send:disabled {
+      opacity: 0.45;
+      cursor: default;
+    }
+
+    .tbc-fs-chat-send svg {
+      width: 16px;
+      height: 16px;
+      display: block;
+    }
+
+    .tbc-fs-chat-close {
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      min-width: 72px;
+      padding: 0 14px;
+      border: none;
+      border-radius: 6px;
+      background: #eb0400;
+      color: #ffffff;
+      cursor: pointer;
+      transition: background 0.15s ease, filter 0.15s ease;
+    }
+
+    .tbc-fs-chat-close:hover {
+      background: #c50300;
+      filter: brightness(1.05);
+    }
+
+    .tbc-fs-chat-close:active {
+      background: #a80300;
+    }
+
+    .tbc-fs-chat-close svg {
+      width: 16px;
+      height: 16px;
+      display: block;
+      pointer-events: none;
+    }
+
+    .tbc-fs-chat-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0 4px;
+      min-height: 16px;
+    }
+
+    .tbc-fs-chat-hint {
+      color: rgba(239, 239, 241, 0.55);
+      font-size: 12px;
+      line-height: 1.3;
+    }
+
+    .tbc-fs-chat-status {
+      color: #ff8280;
+      font-size: 12px;
+      line-height: 1.3;
+      text-align: right;
+    }
+
+    .tbc-fs-chat-status.is-ok {
+      color: #00f593;
     }
   `);
 }
