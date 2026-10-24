@@ -12,7 +12,8 @@ A Tampermonkey userscript that turns Twitch live chat into scrolling video danma
 - **Copy to chat** — Click a danmaku, then use the copy button in the tooltip to paste the message into the live chat input
 - **Customization** — Speed, font, opacity, and scroll area (full / top half / top quarter)
 - **Read aloud** — Optional speech for each danmaku, with voice, rate, and a pace mode that speeds up long lines
-- **Super Chat pin** — Bits cheers, highlighted paid messages, and pinned chat stay on screen with fade, slide, pop, or shine. Hover pauses them
+- **Super Chat pin** — Bits cheers, subscriptions, highlighted paid messages, and pinned chat stay on screen with avatar, truncated name, amount badge, Twitch cheer-tier colors (1 / 100 / 1000 / 5000 / 10000 / 100000), multi-pin stacking, and marquee for long text. Bits amounts follow cheermote tokens and image assets (including Bits card presets such as 300 / 1000 / 5000 / 10000), not cheer badges. Hover pauses them
+- **Chat context menu** — Right-click a live chat line to translate / re-translate, read aloud, or resend as danmaku
 - **Chat history download** — On live pages, export messages currently in the chat panel; on VOD pages, export archived chat via Twitch. JSON, CSV, or TXT, with keyword, username, Super Chat, and (VOD) time-range filters
 - **Fullscreen-aware** — Adapts to resize and fullscreen automatically
 - **Translation** — Microsoft, Google, Volcengine, Caiyun, and Tencent Transmart; batches requests during busy chat and switches engines when one is rate-limited. Skips numbers and symbols. Optionally shows a Twitch-purple translation under each live chat line
@@ -64,7 +65,7 @@ npm run build
 | Translation speed | 1–10 messages/sec. Busy chat is batched into fewer requests so one engine is not flooded |
 | Block keywords | Hides a danmaku when the original or the translation contains a keyword |
 | Read aloud | Speaks each danmaku. With translation on, the translated text is read |
-| Super Chat pin | Pins cheers, highlighted paid messages, and pinned chat. Hover pauses the animation |
+| Super Chat pin | Pins cheers (correct Bits amount + tier colors), subscriptions, highlighted paid messages, and pinned chat. Hover pauses the animation |
 
 Settings are saved locally and persist across sessions.
 
@@ -87,7 +88,7 @@ npm run build
 npm run watch
 ```
 
-The public demo needs no build step: [Twitch Danmaku demo](https://saka1zum1.github.io/twitch-danmaku/). It stands in for a watch page (player, control bar, and chat list). Lines already in the list stay put; lines added after the short warm-up scroll across the video. The read-aloud button and speech panel work on this page. With translation enabled, the demo shows marked preview translations and optional purple TL lines in chat. The preview keeps running when its browser tab is in the background.
+The public demo needs no build step: [Twitch Danmaku demo](https://saka1zum1.github.io/twitch-danmaku/). It stands in for a watch page (player, control bar, and chat list). Lines already in the list stay put; lines added after the short warm-up scroll across the video. Try read-aloud, Super Chat cheers at Bits card presets, and right-click a chat line for translate / speak / resend. With translation enabled, the demo shows marked preview translations and optional purple TL lines in chat. The preview keeps running when its browser tab is in the background.
 
 ## Notes
 

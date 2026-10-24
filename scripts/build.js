@@ -15,6 +15,7 @@ const MODULES = [
   'storage.js',
   'utils/dom.js',
   'speech/speaker.js',
+  'chat/avatar.js',
   'danmaku/lanes.js',
   'danmaku/engine.js',
   'danmaku/interaction.js',
@@ -35,6 +36,7 @@ const MODULES = [
   'ui/panel.js',
   'ui/speech-panel.js',
   'ui/history-panel.js',
+  'ui/chat-context-menu.js',
   'ui/control-button.js',
   'main.js',
 ];

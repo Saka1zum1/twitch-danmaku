@@ -3,6 +3,7 @@ let danmaku = null;
 let danmakuEmitter = null;
 let translateQueue = null;
 let chatObserver = null;
+let chatContextMenu = null;
 let settingsPanel = null;
 let speechPanel = null;
 let historyPanel = null;
@@ -59,6 +60,7 @@ function handleVisibilityChange() {
 
 function teardown() {
   chatObserver?.stop();
+  chatContextMenu?.detach();
   danmaku?.destroy();
   controlButton?.destroy();
   danmakuEmitter?.clear();
@@ -69,6 +71,7 @@ function teardown() {
   historyPanel?.close();
   cancelSpeech();
   chatObserver = null;
+  chatContextMenu = null;
   danmaku = null;
   danmakuEmitter = null;
   translateQueue = null;
@@ -95,6 +98,13 @@ async function boot() {
     translateQueue,
     isActive,
   });
+
+  chatContextMenu = new ChatContextMenu({
+    getSettings,
+    danmakuEmitter,
+    isActive,
+  });
+  chatContextMenu.attach(document);
 
   if (!settingsPanel) {
     settingsPanel = new SettingsPanel({

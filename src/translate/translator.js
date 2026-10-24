@@ -105,6 +105,10 @@ function setCachedTranslation(text, targetLang, value) {
   }
 }
 
+function forgetCachedTranslation(text, targetLang) {
+  translationCache.delete(translationCacheKey(text, targetLang));
+}
+
 function gmRequest(options) {
   return new Promise((resolve, reject) => {
     GM_xmlhttpRequest({

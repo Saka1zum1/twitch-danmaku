@@ -24,7 +24,7 @@ const DEFAULT_SETTINGS = {
   speechBuffer: 5,
   superchatPinned: false,
   superchatPosition: 'top',
-  superchatDuration: 6,
+  superchatDuration: 15,
   superchatAnimation: 'slide',
 };
 
@@ -44,6 +44,17 @@ const SELECTORS = {
 };
 
 const TRANSLATE_PROVIDERS = ['auto', 'microsoft', 'google', 'volcengine', 'caiyun', 'tencent'];
+
+// Global Twitch cheermote prefixes + partner custom "*Cheer" suffixes.
+const CHEER_EMOTE_PREFIXES = [
+  '4Head', 'Anon', 'BibleThumb', 'BitBoss', 'bday', 'Cheer', 'Charity', 'Corgo', 'cheerwal',
+  'DansGame', 'DoodleCheer', 'EleGiggle', 'FrankerZ', 'FailFish', 'Goal', 'HeyGuys',
+  'HolidayCheer', 'Kappa', 'Kreygasm', 'MrDestructoid', 'Muxy', 'NotLikeThis', 'Party',
+  'Pride', 'PJSalt', 'RIPCheer', 'Scoops', 'ShowLove', 'Shamrock', 'SeemsGood', 'SwiftRage',
+  'Streamlabs', 'TriHard', 'uni', 'VoHiYo',
+];
+const CHEER_PREFIX_PATTERN = CHEER_EMOTE_PREFIXES.map((prefix) => prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+const BITS_TOKEN_PATTERN = `(?:^|\\s)(?:[A-Za-z][\\w]*?(?:Cheer|cheer)|(?:${CHEER_PREFIX_PATTERN}))([1-9]\\d{0,6})(?=\\s|$)`;
 
 const STORAGE_KEY = 'tbc_settings_v1';
 

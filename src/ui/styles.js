@@ -25,8 +25,8 @@ function injectStyles() {
       display: inline-block !important;
       height: 1.2em !important;
       width: auto !important;
-      min-height: 1.2em !important;
-      max-height: 1.2em !important;
+      min-height: 1.5em !important;
+      max-height: 1.5em !important;
       max-width: 6em !important;
       object-fit: contain !important;
       object-position: center !important;
@@ -234,26 +234,143 @@ function injectStyles() {
     .tbc-superchat-layer {
       pointer-events: none;
       display: none;
+      flex-direction: column;
       align-items: center;
-      justify-content: center;
+      justify-content: flex-start;
+      gap: 6px;
       overflow: visible;
+      padding: 4px 0;
+      box-sizing: border-box;
+    }
+
+    .tbc-superchat-layer.tbc-sc-bottom {
+      justify-content: flex-end;
     }
 
     .tbc-superchat-item {
       position: relative;
-      max-width: calc(100% - 24px);
-      padding: 6px 16px;
-      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      max-width: min(720px, calc(100% - 24px));
+      min-width: min(280px, calc(100% - 24px));
+      padding: 8px 14px 8px 8px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
       font-weight: 700;
-      line-height: 1.2;
-      white-space: nowrap;
+      line-height: 1.25;
       overflow: hidden;
-      text-overflow: ellipsis;
       pointer-events: auto;
       cursor: pointer;
       animation-duration: var(--tbc-sc-duration, 6s);
       animation-timing-function: ease;
       animation-fill-mode: forwards;
+    }
+
+    .tbc-sc-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      object-fit: cover;
+      flex-shrink: 0;
+      background: rgba(0, 0, 0, 0.25);
+      border: 2px solid rgba(255, 255, 255, 0.35);
+    }
+
+    .tbc-sc-main {
+      min-width: 0;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .tbc-sc-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .tbc-sc-name {
+      font-size: 0.85em;
+      font-weight: 800;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 10em;
+      opacity: 0.95;
+    }
+
+    .tbc-sc-badge {
+      flex-shrink: 0;
+      padding: 1px 7px;
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.28);
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      color: inherit;
+      font-size: 0.72em;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      line-height: 1.4;
+    }
+
+    .tbc-sc-body {
+      min-width: 0;
+      overflow: hidden;
+      max-width: 100%;
+    }
+
+    .tbc-sc-body-track {
+      display: inline-flex;
+      align-items: center;
+      white-space: nowrap;
+      will-change: transform;
+    }
+
+    .tbc-sc-body-track.tbc-sc-marquee {
+      animation: tbc-sc-marquee var(--tbc-sc-marquee-duration, 8s) linear infinite;
+    }
+
+    .tbc-superchat-item.tbc-paused .tbc-sc-body-track.tbc-sc-marquee {
+      animation-play-state: paused;
+    }
+
+    @keyframes tbc-sc-marquee {
+      0%, 12% { transform: translateX(0); }
+      88%, 100% { transform: translateX(calc(-1 * var(--tbc-sc-marquee-distance, 0px))); }
+    }
+
+    .tbc-chat-menu {
+      position: fixed;
+      z-index: 100050;
+      min-width: 168px;
+      padding: 6px;
+      border-radius: 8px;
+      background: #18181b;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .tbc-chat-menu-item {
+      appearance: none;
+      border: none;
+      background: transparent;
+      color: #efeff1;
+      text-align: left;
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .tbc-chat-menu-item:hover {
+      background: rgba(145, 71, 255, 0.7);
     }
 
     .tbc-superchat-item.tbc-sc-fade,
@@ -267,6 +384,12 @@ function injectStyles() {
 
     .tbc-superchat-layer.tbc-sc-bottom .tbc-superchat-item.tbc-sc-slide {
       animation-name: tbc-sc-slide-up;
+    }
+
+    .tbc-superchat-item .tbc-emote {
+      height: 1.5em !important;
+      max-height: 1.5em !important;
+      vertical-align: -0.2em !important;
     }
 
     .tbc-superchat-item.tbc-sc-pop {

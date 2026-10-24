@@ -4,7 +4,7 @@
 // @name:zh-TW   Twitch 弹幕
 // @name:ja      Twitch 弾幕
 // @namespace    https://github.com/saka1zum1/twitch-danmaku
-// @version      1.8.0
+// @version      1.9.0
 // @description  Convert Twitch live chat to video danmaku with real-time translation
 // @description:zh-CN  将 Twitch 直播评论转换为视频弹幕，支持实时翻译
 // @description:zh-TW  將聊天室中的新訊息轉換成影片上的滾動彈幕，支持即時翻譯
@@ -120,6 +120,10 @@ const LOCALES = {
     historyPaused: '已暂停，已获取 {count} 条',
     historyDone: '已导出 {count} 条',
     historyCancelled: '已取消',
+    chatMenuTranslate: '翻译',
+    chatMenuRetranslate: '重新翻译',
+    chatMenuSpeak: '朗读',
+    chatMenuResend: '重新发送弹幕',
     superchatPinned: 'Super Chat 悬停',
     superchatPosition: '悬停位置',
     superchatDuration: '悬停时间',
@@ -251,6 +255,10 @@ const LOCALES = {
     historyPaused: 'Paused, collected {count}',
     historyDone: 'Exported {count}',
     historyCancelled: 'Cancelled',
+    chatMenuTranslate: 'Translate',
+    chatMenuRetranslate: 'Re-translate',
+    chatMenuSpeak: 'Read aloud',
+    chatMenuResend: 'Send as danmaku',
     superchatPinned: 'Pin Super Chats',
     superchatPosition: 'Pin position',
     superchatDuration: 'Pin time',
@@ -423,7 +431,7 @@ const DEFAULT_SETTINGS = {
   speechBuffer: 5,
   superchatPinned: false,
   superchatPosition: 'top',
-  superchatDuration: 6,
+  superchatDuration: 15,
   superchatAnimation: 'slide',
 };
 
@@ -443,6 +451,17 @@ const SELECTORS = {
 };
 
 const TRANSLATE_PROVIDERS = ['auto', 'microsoft', 'google', 'volcengine', 'caiyun', 'tencent'];
+
+// Global Twitch cheermote prefixes + partner custom "*Cheer" suffixes.
+const CHEER_EMOTE_PREFIXES = [
+  '4Head', 'Anon', 'BibleThumb', 'BitBoss', 'bday', 'Cheer', 'Charity', 'Corgo', 'cheerwal',
+  'DansGame', 'DoodleCheer', 'EleGiggle', 'FrankerZ', 'FailFish', 'Goal', 'HeyGuys',
+  'HolidayCheer', 'Kappa', 'Kreygasm', 'MrDestructoid', 'Muxy', 'NotLikeThis', 'Party',
+  'Pride', 'PJSalt', 'RIPCheer', 'Scoops', 'ShowLove', 'Shamrock', 'SeemsGood', 'SwiftRage',
+  'Streamlabs', 'TriHard', 'uni', 'VoHiYo',
+];
+const CHEER_PREFIX_PATTERN = CHEER_EMOTE_PREFIXES.map((prefix) => prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+const BITS_TOKEN_PATTERN = `(?:^|\\s)(?:[A-Za-z][\\w]*?(?:Cheer|cheer)|(?:${CHEER_PREFIX_PATTERN}))([1-9]\\d{0,6})(?=\\s|$)`;
 
 const STORAGE_KEY = 'tbc_settings_v1';
 
@@ -478,7 +497,7 @@ function loadSettings() {
       merged.superchatPinned = !!merged.superchatPinned;
       if (!['top', 'bottom'].includes(merged.superchatPosition)) merged.superchatPosition = 'top';
       if (!['fade', 'slide', 'pop', 'shine'].includes(merged.superchatAnimation)) merged.superchatAnimation = 'slide';
-      merged.superchatDuration = clamp(finiteNumber(merged.superchatDuration, DEFAULT_SETTINGS.superchatDuration), 2, 15);
+      merged.superchatDuration = clamp(finiteNumber(merged.superchatDuration, DEFAULT_SETTINGS.superchatDuration), 2, 300);
       return merged;
     }
   } catch (_) {
@@ -974,6 +993,65 @@ function speechSupported() {
   return !!speechSpeaker?.supported;
 }
 
+const avatarCache = new Map();
+
+function letterAvatarDataUri(name, color) {
+  const letter = String(name || '?').trim().charAt(0).toUpperCase() || '?';
+  const fill = String(color || '#9147ff').replace(/[<>&"']/g, '');
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" rx="32" fill="${fill}"/><text x="32" y="40" text-anchor="middle" font-size="30" font-family="Arial,sans-serif" fill="#fff">${letter}</text></svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+function cachedAvatar(login, displayName, color) {
+  const key = String(login || displayName || '').toLowerCase();
+  if (key && avatarCache.has(key)) return avatarCache.get(key);
+  return letterAvatarDataUri(displayName || login, color);
+}
+
+function rememberAvatar(login, url) {
+  const key = String(login || '').toLowerCase();
+  if (!key || !url) return;
+  avatarCache.set(key, url);
+}
+
+function fetchTwitchAvatar(login) {
+  const key = String(login || '').trim().toLowerCase();
+  if (!key) return Promise.resolve('');
+  if (avatarCache.has(key) && !String(avatarCache.get(key)).startsWith('data:')) {
+    return Promise.resolve(avatarCache.get(key));
+  }
+
+  return new Promise((resolve) => {
+    GM_xmlhttpRequest({
+      method: 'POST',
+      url: 'https://gql.twitch.tv/gql',
+      headers: {
+        'Client-ID': 'kd1unb4b3q4t58fwlpcbzcbnm76a8fp',
+        'Content-Type': 'application/json',
+      },
+      data: JSON.stringify({
+        query: `query{user(login:${JSON.stringify(key)}){profileImageURL(width:70)}}`,
+      }),
+      timeout: 8000,
+      onload: (res) => {
+        try {
+          const url = JSON.parse(res.responseText)?.data?.user?.profileImageURL || '';
+          if (url) {
+            rememberAvatar(key, url);
+            resolve(url);
+            return;
+          }
+        } catch {
+          /* ignore */
+        }
+        resolve('');
+      },
+      onerror: () => resolve(''),
+      ontimeout: () => resolve(''),
+    });
+  });
+}
+
 class LaneManager {
   constructor() {
     this.lanes = [];
@@ -1018,8 +1096,9 @@ class DanmakuEngine {
     this.laneManager = new LaneManager();
     this.layer = null;
     this.superchatLayer = null;
-    this.pinnedItem = null;
+    this.pinnedItems = [];
     this.superchatQueue = [];
+    this.maxPinned = 4;
     this.playerEl = null;
     this.overlayEl = null;
     this.controlsObserver = null;
@@ -1070,7 +1149,7 @@ class DanmakuEngine {
     this.superchatLayer?.remove();
     this.layer = null;
     this.superchatLayer = null;
-    this.pinnedItem = null;
+    this.pinnedItems = [];
     this.superchatQueue = [];
   }
 
@@ -1083,12 +1162,20 @@ class DanmakuEngine {
     return SCROLL_AREA_BOTTOM_RESERVE;
   }
 
+  getPinnedItemHeight() {
+    return Math.max(44, this.getSettings().fontSize + 28);
+  }
+
   getPinnedBandHeight() {
-    return this.getSettings().fontSize + 24;
+    const count = Math.max(1, this.pinnedItems.filter((item) => item?.isConnected).length);
+    const gap = 6;
+    return count * this.getPinnedItemHeight() + (count - 1) * gap + 8;
   }
 
   getPinnedBandRect(playerHeight) {
-    if (!this.pinnedItem || !this.getSettings().superchatPinned || !this.getSettings().enabled) return null;
+    const live = this.pinnedItems.filter((item) => item?.isConnected);
+    this.pinnedItems = live;
+    if (!live.length || !this.getSettings().superchatPinned || !this.getSettings().enabled) return null;
     const band = this.getPinnedBandHeight();
     const pos = this.getSettings().superchatPosition === 'bottom' ? 'bottom' : 'top';
     const top = pos === 'bottom'
@@ -1177,8 +1264,8 @@ class DanmakuEngine {
     const settings = this.getSettings();
     if (!settings.superchatPinned || !settings.enabled) {
       this.superchatQueue = [];
-      this.pinnedItem?.remove();
-      this.pinnedItem = null;
+      this.pinnedItems.forEach((item) => item.remove());
+      this.pinnedItems = [];
     }
     const fsEl = getFullscreenElement();
     const anchor = fsEl || this.playerEl;
@@ -1282,15 +1369,35 @@ class DanmakuEngine {
 
   queueSuperchat(payload) {
     if (!this.superchatLayer || !this.getSettings().enabled) return;
-    if (this.pinnedItem) {
+    this.pinnedItems = this.pinnedItems.filter((item) => item?.isConnected);
+    if (this.pinnedItems.length >= this.maxPinned) {
       this.superchatQueue.push(payload);
-      if (this.superchatQueue.length > 6) this.superchatQueue.shift();
+      if (this.superchatQueue.length > 8) this.superchatQueue.shift();
       return;
     }
     this.mountSuperchat(payload);
   }
 
-  mountSuperchat({ username, message, parts, usernameColor, profileUrl, originalMessage, translated, superchatStyle }) {
+  truncateName(name, max = 12) {
+    const text = String(name || '').trim();
+    if (text.length <= max) return text;
+    return `${text.slice(0, Math.max(1, max - 1))}…`;
+  }
+
+  mountSuperchat(payload) {
+    const {
+      username,
+      message,
+      parts,
+      usernameColor,
+      profileUrl,
+      originalMessage,
+      translated,
+      superchatStyle,
+      superchatMeta,
+      avatarUrl,
+      login,
+    } = payload;
     const settings = this.getSettings();
     const hasEmote = Array.isArray(parts) && parts.some((part) => part.type === 'emote' && part.src);
     if (!this.superchatLayer || (!message && !hasEmote)) return;
@@ -1298,19 +1405,66 @@ class DanmakuEngine {
     const animation = ['fade', 'slide', 'pop', 'shine'].includes(settings.superchatAnimation)
       ? settings.superchatAnimation
       : 'slide';
-    const duration = clamp(Number(settings.superchatDuration) || 6, 2, 15);
+    const duration = clamp(Number(settings.superchatDuration) || 15, 2, 300);
+    const meta = superchatMeta || null;
+    const style = meta?.style || superchatStyle || {
+      background: 'linear-gradient(135deg, #9147ff 0%, #772ce8 100%)',
+      color: '#ffffff',
+      accent: '#bf94ff',
+    };
     const item = document.createElement('div');
     item.className = `tbc-superchat-item tbc-sc-${animation}`;
     item.style.setProperty('--tbc-sc-duration', `${duration}s`);
-    item.style.background = safeCssColor(superchatStyle?.background, '#9147ff');
-    item.style.color = safeCssColor(superchatStyle?.color, '#ffffff');
-    item.style.fontSize = `${settings.fontSize}px`;
+    item.style.setProperty('--tbc-sc-accent', safeCssColor(style.accent, '#bf94ff'));
+    item.style.background = style.background || safeCssColor(style.background, '#9147ff');
+    item.style.color = safeCssColor(style.color, '#ffffff');
+    item.style.fontSize = `${Math.max(14, settings.fontSize - 2)}px`;
     item.style.fontFamily = settings.fontFamily;
-    this.appendParts(item, parts?.length ? parts : [{ type: 'text', value: message }]);
+
+    const avatar = document.createElement('img');
+    avatar.className = 'tbc-sc-avatar';
+    avatar.alt = '';
+    avatar.draggable = false;
+    avatar.src = avatarUrl || cachedAvatar(login || username, username, usernameColor);
+
+    const main = document.createElement('div');
+    main.className = 'tbc-sc-main';
+
+    const head = document.createElement('div');
+    head.className = 'tbc-sc-head';
+    const nameEl = document.createElement('span');
+    nameEl.className = 'tbc-sc-name';
+    nameEl.textContent = this.truncateName(username || login || 'User');
+    nameEl.title = username || login || '';
+    head.appendChild(nameEl);
+    if (meta?.amountLabel) {
+      const badge = document.createElement('span');
+      badge.className = 'tbc-sc-badge';
+      badge.textContent = meta.amountLabel;
+      head.appendChild(badge);
+    }
+
+    const body = document.createElement('div');
+    body.className = 'tbc-sc-body';
+    const track = document.createElement('div');
+    track.className = 'tbc-sc-body-track';
+    this.appendParts(track, parts?.length ? parts : [{ type: 'text', value: message }]);
+    body.appendChild(track);
+    main.append(head, body);
+    item.append(avatar, main);
     this.superchatLayer.appendChild(item);
-    this.pinnedItem = item;
+    this.pinnedItems.push(item);
     this.updateLayout();
+    requestAnimationFrame(() => this.armSuperchatMarquee(body, track));
     requestSpeech(speechSourceText(message, parts));
+
+    const loginKey = String(login || '').toLowerCase();
+    if (loginKey && !avatarUrl) {
+      fetchTwitchAvatar(loginKey).then((url) => {
+        if (!url || !item.isConnected) return;
+        avatar.src = url;
+      });
+    }
 
     let fallback = null;
     const armFallback = (ms) => {
@@ -1319,7 +1473,8 @@ class DanmakuEngine {
     };
     armFallback((duration + 2) * 1000);
     item.addEventListener('animationend', (event) => {
-      if (event.target !== item || event.animationName === 'tbc-sc-shine-sweep') return;
+      if (event.target !== item) return;
+      if (/shine-sweep|marquee/i.test(event.animationName || '')) return;
       clearTimeout(fallback);
       this.finishSuperchat(item);
     });
@@ -1335,14 +1490,24 @@ class DanmakuEngine {
     });
   }
 
+  armSuperchatMarquee(body, track) {
+    if (!body || !track) return;
+    const overflow = track.scrollWidth - body.clientWidth;
+    if (overflow <= 8) return;
+    track.classList.add('tbc-sc-marquee');
+    track.style.setProperty('--tbc-sc-marquee-distance', `${overflow + 16}px`);
+    track.style.setProperty('--tbc-sc-marquee-duration', `${Math.max(4, overflow / 28)}s`);
+  }
+
   finishSuperchat(item) {
-    if (!item || (!item.isConnected && this.pinnedItem !== item)) return;
-    if (this.pinnedItem === item) this.pinnedItem = null;
+    if (!item) return;
+    const index = this.pinnedItems.indexOf(item);
+    if (index >= 0) this.pinnedItems.splice(index, 1);
     item.remove();
-    const next = this.superchatQueue.shift();
-    if (next && this.getSettings().superchatPinned && this.getSettings().enabled) {
+    while (this.pinnedItems.length < this.maxPinned) {
+      const next = this.superchatQueue.shift();
+      if (!next || !this.getSettings().superchatPinned || !this.getSettings().enabled) break;
       this.mountSuperchat(next);
-      return;
     }
     this.updateLayout();
   }
@@ -2089,6 +2254,10 @@ function setCachedTranslation(text, targetLang, value) {
     const oldest = translationCache.keys().next().value;
     translationCache.delete(oldest);
   }
+}
+
+function forgetCachedTranslation(text, targetLang) {
+  translationCache.delete(translationCacheKey(text, targetLang));
 }
 
 function gmRequest(options) {
@@ -3067,12 +3236,44 @@ function usableCssColor(value) {
   return value;
 }
 
+function isChatBadgeImage(img) {
+  return !!img?.closest?.('.chat-badge, [data-a-target="chat-badge"], .chat-line__icons');
+}
+
+function bitsFromText(text) {
+  const source = String(text || '');
+  if (!source) return 0;
+  const matcher = new RegExp(BITS_TOKEN_PATTERN, 'gi');
+  let total = 0;
+  let match = matcher.exec(source);
+  while (match) {
+    total += Number(match[1]) || 0;
+    match = matcher.exec(source);
+  }
+  return total;
+}
+
+function bitsFromImageAsset(img) {
+  if (!img || isChatBadgeImage(img)) return 0;
+  const alt = img.getAttribute('alt') || '';
+  const emoteName = img.getAttribute('data-emote-name') || img.getAttribute('title') || '';
+  const labeled = `${alt} ${emoteName}`.trim();
+  const fromLabel = bitsFromText(labeled) || bitsFromText(` ${labeled}`);
+  if (fromLabel > 0) return fromLabel;
+
+  const src = img.getAttribute('src') || img.getAttribute('srcset') || '';
+  // cloudfront actions/.../tier/scale  |  static-cdn bits/{theme}/{type}/{prefix}/{tier}
+  const fromSrc = src.match(/\/actions\/[^/\s]+\/(?:dark|light)\/(?:animated|static)\/(\d+)\//i)
+    || src.match(/\/bits\/(?:dark|light)\/(?:animated|static)\/[^/\s]+\/(\d+)(?:\/|[.?#]|$)/i)
+    || src.match(/\/bits\/[^/\s]+\/[^/\s]+\/(?:dark|light)\/(?:animated|static)\/(\d+)\//i);
+  return fromSrc ? (Number(fromSrc[1]) || 0) : 0;
+}
+
 function hasCheer(msgEl) {
-  return [...msgEl.querySelectorAll('img')].some((img) => {
-    const src = img.getAttribute('src') || '';
-    const alt = img.getAttribute('alt') || '';
-    return /\/bits\//i.test(src) || /^cheer\d+/i.test(alt);
-  });
+  if (!msgEl) return false;
+  const root = msgEl.querySelector(SELECTORS.chatMessageBody) || msgEl;
+  if (bitsFromText(root.textContent || '') > 0) return true;
+  return [...root.querySelectorAll('img')].some((img) => bitsFromImageAsset(img) > 0);
 }
 
 function paidBackground(msgEl) {
@@ -3087,40 +3288,172 @@ function paidBackground(msgEl) {
   return '';
 }
 
-function readSuperchatStyle(msgEl) {
+function cheerTierStyle(bits) {
+  // Twitch cheermote tiers: 1 gray, 100 purple, 1000 teal, 5000 blue, 10000 red, 100000 gold.
+  // Bits card presets like 300/1000/5000/10000 are amounts, not separate color thresholds.
+  const amount = Math.max(0, Number(bits) || 0);
+  if (amount >= 100000) {
+    return { background: 'linear-gradient(135deg, #ffb400 0%, #ff7300 100%)', color: '#1a1200', accent: '#ffb400' };
+  }
+  if (amount >= 10000) {
+    return { background: 'linear-gradient(135deg, #f43021 0%, #ff6b6b 100%)', color: '#ffffff', accent: '#f43021' };
+  }
+  if (amount >= 5000) {
+    return { background: 'linear-gradient(135deg, #0099fe 0%, #00d4ff 100%)', color: '#ffffff', accent: '#0099fe' };
+  }
+  if (amount >= 1000) {
+    return { background: 'linear-gradient(135deg, #1db2a5 0%, #24dbcc 100%)', color: '#ffffff', accent: '#1db2a5' };
+  }
+  if (amount >= 100) {
+    return { background: 'linear-gradient(135deg, #9c3ee8 0%, #bf94ff 100%)', color: '#ffffff', accent: '#9c3ee8' };
+  }
+  return { background: 'linear-gradient(135deg, #7a7a7a 0%, #9b9b9b 100%)', color: '#ffffff', accent: '#c5c5c5' };
+}
+
+function subscribeStyle() {
+  return { background: 'linear-gradient(135deg, #8205b4 0%, #c13cff 100%)', color: '#ffffff', accent: '#bf94ff' };
+}
+
+function extractBitsAmount(msgEl, message = '', parts = []) {
+  let total = bitsFromText(message);
+  if (total > 0) return total;
+
+  // Emote names in parsed parts (Cheer300 / Kappa100 / partnerFooCheer1000).
+  total = bitsFromText(
+    (Array.isArray(parts) ? parts : [])
+      .map((part) => (part?.type === 'emote' ? part.name : part?.value) || '')
+      .join(' '),
+  );
+  if (total > 0) return total;
+
+  if (!msgEl) return 0;
+  const root = msgEl.querySelector(SELECTORS.chatMessageBody) || msgEl;
+  for (const img of root.querySelectorAll('img')) {
+    total += bitsFromImageAsset(img);
+  }
+  return total;
+}
+
+function isSubscribeNotice(msgEl) {
+  if (!msgEl) return false;
+  if (msgEl.closest('.user-notice-line, [class*="user-notice"], [data-a-target*="user-notice"], [data-test-selector*="user-notice"]')) {
+    return true;
+  }
+  if (msgEl.querySelector('.user-notice-line, [data-a-target="user-notice-line"], [data-a-target*="sub-message"]')) {
+    return true;
+  }
+  const text = (msgEl.textContent || '').replace(/\s+/g, ' ');
+  return /subscribed|resubscribed|gifted\s+\d+\s+sub|is gifting|gift sub|prime gaming|订阅|訂閱|ギフト/i.test(text);
+}
+
+function readChatAvatarUrl(msgEl) {
+  const img = msgEl.querySelector(
+    'img.chat-line__message--avatar, img.chatter-avatar, .chat-author__image img, img[src*="jtv_user_pictures"], img[src*="user-default-pictures"]',
+  );
+  if (!img) return '';
+  try {
+    const url = new URL(img.getAttribute('src') || '', location.href);
+    if (url.protocol !== 'https:') return '';
+    url.hash = '';
+    return url.href;
+  } catch {
+    return '';
+  }
+}
+
+function readSuperchatMeta(msgEl, message = '', parts = []) {
   const pinned = !!msgEl.closest('[data-test-selector="pinned-chat"], [data-test-selector="pinned-message"], [class*="pinned-chat"], [class*="paid-pinned"]');
-  const cheer = hasCheer(msgEl);
+  const bits = extractBitsAmount(msgEl, message, parts);
+  const cheer = bits > 0 || hasCheer(msgEl);
+  const subscribe = isSubscribeNotice(msgEl);
   const background = paidBackground(msgEl);
-  if (!cheer && !pinned && !background) return null;
+  if (!cheer && !pinned && !background && !subscribe && bits <= 0) return null;
+
+  let kind = 'pin';
+  let style;
+  let amountLabel = '';
+  if (bits > 0 || cheer) {
+    kind = 'cheer';
+    style = cheerTierStyle(bits || 1);
+    amountLabel = `${bits || 1} Bits`;
+  } else if (subscribe) {
+    kind = 'sub';
+    style = subscribeStyle();
+    amountLabel = 'Sub';
+  } else {
+    style = {
+      background: background || '#9147ff',
+      color: '#ffffff',
+      accent: '#bf94ff',
+    };
+  }
+
+  if (background && kind === 'pin') {
+    style = { ...style, background };
+  }
+
   const textNode = msgEl.querySelector('[data-a-target="chat-message-text"], .text-fragment');
-  const color = usableCssColor(textNode && getComputedStyle(textNode).color) || '#ffffff';
-  return { background: background || '#9147ff', color };
+  const color = usableCssColor(textNode && getComputedStyle(textNode).color) || style.color;
+  return {
+    kind,
+    bits: bits || 0,
+    amountLabel,
+    avatarUrl: readChatAvatarUrl(msgEl),
+    style: {
+      background: style.background,
+      color: color || style.color,
+      accent: style.accent || '#bf94ff',
+    },
+  };
+}
+
+function readSuperchatStyle(msgEl) {
+  return readSuperchatMeta(msgEl)?.style || null;
+}
+
+function snapshotChatMessage(msgEl) {
+  if (!msgEl) return null;
+  const parts = extractMessageParts(msgEl);
+  let message = partsToPlain(parts);
+  const usernameEl = msgEl.querySelector(SELECTORS.chatUsername);
+  const username = usernameEl?.textContent?.trim() || '';
+  const login = (
+    msgEl.getAttribute('data-a-user')
+    || usernameEl?.getAttribute('data-a-user')
+    || username
+  ).trim().toLowerCase();
+
+  // System / notice lines may put text outside the normal body selector.
+  if (!message) {
+    const notice = msgEl.querySelector('[data-a-target="chat-line-message-body"], .chat-line__message-body, .user-notice-line');
+    message = (notice?.textContent || msgEl.textContent || '').replace(/\s+/g, ' ').trim();
+  }
+  if (!message && !isSubscribeNotice(msgEl)) return null;
+
+  const finalParts = parts.length ? parts : (message ? [{ type: 'text', value: message }] : []);
+  const meta = readSuperchatMeta(msgEl, message, finalParts);
+  return {
+    message,
+    parts: finalParts,
+    username: username || login,
+    login,
+    usernameColor: getUsernameColor(msgEl),
+    profileUrl: getTwitchProfileUrl(usernameEl, username || login),
+    avatarUrl: meta?.avatarUrl || readChatAvatarUrl(msgEl),
+    superchat: !!meta,
+    superchatStyle: meta?.style || null,
+    superchatMeta: meta,
+  };
 }
 
 function parseChatMessage(msgEl) {
   if (msgEl.classList.contains('tbc-processed')) return null;
   if (msgEl.closest('.tbc-processed')) return null;
 
-  const parts = extractMessageParts(msgEl);
-  const message = partsToPlain(parts);
-  if (!message) return null;
-
-  const usernameEl = msgEl.querySelector(SELECTORS.chatUsername);
-  const username = usernameEl?.textContent?.trim() || '';
-  const usernameColor = getUsernameColor(msgEl);
-  const profileUrl = getTwitchProfileUrl(usernameEl, username);
-
+  const snapshot = snapshotChatMessage(msgEl);
+  if (!snapshot) return null;
   msgEl.classList.add('tbc-processed');
-  const superchatStyle = readSuperchatStyle(msgEl);
-  return {
-    message,
-    parts,
-    username,
-    usernameColor,
-    profileUrl,
-    superchat: !!superchatStyle,
-    superchatStyle,
-  };
+  return snapshot;
 }
 
 function markExistingMessages(chatRoot) {
@@ -3203,7 +3536,6 @@ function applyChatTranslation(msgEl, translatedText, originalText) {
 const TWITCH_GQL_URL = 'https://gql.twitch.tv/gql';
 const TWITCH_GQL_CLIENT_ID = 'kd1unb4b3q4t58fwlpcbzcbnm76a8fp';
 const VOD_COMMENTS_HASH = 'b70a3591ff0f4e0313d126c6a1502d79a1c02baebb288227c582044aa76adf6a';
-const BITS_PATTERN = '(?:^|\\s)(?:4Head|Anon|BibleThumb|BitBoss|bday|Cheer|Charity|Corgo|cheerwal|DansGame|DoodleCheer|EleGiggle|FrankerZ|FailFish|Goal|HeyGuys|HolidayCheer|Kappa|Kreygasm|MrDestructoid|Muxy|NotLikeThis|Party|Pride|PJSalt|RIPCheer|Scoops|ShowLove|Shamrock|SeemsGood|SwiftRage|Streamlabs|TriHard|uni|VoHiYo)([1-9]\\d{0,6})(?=\\s|$)';
 const LIVE_CHAT_CONTAINER = '[data-test-selector="chat-scrollable-area__message-container"], .chat-scrollable-area__message-container';
 const LIVE_CHAT_MESSAGE = '.chat-line__message, [data-a-target="chat-line-message"], [data-a-target="chat-message-container"]';
 const CHANNEL_PATH_BLOCKLIST = /^(videos?|directory|settings|subscriptions|inventory|wallet|downloads|search|prime|popout|turbo|products|drops|u|p)$/i;
@@ -3358,14 +3690,7 @@ function commentText(node) {
 function commentBits(node, text) {
   const spent = Number(node?.message?.bitsSpent);
   if (Number.isFinite(spent) && spent > 0) return spent;
-  const matcher = new RegExp(BITS_PATTERN, 'g');
-  let total = 0;
-  let match = matcher.exec(text);
-  while (match) {
-    total += Number(match[1]) || 0;
-    match = matcher.exec(text);
-  }
-  return total;
+  return bitsFromText(text);
 }
 
 function normalizeVodComment(node) {
@@ -3399,27 +3724,6 @@ function commentMatchesFilters(comment, keywords, usernames, includeSuperchat) {
   return true;
 }
 
-function bitsFromText(text) {
-  const matcher = new RegExp(BITS_PATTERN, 'gi');
-  let total = 0;
-  let match = matcher.exec(text);
-  while (match) {
-    total += Number(match[1]) || 0;
-    match = matcher.exec(text);
-  }
-  return total;
-}
-
-function bitsFromCheerImages(msgEl) {
-  let total = 0;
-  for (const img of msgEl.querySelectorAll('img')) {
-    const alt = img.getAttribute('alt') || '';
-    const match = alt.match(/^cheer([1-9]\d{0,6})$/i);
-    if (match) total += Number(match[1]) || 0;
-  }
-  return total;
-}
-
 function normalizeDomComment(msgEl, index) {
   const parts = extractMessageParts(msgEl);
   const message = partsToPlain(parts).replace(/\s+/g, ' ').trim();
@@ -3434,7 +3738,7 @@ function normalizeDomComment(msgEl, index) {
   ).trim().toLowerCase();
   if (!login && !displayName) return null;
 
-  const bits = bitsFromText(message) || bitsFromCheerImages(msgEl);
+  const bits = extractBitsAmount(msgEl, message, parts);
   const superchatStyle = readSuperchatStyle(msgEl);
   const superchat = bits > 0 || !!superchatStyle;
   const id = msgEl.id || `live-${index}-${login}-${message.slice(0, 32)}`;
@@ -3820,8 +4124,52 @@ function parseIrcEmoteParts(message, emotesTag) {
 function bitsFromIrcTags(tags, message) {
   const spent = Number(tags.bits);
   if (Number.isFinite(spent) && spent > 0) return spent;
-  const cheer = String(message || '').match(/(?:^|\s)Cheer([1-9]\d{0,6})(?=\s|$)/i);
-  return cheer ? (Number(cheer[1]) || 0) : 0;
+  return bitsFromText(message);
+}
+
+const IRC_SUB_MSG_IDS = new Set([
+  'sub', 'resub', 'subgift', 'anonsubgift', 'submysterygift',
+  'giftpaidupgrade', 'anongiftpaidupgrade', 'primepaidupgrade',
+]);
+
+function buildIrcPayload({ channel, login, displayName, color, message, tags, bits = 0, subscribe = false }) {
+  const parts = parseIrcEmoteParts(message, tags.emotes);
+  let meta = null;
+  if (bits > 0) {
+    const style = cheerTierStyle(bits);
+    meta = {
+      kind: 'cheer',
+      bits,
+      amountLabel: `${bits} Bits`,
+      avatarUrl: '',
+      style,
+    };
+  } else if (subscribe) {
+    const style = subscribeStyle();
+    meta = {
+      kind: 'sub',
+      bits: 0,
+      amountLabel: 'Sub',
+      avatarUrl: '',
+      style,
+    };
+  }
+
+  return {
+    channel,
+    login,
+    username: displayName,
+    usernameColor: color,
+    profileUrl: login ? `https://www.twitch.tv/${encodeURIComponent(login)}` : null,
+    avatarUrl: '',
+    message,
+    parts,
+    originalMessage: message,
+    superchat: !!meta,
+    superchatStyle: meta?.style || null,
+    superchatMeta: meta,
+    bits,
+  };
 }
 
 function normalizeIrcPrivmsg(line) {
@@ -3838,21 +4186,46 @@ function normalizeIrcPrivmsg(line) {
   const displayName = unescapeIrcTag(tags['display-name']) || login;
   const color = unescapeIrcTag(tags.color) || '#ffffff';
   const bits = bitsFromIrcTags(tags, message);
-  const parts = parseIrcEmoteParts(message, tags.emotes);
-
-  return {
+  return buildIrcPayload({
     channel,
     login,
-    username: displayName,
-    usernameColor: color,
-    profileUrl: login ? `https://www.twitch.tv/${encodeURIComponent(login)}` : null,
+    displayName,
+    color,
     message,
-    parts,
-    originalMessage: message,
-    superchat: bits > 0,
-    superchatStyle: bits > 0 ? { background: '#9147ff', color: '#ffffff' } : null,
+    tags,
     bits,
-  };
+  });
+}
+
+function normalizeIrcUsernotice(line) {
+  const match = line.match(/^(?:@(\S+)\s+)?:tmi\.twitch\.tv\s+USERNOTICE\s+#(\S+)(?:\s+:([\s\S]*))?$/i);
+  if (!match) return null;
+  const tags = parseIrcTags(match[1] || '');
+  const msgId = String(tags['msg-id'] || '').toLowerCase();
+  if (!IRC_SUB_MSG_IDS.has(msgId)) return null;
+
+  const channel = String(match[2] || '').toLowerCase();
+  const login = String(tags.login || '').toLowerCase();
+  const displayName = unescapeIrcTag(tags['display-name']) || login;
+  const color = unescapeIrcTag(tags.color) || '#ffffff';
+  const system = unescapeIrcTag(tags['system-msg'] || '');
+  const body = (match[3] || '').trim();
+  const message = [system, body].filter(Boolean).join(' — ') || system || 'Subscribed';
+  return buildIrcPayload({
+    channel,
+    login,
+    displayName,
+    color,
+    message,
+    tags,
+    subscribe: true,
+  });
+}
+
+function normalizeIrcLine(line) {
+  if (/\sPRIVMSG\s/i.test(line)) return normalizeIrcPrivmsg(line);
+  if (/\sUSERNOTICE\s/i.test(line)) return normalizeIrcUsernotice(line);
+  return null;
 }
 
 class TwitchIrcChatSource {
@@ -3979,9 +4352,9 @@ class TwitchIrcChatSource {
         this.socket?.send(`PONG ${line.slice(5)}`);
         continue;
       }
-      if (!/\sPRIVMSG\s/i.test(line)) continue;
+      if (!/\sPRIVMSG\s/i.test(line) && !/\sUSERNOTICE\s/i.test(line)) continue;
       if (this.isActive && !this.isActive()) continue;
-      const parsed = normalizeIrcPrivmsg(line);
+      const parsed = normalizeIrcLine(line);
       if (!parsed) continue;
       if (parsed.channel && this.channel && parsed.channel !== this.channel) continue;
       try {
@@ -4117,11 +4490,14 @@ class ChatObserver {
       username: parsed.username,
       usernameColor: parsed.usernameColor,
       profileUrl: parsed.profileUrl,
+      avatarUrl: parsed.avatarUrl || '',
+      login: parsed.login || '',
       message: parsed.message,
       parts: parsed.parts,
       originalMessage: parsed.originalMessage,
       superchat: !!parsed.superchat,
       superchatStyle: parsed.superchatStyle || null,
+      superchatMeta: parsed.superchatMeta || null,
     }, null);
   }
 
@@ -4155,9 +4531,12 @@ class ChatObserver {
       username: parsed.username,
       usernameColor: parsed.usernameColor,
       profileUrl: parsed.profileUrl,
+      avatarUrl: parsed.avatarUrl || '',
+      login: parsed.login || '',
       originalMessage: parsed.message,
       superchat: !!parsed.superchat,
       superchatStyle: parsed.superchatStyle || null,
+      superchatMeta: parsed.superchatMeta || null,
     };
 
     const hasTranslatableText = parsed.parts.some((part) => (
@@ -4225,8 +4604,8 @@ function injectStyles() {
       display: inline-block !important;
       height: 1.2em !important;
       width: auto !important;
-      min-height: 1.2em !important;
-      max-height: 1.2em !important;
+      min-height: 1.5em !important;
+      max-height: 1.5em !important;
       max-width: 6em !important;
       object-fit: contain !important;
       object-position: center !important;
@@ -4434,26 +4813,143 @@ function injectStyles() {
     .tbc-superchat-layer {
       pointer-events: none;
       display: none;
+      flex-direction: column;
       align-items: center;
-      justify-content: center;
+      justify-content: flex-start;
+      gap: 6px;
       overflow: visible;
+      padding: 4px 0;
+      box-sizing: border-box;
+    }
+
+    .tbc-superchat-layer.tbc-sc-bottom {
+      justify-content: flex-end;
     }
 
     .tbc-superchat-item {
       position: relative;
-      max-width: calc(100% - 24px);
-      padding: 6px 16px;
-      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      max-width: min(720px, calc(100% - 24px));
+      min-width: min(280px, calc(100% - 24px));
+      padding: 8px 14px 8px 8px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
       font-weight: 700;
-      line-height: 1.2;
-      white-space: nowrap;
+      line-height: 1.25;
       overflow: hidden;
-      text-overflow: ellipsis;
       pointer-events: auto;
       cursor: pointer;
       animation-duration: var(--tbc-sc-duration, 6s);
       animation-timing-function: ease;
       animation-fill-mode: forwards;
+    }
+
+    .tbc-sc-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      object-fit: cover;
+      flex-shrink: 0;
+      background: rgba(0, 0, 0, 0.25);
+      border: 2px solid rgba(255, 255, 255, 0.35);
+    }
+
+    .tbc-sc-main {
+      min-width: 0;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .tbc-sc-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .tbc-sc-name {
+      font-size: 0.85em;
+      font-weight: 800;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 10em;
+      opacity: 0.95;
+    }
+
+    .tbc-sc-badge {
+      flex-shrink: 0;
+      padding: 1px 7px;
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.28);
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      color: inherit;
+      font-size: 0.72em;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      line-height: 1.4;
+    }
+
+    .tbc-sc-body {
+      min-width: 0;
+      overflow: hidden;
+      max-width: 100%;
+    }
+
+    .tbc-sc-body-track {
+      display: inline-flex;
+      align-items: center;
+      white-space: nowrap;
+      will-change: transform;
+    }
+
+    .tbc-sc-body-track.tbc-sc-marquee {
+      animation: tbc-sc-marquee var(--tbc-sc-marquee-duration, 8s) linear infinite;
+    }
+
+    .tbc-superchat-item.tbc-paused .tbc-sc-body-track.tbc-sc-marquee {
+      animation-play-state: paused;
+    }
+
+    @keyframes tbc-sc-marquee {
+      0%, 12% { transform: translateX(0); }
+      88%, 100% { transform: translateX(calc(-1 * var(--tbc-sc-marquee-distance, 0px))); }
+    }
+
+    .tbc-chat-menu {
+      position: fixed;
+      z-index: 100050;
+      min-width: 168px;
+      padding: 6px;
+      border-radius: 8px;
+      background: #18181b;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .tbc-chat-menu-item {
+      appearance: none;
+      border: none;
+      background: transparent;
+      color: #efeff1;
+      text-align: left;
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .tbc-chat-menu-item:hover {
+      background: rgba(145, 71, 255, 0.7);
     }
 
     .tbc-superchat-item.tbc-sc-fade,
@@ -4467,6 +4963,12 @@ function injectStyles() {
 
     .tbc-superchat-layer.tbc-sc-bottom .tbc-superchat-item.tbc-sc-slide {
       animation-name: tbc-sc-slide-up;
+    }
+
+    .tbc-superchat-item .tbc-emote {
+      height: 1.5em !important;
+      max-height: 1.5em !important;
+      vertical-align: -0.2em !important;
     }
 
     .tbc-superchat-item.tbc-sc-pop {
@@ -5315,7 +5817,7 @@ class SettingsPanel {
       this.createDivider(),
       this.createToggle(t('superchatPinned'), 'superchatPinned'),
       this.createSelect(t('superchatPosition'), 'superchatPosition', getSuperchatPositionOptions()),
-      this.createRange(t('superchatDuration'), 'superchatDuration', 2, 15, 1, (v) => `${v} ${t('speechSeconds')}`),
+      this.createRange(t('superchatDuration'), 'superchatDuration', 2, 300, 1, (v) => `${v} ${t('speechSeconds')}`),
       this.createSelect(t('superchatAnimation'), 'superchatAnimation', getSuperchatAnimationOptions()),
       this.createDivider(),
       this.createToggle(t('translateEnable'), 'translateEnabled', {
@@ -6169,6 +6671,210 @@ class HistoryPanel {
   }
 }
 
+class ChatContextMenu {
+  constructor({ getSettings, danmakuEmitter, isActive }) {
+    this.getSettings = getSettings;
+    this.danmakuEmitter = danmakuEmitter;
+    this.isActive = isActive;
+    this.menu = null;
+    this.targetEl = null;
+    this.boundContext = (event) => this.handleContextMenu(event);
+    this.boundClose = (event) => this.handleOutside(event);
+    this.boundKey = (event) => {
+      if (event.key === 'Escape') this.close();
+    };
+    this.attachedRoot = null;
+  }
+
+  attach(root = document) {
+    this.detach();
+    this.attachedRoot = root;
+    root.addEventListener('contextmenu', this.boundContext, true);
+  }
+
+  detach() {
+    this.close();
+    this.attachedRoot?.removeEventListener('contextmenu', this.boundContext, true);
+    this.attachedRoot = null;
+  }
+
+  findMessageEl(node) {
+    if (!node || node.nodeType !== Node.ELEMENT_NODE) {
+      node = node?.parentElement;
+    }
+    return node?.closest?.(SELECTORS.chatMessage) || null;
+  }
+
+  handleContextMenu(event) {
+    if (!this.isActive?.()) return;
+    const msgEl = this.findMessageEl(event.target);
+    if (!msgEl) return;
+    const snapshot = snapshotChatMessage(msgEl);
+    if (!snapshot?.message) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    this.open(event.clientX, event.clientY, msgEl, snapshot);
+  }
+
+  handleOutside(event) {
+    if (!this.menu) return;
+    if (this.menu.contains(event.target)) return;
+    this.close();
+  }
+
+  close() {
+    this.menu?.remove();
+    this.menu = null;
+    this.targetEl = null;
+    document.removeEventListener('click', this.boundClose, true);
+    document.removeEventListener('keydown', this.boundKey, true);
+    window.removeEventListener('scroll', this.boundClose, true);
+    window.removeEventListener('resize', this.boundClose, true);
+  }
+
+  open(x, y, msgEl, snapshot) {
+    this.close();
+    this.targetEl = msgEl;
+    this.menu = document.createElement('div');
+    this.menu.className = 'tbc-chat-menu';
+    this.menu.setAttribute('role', 'menu');
+
+    const hasTranslation = !!msgEl.querySelector('.tbc-chat-translation');
+    this.menu.append(
+      this.createItem(hasTranslation ? t('chatMenuRetranslate') : t('chatMenuTranslate'), () => {
+        this.runTranslate(msgEl, snapshot, true);
+      }),
+      this.createItem(t('chatMenuSpeak'), () => {
+        this.runSpeak(snapshot);
+      }),
+      this.createItem(t('chatMenuResend'), () => {
+        this.runResend(msgEl, snapshot, false);
+      }),
+    );
+
+    const mount = getFullscreenElement() || document.body;
+    mount.appendChild(this.menu);
+
+    const rect = this.menu.getBoundingClientRect();
+    const left = clamp(x, 8, window.innerWidth - rect.width - 8);
+    const top = clamp(y, 8, window.innerHeight - rect.height - 8);
+    Object.assign(this.menu.style, {
+      left: `${left}px`,
+      top: `${top}px`,
+    });
+
+    setTimeout(() => {
+      document.addEventListener('click', this.boundClose, true);
+      document.addEventListener('keydown', this.boundKey, true);
+      window.addEventListener('scroll', this.boundClose, true);
+      window.addEventListener('resize', this.boundClose, true);
+    }, 0);
+  }
+
+  createItem(label, onClick) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'tbc-chat-menu-item';
+    button.setAttribute('role', 'menuitem');
+    button.textContent = label;
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      this.close();
+      onClick();
+    });
+    return button;
+  }
+
+  async translateParts(snapshot, bustCache = false) {
+    const settings = this.getSettings();
+    const parts = snapshot.parts?.length
+      ? snapshot.parts.map((part) => ({ ...part }))
+      : [{ type: 'text', value: snapshot.message }];
+    const refs = [];
+    const pieces = [];
+    parts.forEach((part, index) => {
+      const core = part.type === 'text' ? translatableCore(part.value) : '';
+      if (!core) return;
+      if (bustCache) forgetCachedTranslation(core, settings.translateTargetLang);
+      refs.push(index);
+      pieces.push(core);
+    });
+    if (!pieces.length) return { parts, message: snapshot.message, translated: false };
+
+    let provider = settings.translateProvider || 'auto';
+    let outcome = await translateMessages(pieces, settings.translateTargetLang, provider);
+    if (outcome.retryAfter && provider !== 'auto') {
+      outcome = await translateMessages(pieces, settings.translateTargetLang, 'auto');
+    }
+    if (outcome.retryAfter || !Array.isArray(outcome.texts)) {
+      return { parts, message: snapshot.message, translated: false, failed: true };
+    }
+
+    refs.forEach((partIndex, i) => {
+      const part = parts[partIndex];
+      const match = String(part.value).match(/^(\s*)([\s\S]*?)(\s*)$/);
+      const translated = outcome.texts[i] || match[2];
+      parts[partIndex] = {
+        type: 'text',
+        value: `${match[1]}${translated}${match[3]}`,
+      };
+    });
+    const message = partsToPlain(parts) || snapshot.message;
+    return { parts, message, translated: message !== snapshot.message, failed: false };
+  }
+
+  async runTranslate(msgEl, snapshot, bustCache) {
+    const result = await this.translateParts(snapshot, bustCache);
+    if (result.failed) return;
+    applyChatTranslation(msgEl, result.message, snapshot.message);
+  }
+
+  runSpeak(snapshot) {
+    const settings = this.getSettings();
+    if (!speechSupported()) return;
+    const source = speechSourceText(snapshot.message, snapshot.parts);
+    // Explicit menu action: use panel voice/rate/volume, even if auto-speak is off.
+    if (Number(settings.speechVolume) <= 0) return;
+    speakTextNow(source);
+  }
+
+  async runResend(msgEl, snapshot, forceTranslate) {
+    const settings = this.getSettings();
+    let message = snapshot.message;
+    let parts = snapshot.parts;
+    let translated = false;
+
+    const shouldTranslate = forceTranslate || settings.translateEnabled;
+    if (shouldTranslate) {
+      const result = await this.translateParts(snapshot, forceTranslate);
+      if (!result.failed) {
+        message = result.message;
+        parts = result.parts;
+        translated = result.translated;
+        if (settings.translateInChat) {
+          applyChatTranslation(msgEl, message, snapshot.message);
+        }
+      }
+    }
+
+    this.danmakuEmitter?.enqueue({
+      username: snapshot.username,
+      usernameColor: snapshot.usernameColor,
+      profileUrl: snapshot.profileUrl,
+      avatarUrl: snapshot.avatarUrl,
+      originalMessage: snapshot.message,
+      message,
+      parts,
+      translated,
+      superchat: !!snapshot.superchat,
+      superchatStyle: snapshot.superchatStyle,
+      superchatMeta: snapshot.superchatMeta,
+    });
+  }
+}
+
 class ControlButton {
   constructor({ onToggleDanmaku, onTogglePanel, onToggleSpeech, onToggleHistory, getSettings, isPanelOpen, isSpeechPanelOpen, isHistoryPanelOpen }) {
     this.onToggleDanmaku = onToggleDanmaku;
@@ -6313,6 +7019,7 @@ let danmaku = null;
 let danmakuEmitter = null;
 let translateQueue = null;
 let chatObserver = null;
+let chatContextMenu = null;
 let settingsPanel = null;
 let speechPanel = null;
 let historyPanel = null;
@@ -6369,6 +7076,7 @@ function handleVisibilityChange() {
 
 function teardown() {
   chatObserver?.stop();
+  chatContextMenu?.detach();
   danmaku?.destroy();
   controlButton?.destroy();
   danmakuEmitter?.clear();
@@ -6379,6 +7087,7 @@ function teardown() {
   historyPanel?.close();
   cancelSpeech();
   chatObserver = null;
+  chatContextMenu = null;
   danmaku = null;
   danmakuEmitter = null;
   translateQueue = null;
@@ -6405,6 +7114,13 @@ async function boot() {
     translateQueue,
     isActive,
   });
+
+  chatContextMenu = new ChatContextMenu({
+    getSettings,
+    danmakuEmitter,
+    isActive,
+  });
+  chatContextMenu.attach(document);
 
   if (!settingsPanel) {
     settingsPanel = new SettingsPanel({

@@ -46,9 +46,15 @@ No more constantly glancing at the chat panel. Messages flow across the screen s
 - With translation on, the translated text is read. Symbols, emotes, and numbers alone are skipped
 
 ### Super Chat Pin
-- Recognizes Bits cheers, highlighted messages with a paid background, and pinned chat
-- When enabled, they stay on the top or bottom of the video instead of scrolling
+- Recognizes Bits cheers, subscriptions, highlighted paid messages, and pinned chat
+- Shows avatar, truncated username, amount/Sub badge, and Twitch cheer-tier colors (1 / 100 / 1000 / 5000 / 10000 / 100000)
+- Bits amounts follow cheermote tokens and image assets (including Bits card presets such as 300 / 1000 / 5000 / 10000); cheer badges are ignored so they are not misread as 1 Bit
+- Multiple pins can show at once without covering each other; long text marquees inside the bubble
 - Animations: fade, slide, pop, or shine. Hover pauses the animation and shows the sender
+
+### Chat Context Menu
+- Right-click a live chat line to translate / re-translate, read aloud, or resend as danmaku
+- Translation follows the settings engine (with auto failover); speech follows speech panel voice/rate/volume
 
 ### Chat History Download
 - **Live** — Export messages currently loaded in the chat panel, or from the IRC buffer when FrankerFaceZ is detected (not the full stream history)
@@ -77,7 +83,7 @@ No more constantly glancing at the chat panel. Messages flow across the screen s
 - Zero external dependencies — lightweight and fast
 
 ### Demo
-Open the demo in your browser. No install or build step is required:
+Open the demo in your browser. No install or build step is required. Try Add cheer (Bits presets), right-click a chat line, speech, and in-chat translations:
 
 [Twitch Danmaku demo](https://saka1zum1.github.io/twitch-danmaku/)
 

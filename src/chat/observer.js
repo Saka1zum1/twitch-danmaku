@@ -122,11 +122,14 @@ class ChatObserver {
       username: parsed.username,
       usernameColor: parsed.usernameColor,
       profileUrl: parsed.profileUrl,
+      avatarUrl: parsed.avatarUrl || '',
+      login: parsed.login || '',
       message: parsed.message,
       parts: parsed.parts,
       originalMessage: parsed.originalMessage,
       superchat: !!parsed.superchat,
       superchatStyle: parsed.superchatStyle || null,
+      superchatMeta: parsed.superchatMeta || null,
     }, null);
   }
 
@@ -160,9 +163,12 @@ class ChatObserver {
       username: parsed.username,
       usernameColor: parsed.usernameColor,
       profileUrl: parsed.profileUrl,
+      avatarUrl: parsed.avatarUrl || '',
+      login: parsed.login || '',
       originalMessage: parsed.message,
       superchat: !!parsed.superchat,
       superchatStyle: parsed.superchatStyle || null,
+      superchatMeta: parsed.superchatMeta || null,
     };
 
     const hasTranslatableText = parsed.parts.some((part) => (

@@ -1,7 +1,6 @@
 const TWITCH_GQL_URL = 'https://gql.twitch.tv/gql';
 const TWITCH_GQL_CLIENT_ID = 'kd1unb4b3q4t58fwlpcbzcbnm76a8fp';
 const VOD_COMMENTS_HASH = 'b70a3591ff0f4e0313d126c6a1502d79a1c02baebb288227c582044aa76adf6a';
-const BITS_PATTERN = '(?:^|\\s)(?:4Head|Anon|BibleThumb|BitBoss|bday|Cheer|Charity|Corgo|cheerwal|DansGame|DoodleCheer|EleGiggle|FrankerZ|FailFish|Goal|HeyGuys|HolidayCheer|Kappa|Kreygasm|MrDestructoid|Muxy|NotLikeThis|Party|Pride|PJSalt|RIPCheer|Scoops|ShowLove|Shamrock|SeemsGood|SwiftRage|Streamlabs|TriHard|uni|VoHiYo)([1-9]\\d{0,6})(?=\\s|$)';
 const LIVE_CHAT_CONTAINER = '[data-test-selector="chat-scrollable-area__message-container"], .chat-scrollable-area__message-container';
 const LIVE_CHAT_MESSAGE = '.chat-line__message, [data-a-target="chat-line-message"], [data-a-target="chat-message-container"]';
 const CHANNEL_PATH_BLOCKLIST = /^(videos?|directory|settings|subscriptions|inventory|wallet|downloads|search|prime|popout|turbo|products|drops|u|p)$/i;
@@ -156,14 +155,7 @@ function commentText(node) {
 function commentBits(node, text) {
   const spent = Number(node?.message?.bitsSpent);
   if (Number.isFinite(spent) && spent > 0) return spent;
-  const matcher = new RegExp(BITS_PATTERN, 'g');
-  let total = 0;
-  let match = matcher.exec(text);
-  while (match) {
-    total += Number(match[1]) || 0;
-    match = matcher.exec(text);
-  }
-  return total;
+  return bitsFromText(text);
 }
 
 function normalizeVodComment(node) {
@@ -197,27 +189,6 @@ function commentMatchesFilters(comment, keywords, usernames, includeSuperchat) {
   return true;
 }
 
-function bitsFromText(text) {
-  const matcher = new RegExp(BITS_PATTERN, 'gi');
-  let total = 0;
-  let match = matcher.exec(text);
-  while (match) {
-    total += Number(match[1]) || 0;
-    match = matcher.exec(text);
-  }
-  return total;
-}
-
-function bitsFromCheerImages(msgEl) {
-  let total = 0;
-  for (const img of msgEl.querySelectorAll('img')) {
-    const alt = img.getAttribute('alt') || '';
-    const match = alt.match(/^cheer([1-9]\d{0,6})$/i);
-    if (match) total += Number(match[1]) || 0;
-  }
-  return total;
-}
-
 function normalizeDomComment(msgEl, index) {
   const parts = extractMessageParts(msgEl);
   const message = partsToPlain(parts).replace(/\s+/g, ' ').trim();
@@ -232,7 +203,7 @@ function normalizeDomComment(msgEl, index) {
   ).trim().toLowerCase();
   if (!login && !displayName) return null;
 
-  const bits = bitsFromText(message) || bitsFromCheerImages(msgEl);
+  const bits = extractBitsAmount(msgEl, message, parts);
   const superchatStyle = readSuperchatStyle(msgEl);
   const superchat = bits > 0 || !!superchatStyle;
   const id = msgEl.id || `live-${index}-${login}-${message.slice(0, 32)}`;

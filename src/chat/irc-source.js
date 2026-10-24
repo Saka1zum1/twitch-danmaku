@@ -71,8 +71,52 @@ function parseIrcEmoteParts(message, emotesTag) {
 function bitsFromIrcTags(tags, message) {
   const spent = Number(tags.bits);
   if (Number.isFinite(spent) && spent > 0) return spent;
-  const cheer = String(message || '').match(/(?:^|\s)Cheer([1-9]\d{0,6})(?=\s|$)/i);
-  return cheer ? (Number(cheer[1]) || 0) : 0;
+  return bitsFromText(message);
+}
+
+const IRC_SUB_MSG_IDS = new Set([
+  'sub', 'resub', 'subgift', 'anonsubgift', 'submysterygift',
+  'giftpaidupgrade', 'anongiftpaidupgrade', 'primepaidupgrade',
+]);
+
+function buildIrcPayload({ channel, login, displayName, color, message, tags, bits = 0, subscribe = false }) {
+  const parts = parseIrcEmoteParts(message, tags.emotes);
+  let meta = null;
+  if (bits > 0) {
+    const style = cheerTierStyle(bits);
+    meta = {
+      kind: 'cheer',
+      bits,
+      amountLabel: `${bits} Bits`,
+      avatarUrl: '',
+      style,
+    };
+  } else if (subscribe) {
+    const style = subscribeStyle();
+    meta = {
+      kind: 'sub',
+      bits: 0,
+      amountLabel: 'Sub',
+      avatarUrl: '',
+      style,
+    };
+  }
+
+  return {
+    channel,
+    login,
+    username: displayName,
+    usernameColor: color,
+    profileUrl: login ? `https://www.twitch.tv/${encodeURIComponent(login)}` : null,
+    avatarUrl: '',
+    message,
+    parts,
+    originalMessage: message,
+    superchat: !!meta,
+    superchatStyle: meta?.style || null,
+    superchatMeta: meta,
+    bits,
+  };
 }
 
 function normalizeIrcPrivmsg(line) {
@@ -89,21 +133,46 @@ function normalizeIrcPrivmsg(line) {
   const displayName = unescapeIrcTag(tags['display-name']) || login;
   const color = unescapeIrcTag(tags.color) || '#ffffff';
   const bits = bitsFromIrcTags(tags, message);
-  const parts = parseIrcEmoteParts(message, tags.emotes);
-
-  return {
+  return buildIrcPayload({
     channel,
     login,
-    username: displayName,
-    usernameColor: color,
-    profileUrl: login ? `https://www.twitch.tv/${encodeURIComponent(login)}` : null,
+    displayName,
+    color,
     message,
-    parts,
-    originalMessage: message,
-    superchat: bits > 0,
-    superchatStyle: bits > 0 ? { background: '#9147ff', color: '#ffffff' } : null,
+    tags,
     bits,
-  };
+  });
+}
+
+function normalizeIrcUsernotice(line) {
+  const match = line.match(/^(?:@(\S+)\s+)?:tmi\.twitch\.tv\s+USERNOTICE\s+#(\S+)(?:\s+:([\s\S]*))?$/i);
+  if (!match) return null;
+  const tags = parseIrcTags(match[1] || '');
+  const msgId = String(tags['msg-id'] || '').toLowerCase();
+  if (!IRC_SUB_MSG_IDS.has(msgId)) return null;
+
+  const channel = String(match[2] || '').toLowerCase();
+  const login = String(tags.login || '').toLowerCase();
+  const displayName = unescapeIrcTag(tags['display-name']) || login;
+  const color = unescapeIrcTag(tags.color) || '#ffffff';
+  const system = unescapeIrcTag(tags['system-msg'] || '');
+  const body = (match[3] || '').trim();
+  const message = [system, body].filter(Boolean).join(' — ') || system || 'Subscribed';
+  return buildIrcPayload({
+    channel,
+    login,
+    displayName,
+    color,
+    message,
+    tags,
+    subscribe: true,
+  });
+}
+
+function normalizeIrcLine(line) {
+  if (/\sPRIVMSG\s/i.test(line)) return normalizeIrcPrivmsg(line);
+  if (/\sUSERNOTICE\s/i.test(line)) return normalizeIrcUsernotice(line);
+  return null;
 }
 
 class TwitchIrcChatSource {
@@ -230,9 +299,9 @@ class TwitchIrcChatSource {
         this.socket?.send(`PONG ${line.slice(5)}`);
         continue;
       }
-      if (!/\sPRIVMSG\s/i.test(line)) continue;
+      if (!/\sPRIVMSG\s/i.test(line) && !/\sUSERNOTICE\s/i.test(line)) continue;
       if (this.isActive && !this.isActive()) continue;
-      const parsed = normalizeIrcPrivmsg(line);
+      const parsed = normalizeIrcLine(line);
       if (!parsed) continue;
       if (parsed.channel && this.channel && parsed.channel !== this.channel) continue;
       try {
