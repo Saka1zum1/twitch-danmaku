@@ -4,7 +4,7 @@
 // @name:zh-TW   Twitch 彈幕 | 即時翻譯
 // @name:ja      Twitch 弾幕 | リアルタイム翻訳
 // @namespace    https://github.com/saka1zum1/twitch-danmaku
-// @version      1.9.1
+// @version      1.9.2
 // @description  Convert Twitch live chat to video danmaku with real-time translation
 // @description:zh-CN  将 Twitch 直播评论转换为视频弹幕，支持实时翻译
 // @description:zh-TW  將聊天室中的新訊息轉換成影片上的滾動彈幕，支持即時翻譯
@@ -140,6 +140,40 @@ const LOCALES = {
     chatMenuSpeak: '朗读',
     chatMenuResend: '重新发送弹幕',
     chatMenuBlockUser: '屏蔽该用户',
+    chatMenuFavorite: '收藏',
+    favoritesTitle: '收藏弹幕',
+    favoritesAdd: '添加',
+    favoritesAddPlaceholder: '输入要收藏的消息…',
+    favoritesEmpty: '暂无收藏',
+    favoritesEmptyText: '请输入内容',
+    favoritesAdded: '已加入收藏',
+    favoritesExists: '已在收藏中',
+    favoritesFull: '收藏已满（最多 40 条）',
+    favoritesSend: '发送',
+    favoritesRemove: '移除',
+    favoritesSent: '已发送',
+    favoritesShortcutNone: '无快捷键',
+    favoritesScopeGlobal: '全站可用',
+    favoritesScopeChannel: '本直播间 · {channel}',
+    favoritesMakeGlobal: '全站',
+    favoritesMakeChannel: '本房',
+    favoritesMakeGlobalHint: '设为所有直播间可用',
+    favoritesMakeChannelHint: '仅当前直播间可用',
+    favoritesScopedGlobal: '已设为全站可用',
+    favoritesScopedChannel: '已设为仅本直播间',
+    favoritesNeedChannel: '无法识别当前直播间',
+    favoritesWheel: '独轮车模式',
+    favoritesWheelStart: '开始',
+    favoritesWheelStop: '停止',
+    favoritesWheelIdle: '未运行',
+    favoritesWheelRunning: '已发送 {sent}/{max} · 剩余 {left}s',
+    favoritesWheelStopped: '独轮车已停止',
+    favoritesWheelMinInterval: '最短间隔（秒）',
+    favoritesWheelMaxInterval: '最长间隔（秒）',
+    favoritesWheelMaxCount: '最多条数',
+    favoritesWheelMaxDuration: '最长持续（秒）',
+    fsChatFavorites: '收藏',
+    fsChatFavoritesEmpty: '暂无收藏',
     superchatPinned: 'Super Chat 悬停',
     superchatPosition: '悬停位置',
     superchatDuration: '悬停时间',
@@ -154,8 +188,20 @@ const LOCALES = {
     fsChatPlaceholder: '发送聊天消息…',
     fsChatSend: '发送',
     fsChatClose: '关闭',
-    fsChatHint: 'Enter 发送 · 内容为空时点击外侧关闭',
     fsChatNeedLogin: '请先登录 Twitch',
+    fsChatNeedFollow: '需要先关注主播才能发言',
+    fsChatNeedFollowTime: '关注时长不足，暂时无法发言',
+    fsChatNeedSub: '仅订阅者可发言',
+    fsChatNeedVerified: '需要验证账号才能发言',
+    fsChatNeedPhone: '需要验证手机号才能发言',
+    fsChatSlowMode: '慢速模式，请稍后再试',
+    fsChatEmoteOnly: '当前为仅表情模式',
+    fsChatUniqueMode: '消息需保持唯一',
+    fsChatAutomod: '消息被 Automod 拦截审核',
+    fsChatTimedOut: '你当前处于禁言状态',
+    fsChatBanned: '你已被此直播间封禁',
+    fsChatDuplicate: '不能发送重复消息',
+    fsChatRateLimit: '发送过于频繁，请稍后再试',
     fsChatFailed: '发送失败，请稍后重试',
     fsChatSent: '已发送',
     scrollAreaFull: '全屏',
@@ -300,6 +346,40 @@ const LOCALES = {
     chatMenuSpeak: 'Read aloud',
     chatMenuResend: 'Send as danmaku',
     chatMenuBlockUser: 'Block this user',
+    chatMenuFavorite: 'Favorite',
+    favoritesTitle: 'Favorite chats',
+    favoritesAdd: 'Add',
+    favoritesAddPlaceholder: 'Type a message to save…',
+    favoritesEmpty: 'No favorites yet',
+    favoritesEmptyText: 'Enter some text',
+    favoritesAdded: 'Added to favorites',
+    favoritesExists: 'Already in favorites',
+    favoritesFull: 'Favorites full (max 40)',
+    favoritesSend: 'Send',
+    favoritesRemove: 'Remove',
+    favoritesSent: 'Sent',
+    favoritesShortcutNone: 'No key',
+    favoritesScopeGlobal: 'Site-wide',
+    favoritesScopeChannel: 'This channel · {channel}',
+    favoritesMakeGlobal: 'Global',
+    favoritesMakeChannel: 'Channel',
+    favoritesMakeGlobalHint: 'Available in every channel',
+    favoritesMakeChannelHint: 'Only this channel',
+    favoritesScopedGlobal: 'Now site-wide',
+    favoritesScopedChannel: 'Now channel-only',
+    favoritesNeedChannel: 'Could not detect the current channel',
+    favoritesWheel: 'Wheel mode',
+    favoritesWheelStart: 'Start',
+    favoritesWheelStop: 'Stop',
+    favoritesWheelIdle: 'Idle',
+    favoritesWheelRunning: 'Sent {sent}/{max} · {left}s left',
+    favoritesWheelStopped: 'Wheel stopped',
+    favoritesWheelMinInterval: 'Min interval (s)',
+    favoritesWheelMaxInterval: 'Max interval (s)',
+    favoritesWheelMaxCount: 'Max messages',
+    favoritesWheelMaxDuration: 'Max duration (s)',
+    fsChatFavorites: 'Favorites',
+    fsChatFavoritesEmpty: 'No favorites',
     superchatPinned: 'Pin Super Chats',
     superchatPosition: 'Pin position',
     superchatDuration: 'Pin time',
@@ -314,8 +394,20 @@ const LOCALES = {
     fsChatPlaceholder: 'Send a message…',
     fsChatSend: 'Chat',
     fsChatClose: 'Close',
-    fsChatHint: 'Enter to send · Click outside when empty to close',
     fsChatNeedLogin: 'Log in to Twitch first',
+    fsChatNeedFollow: 'Follow the channel to chat',
+    fsChatNeedFollowTime: 'Follow longer before you can chat',
+    fsChatNeedSub: 'Subscribers only',
+    fsChatNeedVerified: 'Verify your account to chat',
+    fsChatNeedPhone: 'Verify a phone number to chat',
+    fsChatSlowMode: 'Slow mode — try again shortly',
+    fsChatEmoteOnly: 'Emote-only mode',
+    fsChatUniqueMode: 'Message must be unique',
+    fsChatAutomod: 'Held by AutoMod for review',
+    fsChatTimedOut: 'You are timed out',
+    fsChatBanned: 'You are banned from this chat',
+    fsChatDuplicate: 'Duplicate message blocked',
+    fsChatRateLimit: 'Sending too fast — slow down',
     fsChatFailed: 'Failed to send. Try again.',
     fsChatSent: 'Sent',
     scrollAreaFull: 'Full screen',
@@ -487,10 +579,10 @@ const DEFAULT_SETTINGS = {
 
 const SELECTORS = {
   chatScroller: '[data-a-target="chat-scroller"], .video-chat__message-list-wrapper',
-  chatMessage: '[data-a-target="chat-message-container"], .chat-line__message, [data-test-selector="chat-message"], .vod-message',
+  chatMessage: '[data-a-target="chat-message-container"], [data-a-target="chat-line-message"], .chat-line__message, [data-test-selector="chat-message"], [data-test-selector="user-notice-line"], .vod-message',
   chatText: 'span[data-a-target="chat-message-text"], span.text-fragment',
-  chatUsername: '[data-a-target="chat-message-username"], .chat-author__display-name, .chat-line__username',
-  chatMessageBody: '[data-a-target="chat-line-message-body"], .chat-line__message-body, .video-chat__message',
+  chatUsername: '[data-a-target="chat-message-username"], .chat-author__display-name, .chat-line__username, .chatter-name',
+  chatMessageBody: '[data-a-target="chat-line-message-body"], .chat-line__message-body, .video-chat__message, [data-test-selector="user-notice-line"]',
   videoPlayer: '.video-player__container',
   videoOverlay: '.video-player__overlay',
   playerControlsRoot: '[data-a-target="player-controls"], .player-controls',
@@ -501,6 +593,10 @@ const SELECTORS = {
   chatHeader: '.stream-chat-header, [class*="stream-chat-header"]',
   chatViewerListBtn: '[data-test-selector="chat-viewer-list"]',
   chatMessageContainer: '[data-test-selector="chat-scrollable-area__message-container"], .chat-scrollable-area__message-container',
+  chatInputActions: '[data-tbc-chat-input-actions]',
+  bitsButton: '[data-a-target="bits-button"]',
+  emotePickerButton: '[data-a-target="emote-picker-button"]',
+  chatScrollableArea: '.chat-list--default .scrollable-area, .scrollable-area',
 };
 
 const TRANSLATE_PROVIDERS = ['auto', 'microsoft', 'google', 'volcengine', 'caiyun', 'tencent'];
@@ -1047,65 +1143,6 @@ function speechSupported() {
   return !!speechSpeaker?.supported;
 }
 
-const avatarCache = new Map();
-
-function letterAvatarDataUri(name, color) {
-  const letter = String(name || '?').trim().charAt(0).toUpperCase() || '?';
-  const fill = String(color || '#9147ff').replace(/[<>&"']/g, '');
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" rx="32" fill="${fill}"/><text x="32" y="40" text-anchor="middle" font-size="30" font-family="Arial,sans-serif" fill="#fff">${letter}</text></svg>`;
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-}
-
-function cachedAvatar(login, displayName, color) {
-  const key = String(login || displayName || '').toLowerCase();
-  if (key && avatarCache.has(key)) return avatarCache.get(key);
-  return letterAvatarDataUri(displayName || login, color);
-}
-
-function rememberAvatar(login, url) {
-  const key = String(login || '').toLowerCase();
-  if (!key || !url) return;
-  avatarCache.set(key, url);
-}
-
-function fetchTwitchAvatar(login) {
-  const key = String(login || '').trim().toLowerCase();
-  if (!key) return Promise.resolve('');
-  if (avatarCache.has(key) && !String(avatarCache.get(key)).startsWith('data:')) {
-    return Promise.resolve(avatarCache.get(key));
-  }
-
-  return new Promise((resolve) => {
-    GM_xmlhttpRequest({
-      method: 'POST',
-      url: 'https://gql.twitch.tv/gql',
-      headers: {
-        'Client-ID': 'kd1unb4b3q4t58fwlpcbzcbnm76a8fp',
-        'Content-Type': 'application/json',
-      },
-      data: JSON.stringify({
-        query: `query{user(login:${JSON.stringify(key)}){profileImageURL(width:70)}}`,
-      }),
-      timeout: 8000,
-      onload: (res) => {
-        try {
-          const url = JSON.parse(res.responseText)?.data?.user?.profileImageURL || '';
-          if (url) {
-            rememberAvatar(key, url);
-            resolve(url);
-            return;
-          }
-        } catch {
-          /* ignore */
-        }
-        resolve('');
-      },
-      onerror: () => resolve(''),
-      ontimeout: () => resolve(''),
-    });
-  });
-}
-
 class LaneManager {
   constructor() {
     this.lanes = [];
@@ -1510,7 +1547,7 @@ class DanmakuEngine {
     closeBtn.type = 'button';
     closeBtn.className = 'tbc-sc-close';
     closeBtn.setAttribute('aria-label', t('superchatClose'));
-    closeBtn.textContent = t('superchatClose');
+    closeBtn.innerHTML = ICON_CLOSE;
 
     item.append(avatar, main, closeBtn);
     this.superchatLayer.appendChild(item);
@@ -1519,8 +1556,9 @@ class DanmakuEngine {
     requestAnimationFrame(() => this.armSuperchatMarquee(body, track));
     requestSpeech(speechSourceText(message, parts));
 
-    const loginKey = String(login || '').toLowerCase();
-    if (loginKey && !avatarUrl) {
+    const loginKey = String(login || username || '').toLowerCase().replace(/^@+/, '');
+    // Always resolve a real profile image via ViewerCard when possible (letter avatars are fallback only).
+    if (loginKey && (!avatarUrl || String(avatarUrl).startsWith('data:'))) {
       fetchTwitchAvatar(loginKey).then((url) => {
         if (!url || !item.isConnected) return;
         avatar.src = url;
@@ -3385,6 +3423,37 @@ function subscribeStyle() {
   return { background: 'linear-gradient(135deg, #8205b4 0%, #c13cff 100%)', color: '#ffffff', accent: '#bf94ff' };
 }
 
+// Sub / resub / gift / Prime — not watch-streak / raid / follow notices.
+// Allow markup splits like: 已通过 <a>Prime</a> <span>订阅</span>
+const SUBSCRIBE_NOTICE_RE = /(?:已通过[\s\S]{0,24}Prime[\s\S]{0,12}订阅|已订阅第\s*\d+\s*层级|订阅了|续订了|已經訂閱|續訂|已訂閱|訂閱了|subscribed(?:\s+with\s+Prime)?|resubscribed|gifted\s+\d+|is gifting|gift\s*sub|prime\s+gaming|サブスク|ギフト)/i;
+
+function subscribeAmountLabel(text) {
+  const raw = String(text || '');
+  if (/prime/i.test(raw)) return 'Prime';
+  const tier = raw.match(/(?:第\s*(\d+)\s*层级|tier\s*(\d+)|subscribed at Tier\s*(\d+))/i);
+  if (tier) return `Tier ${tier[1] || tier[2] || tier[3]}`;
+  if (/gift|赠送|ギフト|gifting/i.test(raw)) return 'Gift';
+  return 'Sub';
+}
+
+function readUserNoticeSystemText(msgEl) {
+  if (!msgEl) return '';
+  const clone = msgEl.cloneNode(true);
+  clone.querySelectorAll(
+    '[data-a-target="chat-resubscription-message__custom-message"], .chat-line__message, [data-a-target="chat-line-message"]',
+  ).forEach((node) => node.remove());
+  return (clone.textContent || '').replace(/\s+/g, ' ').trim();
+}
+
+function readUserNoticeCustomParts(msgEl) {
+  const customRoot = msgEl?.querySelector?.(
+    '[data-a-target="chat-resubscription-message__custom-message"]',
+  );
+  if (!customRoot) return [];
+  const line = customRoot.querySelector('[data-a-target="chat-line-message"], .chat-line__message') || customRoot;
+  return extractMessageParts(line);
+}
+
 function extractBitsAmount(msgEl, message = '', parts = []) {
   let total = bitsFromText(message);
   if (total > 0) return total;
@@ -3405,16 +3474,31 @@ function extractBitsAmount(msgEl, message = '', parts = []) {
   return total;
 }
 
-function isSubscribeNotice(msgEl) {
-  if (!msgEl) return false;
-  if (msgEl.closest('.user-notice-line, [class*="user-notice"], [data-a-target*="user-notice"], [data-test-selector*="user-notice"]')) {
-    return true;
+function isSubscribeNotice(msgEl, textHint = '') {
+  if (!msgEl && !textHint) return false;
+  // Always prefer full notice textContent — custom resub body ("Hii") must not veto detection.
+  const systemText = readUserNoticeSystemText(msgEl);
+  const fullText = String(msgEl?.textContent || '').replace(/\s+/g, ' ').trim();
+  const text = systemText || fullText || String(textHint || '').replace(/\s+/g, ' ').trim();
+  return !!text && SUBSCRIBE_NOTICE_RE.test(text);
+}
+
+function readNoticeActor(msgEl, message = '') {
+  const usernameEl = msgEl?.querySelector?.(SELECTORS.chatUsername);
+  let username = usernameEl?.textContent?.trim() || '';
+  let login = (
+    msgEl?.getAttribute?.('data-a-user')
+    || usernameEl?.getAttribute?.('data-a-user')
+    || ''
+  ).trim().toLowerCase();
+
+  if (!username) {
+    const text = String(message || msgEl?.textContent || '').replace(/\s+/g, ' ').trim();
+    const match = text.match(/^@?([A-Za-z0-9_]{3,25})\s+(?:已通过|已订阅|订阅了|续订|subscribed|resubscribed|is gifting)/i);
+    if (match) username = match[1];
   }
-  if (msgEl.querySelector('.user-notice-line, [data-a-target="user-notice-line"], [data-a-target*="sub-message"]')) {
-    return true;
-  }
-  const text = (msgEl.textContent || '').replace(/\s+/g, ' ');
-  return /subscribed|resubscribed|gifted\s+\d+\s+sub|is gifting|gift sub|prime gaming|订阅|訂閱|ギフト/i.test(text);
+  if (!login && username) login = username.toLowerCase();
+  return { username, login, usernameEl };
 }
 
 function readChatAvatarUrl(msgEl) {
@@ -3436,7 +3520,7 @@ function readSuperchatMeta(msgEl, message = '', parts = []) {
   const pinned = !!msgEl.closest('[data-test-selector="pinned-chat"], [data-test-selector="pinned-message"], [class*="pinned-chat"], [class*="paid-pinned"]');
   const bits = extractBitsAmount(msgEl, message, parts);
   const cheer = bits > 0 || hasCheer(msgEl);
-  const subscribe = isSubscribeNotice(msgEl);
+  const subscribe = isSubscribeNotice(msgEl, message);
   const background = paidBackground(msgEl);
   if (!cheer && !pinned && !background && !subscribe && bits <= 0) return null;
 
@@ -3450,7 +3534,7 @@ function readSuperchatMeta(msgEl, message = '', parts = []) {
   } else if (subscribe) {
     kind = 'sub';
     style = subscribeStyle();
-    amountLabel = 'Sub';
+    amountLabel = subscribeAmountLabel(message || msgEl?.textContent || '');
   } else {
     style = {
       background: background || '#9147ff',
@@ -3484,31 +3568,67 @@ function readSuperchatStyle(msgEl) {
 
 function snapshotChatMessage(msgEl) {
   if (!msgEl) return null;
-  const parts = extractMessageParts(msgEl);
+
+  const systemText = readUserNoticeSystemText(msgEl);
+  const subscribe = isSubscribeNotice(msgEl, systemText);
+  const customParts = subscribe ? readUserNoticeCustomParts(msgEl) : [];
+  const parts = customParts.length ? customParts : extractMessageParts(msgEl);
   let message = partsToPlain(parts);
-  const usernameEl = msgEl.querySelector(SELECTORS.chatUsername);
-  const username = usernameEl?.textContent?.trim() || '';
-  const login = (
-    msgEl.getAttribute('data-a-user')
-    || usernameEl?.getAttribute('data-a-user')
-    || username
-  ).trim().toLowerCase();
 
   // System / notice lines may put text outside the normal body selector.
   if (!message) {
-    const notice = msgEl.querySelector('[data-a-target="chat-line-message-body"], .chat-line__message-body, .user-notice-line');
-    message = (notice?.textContent || msgEl.textContent || '').replace(/\s+/g, ' ').trim();
+    if (subscribe && systemText) {
+      message = systemText;
+    } else {
+      const notice = msgEl.querySelector(
+        '[data-a-target="chat-line-message-body"], .chat-line__message-body, [data-test-selector="user-notice-line"], .user-notice-line',
+      );
+      message = (notice?.textContent || msgEl.textContent || '').replace(/\s+/g, ' ').trim();
+    }
   }
-  if (!message && !isSubscribeNotice(msgEl)) return null;
+
+  const actor = readNoticeActor(msgEl, systemText || message);
+  let { username, login, usernameEl } = actor;
+
+  // Nested resub chat-line may carry a better login/color than the notice header.
+  if (subscribe) {
+    const nestedUser = msgEl.querySelector(
+      '[data-a-target="chat-resubscription-message__custom-message"] [data-a-target="chat-message-username"]',
+    );
+    if (nestedUser) {
+      username = nestedUser.textContent?.trim() || username;
+      login = (nestedUser.getAttribute('data-a-user') || username || login).trim().toLowerCase();
+      usernameEl = nestedUser;
+    }
+  }
+
+  if (!message && !subscribe) return null;
+
+  // Avoid duplicating the name in the Super Chat body for "user 已订阅…" notices.
+  if (username && message && !customParts.length) {
+    const escaped = username.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const stripped = message.replace(new RegExp(`^@?${escaped}\\s+`, 'i'), '').trim();
+    if (stripped) message = stripped;
+  }
+
+  // Resub with empty custom body: still show the system notice text.
+  if (subscribe && !message && systemText) {
+    let noticeBody = systemText;
+    if (username) {
+      const escaped = username.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      noticeBody = noticeBody.replace(new RegExp(`^@?${escaped}\\s+`, 'i'), '').trim() || noticeBody;
+    }
+    message = noticeBody;
+  }
 
   const finalParts = parts.length ? parts : (message ? [{ type: 'text', value: message }] : []);
-  const meta = readSuperchatMeta(msgEl, message, finalParts);
+  const meta = readSuperchatMeta(msgEl, systemText || message, finalParts);
   return {
     message,
-    parts: finalParts,
+    parts: finalParts.length ? finalParts : (message ? [{ type: 'text', value: message }] : []),
     username: username || login,
     login,
-    usernameColor: getUsernameColor(msgEl),
+    usernameColor: getUsernameColor(msgEl) || (usernameEl ? getComputedStyle(usernameEl).color : ''),
     profileUrl: getTwitchProfileUrl(usernameEl, username || login),
     avatarUrl: meta?.avatarUrl || readChatAvatarUrl(msgEl),
     superchat: !!meta,
@@ -3520,6 +3640,16 @@ function snapshotChatMessage(msgEl) {
 function parseChatMessage(msgEl) {
   if (msgEl.classList.contains('tbc-processed')) return null;
   if (msgEl.closest('.tbc-processed')) return null;
+
+  // Nested resub/chat body is owned by the parent user-notice-line Super Chat path.
+  const isNotice = msgEl.matches?.('[data-test-selector="user-notice-line"], .user-notice-line');
+  if (
+    !isNotice
+    && msgEl.closest?.('[data-test-selector="user-notice-line"], .user-notice-line, [data-a-target="chat-resubscription-message__custom-message"]')
+  ) {
+    msgEl.classList.add('tbc-processed');
+    return null;
+  }
 
   const snapshot = snapshotChatMessage(msgEl);
   if (!snapshot) return null;
@@ -4240,10 +4370,17 @@ function buildIrcPayload({ channel, login, displayName, color, message, tags, bi
     };
   } else if (subscribe) {
     const style = subscribeStyle();
+    const plan = String(tags['msg-param-sub-plan'] || '').toLowerCase();
+    let amountLabel = 'Sub';
+    if (plan === 'prime') amountLabel = 'Prime';
+    else if (plan === '2000') amountLabel = 'Tier 2';
+    else if (plan === '3000') amountLabel = 'Tier 3';
+    else if (plan === '1000') amountLabel = 'Tier 1';
+    else if (/gift/i.test(String(tags['msg-id'] || ''))) amountLabel = 'Gift';
     meta = {
       kind: 'sub',
       bits: 0,
-      amountLabel: 'Sub',
+      amountLabel,
       avatarUrl: '',
       style,
     };
@@ -4468,6 +4605,8 @@ const TWITCH_GQL_HASH = {
   blockedUserDetail: 'f1e276239a93802a4c533616dcb9f79d5e9b439e8b3cafb782be297b99d2d413',
   blockUser: 'c58b580efdc4187fa30c144c57425d7051602c848069be705f07e8d590a12515',
   unblockUser: 'f1b612a6df709cfa5fea630b20c78c9ba7f4c0be386bfd51486eaf02afbfbf92',
+  // Captured from twitch.tv ViewerCard open (profileImageURL on targetUser).
+  viewerCard: '2c6cc05878bf2f007613fe807512546000401362a2d7d87ab20ebf259960a29e',
 };
 
 function getCookieValue(name) {
@@ -4657,6 +4796,131 @@ async function unblockTwitchUser(login) {
   return { targetUserID, login: normalizeTwitchLogin(login) };
 }
 
+const avatarCache = new Map();
+let cachedViewerChannel = { login: '', id: '' };
+
+function letterAvatarDataUri(name, color) {
+  const letter = String(name || '?').trim().charAt(0).toUpperCase() || '?';
+  const fill = String(color || '#9147ff').replace(/[<>&"']/g, '');
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" rx="32" fill="${fill}"/><text x="32" y="40" text-anchor="middle" font-size="30" font-family="Arial,sans-serif" fill="#fff">${letter}</text></svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+function cachedAvatar(login, displayName, color) {
+  const key = String(login || displayName || '').toLowerCase();
+  if (key && avatarCache.has(key)) return avatarCache.get(key);
+  return letterAvatarDataUri(displayName || login, color);
+}
+
+function rememberAvatar(login, url) {
+  const key = String(login || '').toLowerCase();
+  if (!key || !url) return;
+  avatarCache.set(key, url);
+}
+
+async function resolveViewerChannelContext() {
+  const login = normalizeTwitchLogin(currentChannelLogin?.() || '');
+  if (!login) return { login: '', id: '' };
+  if (cachedViewerChannel.login === login && cachedViewerChannel.id) {
+    return cachedViewerChannel;
+  }
+  try {
+    const id = await resolveTwitchUserId(login);
+    if (id) {
+      cachedViewerChannel = { login, id: String(id) };
+      return cachedViewerChannel;
+    }
+  } catch (_) {
+    /* ignore */
+  }
+  return { login, id: '' };
+}
+
+function fetchTwitchAvatarViaUserQuery(login) {
+  const key = String(login || '').trim().toLowerCase();
+  if (!key) return Promise.resolve('');
+
+  return new Promise((resolve) => {
+    GM_xmlhttpRequest({
+      method: 'POST',
+      url: 'https://gql.twitch.tv/gql',
+      headers: {
+        'Client-ID': typeof TWITCH_WEB_CLIENT_ID !== 'undefined'
+          ? TWITCH_WEB_CLIENT_ID
+          : 'kimne78kx3ncx6brgo4mv6wki5h1ko',
+        'Content-Type': 'application/json',
+      },
+      data: JSON.stringify({
+        query: `query{user(login:${JSON.stringify(key)}){profileImageURL(width:70)}}`,
+      }),
+      timeout: 8000,
+      onload: (res) => {
+        try {
+          const url = JSON.parse(res.responseText)?.data?.user?.profileImageURL || '';
+          if (url) {
+            rememberAvatar(key, url);
+            resolve(url);
+            return;
+          }
+        } catch {
+          /* ignore */
+        }
+        resolve('');
+      },
+      onerror: () => resolve(''),
+      ontimeout: () => resolve(''),
+    });
+  });
+}
+
+async function fetchTwitchAvatarViaViewerCard(login) {
+  const key = normalizeTwitchLogin(login);
+  if (!key) return '';
+  if (typeof twitchGqlRequest !== 'function' || typeof gqlPersisted !== 'function') return '';
+
+  const channel = await resolveViewerChannelContext();
+  if (!channel.login) return '';
+
+  try {
+    const data = await twitchGqlRequest([
+      gqlPersisted(
+        'ViewerCard',
+        {
+          channelID: channel.id || '',
+          channelLogin: channel.login,
+          hasChannelID: !!channel.id,
+          giftRecipientLogin: key,
+          withStandardGifting: true,
+          badgeSourceChannelID: channel.id || '',
+          badgeSourceChannelLogin: channel.login,
+        },
+        TWITCH_GQL_HASH.viewerCard,
+      ),
+    ]);
+    const payload = unwrapGqlPayload(data);
+    const url = payload?.data?.targetUser?.profileImageURL || '';
+    if (url) {
+      rememberAvatar(key, url);
+      return url;
+    }
+  } catch (_) {
+    /* fall through */
+  }
+  return '';
+}
+
+function fetchTwitchAvatar(login) {
+  const key = String(login || '').trim().toLowerCase();
+  if (!key) return Promise.resolve('');
+  if (avatarCache.has(key) && !String(avatarCache.get(key)).startsWith('data:')) {
+    return Promise.resolve(avatarCache.get(key));
+  }
+
+  return fetchTwitchAvatarViaViewerCard(key)
+    .then((url) => url || fetchTwitchAvatarViaUserQuery(key))
+    .catch(() => fetchTwitchAvatarViaUserQuery(key));
+}
+
 const SEND_CHAT_MESSAGE_HASH = '0435464292cf380ed4b3d905e4edcb73078362e82c06367a5b2181c76c822fa2';
 
 let cachedChatChannel = { login: '', id: '' };
@@ -4693,6 +4957,179 @@ async function resolveLiveChannelId() {
   return id;
 }
 
+/** Normalize Twitch drop / restriction codes to stable keys. */
+function normalizeChatSendCode(raw) {
+  const code = String(raw || '')
+    .trim()
+    .toLowerCase()
+    .replace(/-/g, '_')
+    .replace(/\s+/g, '_');
+  if (!code) return '';
+
+  if (
+    code.includes('follower')
+    || code === 'followers_only'
+    || code === 'followers_only_mode'
+    || code === 'followers_only_zero'
+    || code === 'msg_followersonly'
+    || code === 'msg_followersonly_zero'
+  ) {
+    // Followed but not long enough — treat as follow-time gate.
+    if (
+      code.includes('followed')
+      || code.includes('duration')
+      || code.includes('minutes')
+      || code === 'msg_followersonly_followed'
+    ) {
+      return 'followers_only_time';
+    }
+    return 'followers_only';
+  }
+  if (code.includes('sub') && (code.includes('only') || code.includes('subscriber'))) {
+    return 'subscribers_only';
+  }
+  if (
+    code.includes('verified_phone')
+    || code.includes('require_verified_phone')
+    || code.includes('requires_verified_phone')
+    || code === 'msg_requires_verified_phone_number'
+  ) {
+    return 'verified_phone';
+  }
+  if (
+    code === 'verified_only'
+    || code === 'verified_account'
+    || code === 'msg_verified_email'
+    || (code.includes('verified') && !code.includes('phone'))
+  ) {
+    return 'verified_only';
+  }
+  if (code.includes('slow')) return 'slow_mode';
+  if (code.includes('emote')) return 'emote_only';
+  if (code.includes('r9k') || code.includes('unique')) return 'unique_mode';
+  if (code.includes('automod')) return 'automod_held';
+  if (code.includes('timed_out') || code.includes('timeout')) return 'timed_out';
+  if (code.includes('banned') || code.includes('suspended')) return 'banned';
+  if (code.includes('duplicate')) return 'duplicate';
+  if (code.includes('ratelimit') || code.includes('rate_limit')) return 'rate_limit';
+  if (code === 'not_logged_in') return 'not_logged_in';
+  if (code === 'no_channel' || code === 'channel_not_found' || code === 'empty_message') return code;
+  return code || 'send_failed';
+}
+
+function readDropReasonCode(drop) {
+  // Twitch web GQL returns dropReason as a string enum, e.g. "REQUIRES_VERIFIED_PHONE_NUMBER".
+  // Helix-style payloads may use { code, message }.
+  if (!drop) return '';
+  if (typeof drop === 'string') return drop;
+  if (typeof drop === 'object') return drop.code || drop.errorCode || '';
+  return '';
+}
+
+function readDropReasonMessage(drop) {
+  if (!drop || typeof drop !== 'object') return '';
+  return String(drop.message || '').trim();
+}
+
+function extractChatSendFailure(result) {
+  if (!result || typeof result !== 'object') {
+    return { code: 'send_failed', userMessage: '' };
+  }
+
+  const drop = result.dropReason ?? result.drop_reason ?? null;
+  const errObj = result.error && typeof result.error === 'object' ? result.error : null;
+  const rawCode = result.errorCode
+    || readDropReasonCode(drop)
+    || errObj?.code
+    || (typeof result.error === 'string' ? result.error : '')
+    || '';
+  const userMessage = String(
+    readDropReasonMessage(drop)
+    || errObj?.message
+    || result.errorMessage
+    || (typeof result.message === 'string' ? result.message : '')
+    || '',
+  ).trim();
+
+  const isSent = result.isSent ?? result.is_sent;
+  const hasMessageId = !!(
+    result.message?.id
+    || result.messageID
+    || result.message_id
+  );
+
+  // Explicit success.
+  if (isSent === true || hasMessageId) {
+    if (!rawCode && drop == null && !errObj) return null;
+  }
+
+  const dropped = isSent === false
+    || drop != null
+    || !!rawCode
+    || !!errObj
+    || result.message === null;
+
+  if (!dropped) return null;
+
+  return {
+    code: normalizeChatSendCode(rawCode) || 'send_failed',
+    userMessage,
+  };
+}
+
+function createChatSendError(failure, details) {
+  const error = new Error(failure?.code || 'send_failed');
+  error.code = failure?.code || 'send_failed';
+  error.userMessage = failure?.userMessage || '';
+  error.details = details;
+  return error;
+}
+
+/** Localized status text for chat send failures (favorites / fullscreen / etc.). */
+function chatSendErrorMessage(error) {
+  const code = normalizeChatSendCode(error?.code || error?.message);
+  switch (code) {
+    case 'not_logged_in':
+      return t('fsChatNeedLogin');
+    case 'no_channel':
+    case 'channel_not_found':
+      return t('favoritesNeedChannel');
+    case 'followers_only':
+      return t('fsChatNeedFollow');
+    case 'followers_only_time':
+      return t('fsChatNeedFollowTime');
+    case 'subscribers_only':
+      return t('fsChatNeedSub');
+    case 'verified_only':
+      return t('fsChatNeedVerified');
+    case 'verified_phone':
+      return t('fsChatNeedPhone');
+    case 'slow_mode':
+      return t('fsChatSlowMode');
+    case 'emote_only':
+      return t('fsChatEmoteOnly');
+    case 'unique_mode':
+      return t('fsChatUniqueMode');
+    case 'automod_held':
+      return t('fsChatAutomod');
+    case 'timed_out':
+      return t('fsChatTimedOut');
+    case 'banned':
+      return t('fsChatBanned');
+    case 'duplicate':
+      return t('fsChatDuplicate');
+    case 'rate_limit':
+      return t('fsChatRateLimit');
+    case 'empty_message':
+      return t('favoritesEmptyText');
+    default:
+      break;
+  }
+  const twitchMsg = String(error?.userMessage || '').trim();
+  if (twitchMsg) return twitchMsg;
+  return t('fsChatFailed');
+}
+
 async function sendTwitchChatMessage(message) {
   const text = String(message || '').trim();
   if (!text) {
@@ -4722,14 +5159,266 @@ async function sendTwitchChatMessage(message) {
   assertNoGqlErrors(payload, 'send_failed');
 
   const result = payload?.data?.sendChatMessage;
-  if (result?.errorCode || result?.error) {
-    const error = new Error(result.errorCode || result.error || 'send_failed');
-    error.code = 'send_failed';
-    error.details = result;
-    throw error;
+  if (!result) {
+    throw createChatSendError({ code: 'send_failed', userMessage: '' }, payload);
+  }
+
+  const failure = extractChatSendFailure(result);
+  if (failure) {
+    throw createChatSendError(failure, result);
   }
 
   return { channelID, nonce, result };
+}
+
+const IGNORED_CHAT_BOTS = new Set([
+  'streamelements',
+  'streamelement',
+]);
+
+const CHAT_DIVIDER_TEXT_RE = /^(全新|新消息|新訊息|消息分隔|訊息分隔|new messages?|welcome to the chat(?: room)?!?|chat cleared|room modes?)$/i;
+const PURE_LINK_TOKEN_RE = /^(?:https?:\/\/|www\.)\S+$/i;
+
+function normalizeChatActor(value) {
+  return String(value || '').trim().replace(/^@+/, '').toLowerCase();
+}
+
+function isIgnoredChatBot(login, username) {
+  const actors = [login, username].map(normalizeChatActor).filter(Boolean);
+  return actors.some((name) => IGNORED_CHAT_BOTS.has(name));
+}
+
+function isPureLinkMessage(text) {
+  const cleaned = String(text || '')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .trim();
+  if (!cleaned) return false;
+  const tokens = cleaned.split(/\s+/).filter(Boolean);
+  if (!tokens.length) return false;
+  return tokens.every((token) => PURE_LINK_TOKEN_RE.test(token));
+}
+
+function isChatDividerMessage(msgEl, snapshot = null) {
+  if (msgEl) {
+    if (msgEl.matches?.('.chat-line__status, [data-a-target="chat-welcome-message"], [data-test-selector="chat-line-status"]')) {
+      return true;
+    }
+    if (msgEl.closest?.('.chat-line__status, [data-a-target="chat-welcome-message"], [class*="chat-line-status"]')) {
+      return true;
+    }
+    if (msgEl.querySelector?.('.chat-line__status, [data-a-target="chat-welcome-message"]')) {
+      return true;
+    }
+    if (msgEl.matches?.('[class*="separator"], [class*="divider"], [data-test-selector*="separator"]')
+      || msgEl.querySelector?.('[class*="chat-separator"], [class*="message-separator"]')) {
+      return true;
+    }
+
+    const hasUsername = !!msgEl.querySelector?.(SELECTORS.chatUsername);
+    const login = normalizeChatActor(snapshot?.login || msgEl.getAttribute?.('data-a-user'));
+    if (!hasUsername && !login) return true;
+  }
+
+  const text = String(snapshot?.message || msgEl?.textContent || '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return !!text && CHAT_DIVIDER_TEXT_RE.test(text);
+}
+
+function shouldIgnoreChatPayload(snapshot, msgEl = null) {
+  if (!snapshot) return true;
+  if (isIgnoredChatBot(snapshot.login, snapshot.username)) return true;
+  // Subscribe / cheer Super Chats must not be dropped as "divider" system lines.
+  if (snapshot.superchat) return false;
+  if (isChatDividerMessage(msgEl, snapshot)) return true;
+  if (isPureLinkMessage(snapshot.message)) return true;
+  return false;
+}
+
+const FAVORITES_STORAGE_KEY = 'tbc_favorites_v1';
+const FAVORITES_LIMIT = 80;
+const FAVORITE_TEXT_LIMIT = 500;
+
+const DEFAULT_FAVORITES_STATE = {
+  items: [],
+  wheel: {
+    minIntervalSec: 3,
+    maxIntervalSec: 20,
+    maxCount: 30,
+    maxDurationSec: 300,
+  },
+};
+
+const WHEEL_MIN_INTERVAL_FLOOR = 1.5;
+
+function createFavoriteId() {
+  return `fav-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function sanitizeFavoriteShortcut(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const digit = String(value).trim();
+  if (!/^[0-9]$/.test(digit)) return null;
+  return digit;
+}
+
+function sanitizeFavoriteChannel(value) {
+  const login = normalizeTwitchLogin
+    ? normalizeTwitchLogin(value)
+    : String(value || '').trim().replace(/^@+/, '').toLowerCase();
+  return login || null;
+}
+
+function sanitizeFavoriteItem(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const text = String(raw.text || '').trim().slice(0, FAVORITE_TEXT_LIMIT);
+  if (!text) return null;
+  // null channel => site-wide; string => channel-scoped.
+  // Legacy items without `channel` are treated as global for backward compatibility.
+  let channel = null;
+  if (Object.prototype.hasOwnProperty.call(raw, 'channel')) {
+    channel = raw.channel == null || raw.channel === ''
+      ? null
+      : sanitizeFavoriteChannel(raw.channel);
+  }
+  return {
+    id: String(raw.id || createFavoriteId()),
+    text,
+    shortcut: sanitizeFavoriteShortcut(raw.shortcut),
+    channel,
+  };
+}
+
+function sanitizeFavoritesState(raw) {
+  const base = {
+    items: [],
+    wheel: { ...DEFAULT_FAVORITES_STATE.wheel },
+  };
+  if (!raw || typeof raw !== 'object') return base;
+
+  const seen = new Set();
+  const items = [];
+  for (const entry of Array.isArray(raw.items) ? raw.items : []) {
+    const item = sanitizeFavoriteItem(entry);
+    if (!item || seen.has(item.id)) continue;
+    seen.add(item.id);
+    items.push(item);
+    if (items.length >= FAVORITES_LIMIT) break;
+  }
+
+  // Shortcuts must be unique within the same scope (global or a channel).
+  const used = new Map();
+  for (const item of items) {
+    if (!item.shortcut) continue;
+    const scope = item.channel || '__global__';
+    const key = `${scope}:${item.shortcut}`;
+    if (used.has(key)) item.shortcut = null;
+    else used.set(key, item.id);
+  }
+
+  const wheelRaw = raw.wheel && typeof raw.wheel === 'object' ? raw.wheel : {};
+  let minIntervalSec = clamp(
+    finiteNumber(wheelRaw.minIntervalSec, DEFAULT_FAVORITES_STATE.wheel.minIntervalSec),
+    WHEEL_MIN_INTERVAL_FLOOR,
+    600,
+  );
+  let maxIntervalSec = clamp(
+    finiteNumber(wheelRaw.maxIntervalSec, DEFAULT_FAVORITES_STATE.wheel.maxIntervalSec),
+    WHEEL_MIN_INTERVAL_FLOOR,
+    600,
+  );
+  if (minIntervalSec > maxIntervalSec) {
+    const swap = minIntervalSec;
+    minIntervalSec = maxIntervalSec;
+    maxIntervalSec = swap;
+  }
+  return {
+    items,
+    wheel: {
+      minIntervalSec,
+      maxIntervalSec,
+      maxCount: clamp(finiteNumber(wheelRaw.maxCount, DEFAULT_FAVORITES_STATE.wheel.maxCount), 1, 500),
+      maxDurationSec: clamp(finiteNumber(wheelRaw.maxDurationSec, DEFAULT_FAVORITES_STATE.wheel.maxDurationSec), 10, 7200),
+    },
+  };
+}
+
+function loadFavoritesState() {
+  try {
+    return sanitizeFavoritesState(GM_getValue(FAVORITES_STORAGE_KEY, null));
+  } catch (_) {
+    return sanitizeFavoritesState(null);
+  }
+}
+
+function saveFavoritesState(state) {
+  const next = sanitizeFavoritesState(state);
+  GM_setValue(FAVORITES_STORAGE_KEY, next);
+  return next;
+}
+
+function favoriteVisibleForChannel(item, channelLogin) {
+  if (!item) return false;
+  if (!item.channel) return true;
+  const channel = sanitizeFavoriteChannel(channelLogin);
+  return !!channel && item.channel === channel;
+}
+
+function listFavoritesForChannel(state, channelLogin) {
+  const items = Array.isArray(state?.items) ? state.items : [];
+  return items.filter((item) => favoriteVisibleForChannel(item, channelLogin));
+}
+
+function addFavoriteText(text, { shortcut = null, channel = undefined } = {}) {
+  const state = loadFavoritesState();
+  const currentChannel = sanitizeFavoriteChannel(
+    channel === undefined ? currentChannelLogin?.() : channel,
+  );
+  // Default: bind to current live channel. Fallback to global when channel unknown.
+  const item = sanitizeFavoriteItem({
+    text,
+    shortcut,
+    channel: channel === null ? null : currentChannel,
+  });
+  if (!item) return { state, item: null, added: false };
+
+  if (item.shortcut) {
+    state.items.forEach((entry) => {
+      if (entry.shortcut !== item.shortcut) return;
+      const sameScope = (entry.channel || null) === (item.channel || null);
+      if (sameScope) entry.shortcut = null;
+    });
+  }
+
+  const existing = state.items.find((entry) => (
+    entry.text === item.text && (entry.channel || null) === (item.channel || null)
+  ));
+  if (existing) {
+    if (item.shortcut) existing.shortcut = item.shortcut;
+    return { state: saveFavoritesState(state), item: existing, added: false };
+  }
+
+  if (state.items.length >= FAVORITES_LIMIT) {
+    return { state, item: null, added: false, full: true };
+  }
+
+  state.items.unshift(item);
+  return { state: saveFavoritesState(state), item, added: true };
+}
+
+function setFavoriteGlobal(itemId, global = true) {
+  const state = loadFavoritesState();
+  const item = state.items.find((entry) => entry.id === itemId);
+  if (!item) return { state, item: null };
+  item.channel = global ? null : (sanitizeFavoriteChannel(currentChannelLogin?.()) || item.channel);
+  if (item.shortcut) {
+    state.items.forEach((entry) => {
+      if (entry.id === item.id || entry.shortcut !== item.shortcut) return;
+      const sameScope = (entry.channel || null) === (item.channel || null);
+      if (sameScope) entry.shortcut = null;
+    });
+  }
+  return { state: saveFavoritesState(state), item };
 }
 
 class ChatObserver {
@@ -4843,6 +5532,7 @@ class ChatObserver {
       if (!this.shouldEmit(msgEl)) continue;
       const parsed = parseChatMessage(msgEl);
       if (!parsed) continue;
+      if (shouldIgnoreChatPayload(parsed, msgEl)) continue;
       this.emitDanmaku(parsed, msgEl);
     }
   }
@@ -4852,7 +5542,7 @@ class ChatObserver {
     if (Date.now() - this.readyAt < WARMUP_MS) return;
 
     this.pushIrcBuffer(parsed);
-    this.emitDanmaku({
+    const payload = {
       username: parsed.username,
       usernameColor: parsed.usernameColor,
       profileUrl: parsed.profileUrl,
@@ -4864,7 +5554,9 @@ class ChatObserver {
       superchat: !!parsed.superchat,
       superchatStyle: parsed.superchatStyle || null,
       superchatMeta: parsed.superchatMeta || null,
-    }, null);
+    };
+    if (shouldIgnoreChatPayload(payload, null)) return;
+    this.emitDanmaku(payload, null);
   }
 
   pushIrcBuffer(parsed) {
@@ -5225,6 +5917,267 @@ function injectStyles() {
       pointer-events: none;
     }
 
+    .tbc-fav-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      box-sizing: border-box;
+      width: 32px;
+      height: 32px;
+      margin: 0;
+      padding: 0;
+      border: none;
+      border-radius: 0.4rem;
+      background: transparent;
+      color: var(--color-fill-button-icon, var(--color-text-base, #efeff1));
+      cursor: pointer;
+      transition: background-color 0.1s ease, color 0.1s ease;
+    }
+
+    .tbc-fav-btn:hover {
+      background-color: var(--color-background-interactable-hover, rgba(83, 83, 95, 0.48));
+      color: #ffca5f;
+    }
+
+    .tbc-fav-btn:active {
+      background-color: var(--color-background-interactable-active, rgba(83, 83, 95, 0.7));
+    }
+
+    .tbc-fav-btn svg {
+      width: 20px;
+      height: 20px;
+      fill: currentColor;
+      display: block;
+      pointer-events: none;
+    }
+
+    .tbc-fav-panel {
+      max-height: min(80vh, 580px);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .tbc-fav-add-row {
+      display: flex;
+      gap: 8px;
+      padding: 10px 12px 0;
+    }
+
+    .tbc-fav-add-input {
+      flex: 1;
+      min-width: 0;
+      height: 32px;
+      box-sizing: border-box;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      background: #18181b;
+      color: #efeff1;
+      padding: 0 10px;
+      font-size: 13px;
+    }
+
+    .tbc-fav-add-btn,
+    .tbc-fav-item-send,
+    .tbc-fav-wheel-toggle {
+      border: none;
+      border-radius: 4px;
+      background: #9147ff;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 0 10px;
+      height: 32px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .tbc-fav-add-btn:hover,
+    .tbc-fav-item-send:hover,
+    .tbc-fav-wheel-toggle:hover {
+      background: #772ce8;
+    }
+
+    .tbc-fav-wheel-toggle.is-running {
+      background: #eb0400;
+    }
+
+    .tbc-fav-wheel-toggle.is-running:hover {
+      background: #c50300;
+    }
+
+    .tbc-fav-list {
+      margin-top: 10px;
+      padding: 0 12px;
+      overflow: auto;
+      max-height: 240px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .tbc-fav-empty {
+      color: #adadb8;
+      font-size: 12px;
+      padding: 12px 0;
+      text-align: center;
+    }
+
+    .tbc-fav-wrap {
+      flex-shrink: 0;
+    }
+
+    .tbc-fav-item {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 8px;
+      border-radius: 6px;
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .tbc-fav-item.is-global {
+      border-color: rgba(145, 71, 255, 0.45);
+    }
+
+    .tbc-fav-item-meta {
+      font-size: 11px;
+      font-weight: 600;
+      color: #adadb8;
+    }
+
+    .tbc-fav-item.is-global .tbc-fav-item-meta {
+      color: #bf94ff;
+    }
+
+    .tbc-fav-item-text {
+      width: 100%;
+      box-sizing: border-box;
+      resize: vertical;
+      min-height: 32px;
+      height: 32px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: #18181b;
+      color: #efeff1;
+      padding: 6px 8px;
+      font: inherit;
+      font-size: 13px;
+    }
+
+    .tbc-fav-item-tools {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .tbc-fav-item-shortcut {
+      height: 28px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: #18181b;
+      color: #efeff1;
+      font-size: 12px;
+    }
+
+    .tbc-fav-item-scope {
+      height: 28px;
+      border: none;
+      border-radius: 4px;
+      background: #3a3a3d;
+      color: #efeff1;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 0 10px;
+      cursor: pointer;
+    }
+
+    .tbc-fav-item-scope:hover {
+      background: #9147ff;
+    }
+
+    .tbc-fav-item-remove {
+      margin-left: auto;
+      height: 28px;
+      border: none;
+      border-radius: 4px;
+      background: #3a3a3d;
+      color: #efeff1;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 0 10px;
+      cursor: pointer;
+    }
+
+    .tbc-fav-item-remove:hover {
+      background: #ad1c1c;
+    }
+
+    .tbc-fav-status {
+      min-height: 16px;
+      margin: 6px 12px 0;
+      color: #ff8280;
+      font-size: 12px;
+    }
+
+    .tbc-fav-status.is-ok {
+      color: #00f593;
+    }
+
+    .tbc-fav-wheel {
+      margin-top: 10px;
+      padding: 10px 12px 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .tbc-fav-wheel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .tbc-fav-wheel-title {
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .tbc-fav-wheel-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 6px;
+    }
+
+    .tbc-fav-wheel-field {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      color: #adadb8;
+      font-size: 12px;
+    }
+
+    .tbc-fav-wheel-field input {
+      width: 88px;
+      height: 28px;
+      box-sizing: border-box;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: #18181b;
+      color: #efeff1;
+      padding: 0 8px;
+      font-size: 12px;
+    }
+
+    .tbc-fav-wheel-status {
+      color: #adadb8;
+      font-size: 12px;
+    }
+
     .tbc-superchat-layer {
       pointer-events: none;
       display: none;
@@ -5264,23 +6217,24 @@ function injectStyles() {
 
     .tbc-sc-close {
       position: absolute;
-      top: 4px;
-      right: 4px;
+      top: 2px;
+      right: 2px;
       z-index: 3;
-      width: 22px;
-      height: 22px;
+      width: 24px;
+      height: 24px;
+      margin: 0;
       padding: 0;
       border: none;
-      border-radius: 4px;
+      border-radius: 9000px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      background: rgba(14, 14, 16, 0.45);
-      color: #efeff1;
+      background: transparent;
+      color: #ffffff;
       cursor: pointer;
       opacity: 0;
       pointer-events: none;
-      transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+      transition: opacity 0.15s ease, background-color 0.1s ease, color 0.1s ease;
     }
 
     .tbc-superchat-item:hover .tbc-sc-close,
@@ -5291,19 +6245,20 @@ function injectStyles() {
     }
 
     .tbc-sc-close:hover {
-      background: #9147ff;
+      background: rgba(255, 255, 255, 0.2);
       color: #ffffff;
     }
 
     .tbc-sc-close:active {
-      background: #772ce8;
+      background: rgba(255, 255, 255, 0.28);
     }
 
     .tbc-sc-close svg {
-      width: 14px;
-      height: 14px;
+      width: 16px;
+      height: 16px;
       display: block;
       pointer-events: none;
+      fill: currentColor;
     }
 
     .tbc-sc-avatar {
@@ -6077,6 +7032,12 @@ function injectStyles() {
       box-shadow: 0 0 0 1px #9147ff;
     }
 
+    .tbc-fs-chat-fav-wrap {
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .tbc-fs-chat-fav,
     .tbc-fs-chat-send {
       flex-shrink: 0;
       display: inline-flex;
@@ -6088,12 +7049,36 @@ function injectStyles() {
       padding: 0 14px;
       border: none;
       border-radius: 6px;
-      background: #9147ff;
       color: #ffffff;
       font-size: 13px;
       font-weight: 600;
       cursor: pointer;
       transition: background 0.15s ease;
+    }
+
+    .tbc-fs-chat-fav {
+      background: #3a3a3d;
+    }
+
+    .tbc-fs-chat-fav:hover,
+    .tbc-fs-chat-fav.is-open {
+      background: #53535f;
+    }
+
+    .tbc-fs-chat-fav:active {
+      background: #2e2e33;
+    }
+
+    .tbc-fs-chat-fav svg,
+    .tbc-fs-chat-send svg {
+      width: 16px;
+      height: 16px;
+      display: block;
+      flex-shrink: 0;
+    }
+
+    .tbc-fs-chat-send {
+      background: #9147ff;
     }
 
     .tbc-fs-chat-send:hover:not(:disabled) {
@@ -6109,10 +7094,59 @@ function injectStyles() {
       cursor: default;
     }
 
-    .tbc-fs-chat-send svg {
-      width: 16px;
-      height: 16px;
+    .tbc-fs-chat-fav-list {
+      position: absolute;
+      left: 0;
+      bottom: calc(100% + 6px);
+      z-index: 2;
+      box-sizing: border-box;
+      width: max(220px, 100%);
+      max-width: min(360px, 70vw);
+      max-height: 220px;
+      overflow-x: hidden;
+      overflow-y: auto;
+      padding: 6px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: rgba(14, 14, 16, 0.96);
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+      backdrop-filter: blur(10px);
+    }
+
+    .tbc-fs-chat-fav-empty {
+      padding: 10px 8px;
+      color: #adadb8;
+      font-size: 12px;
+      line-height: 1.4;
+      text-align: center;
+    }
+
+    .tbc-fs-chat-fav-item {
       display: block;
+      width: 100%;
+      box-sizing: border-box;
+      margin: 0;
+      padding: 8px 10px;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      color: #efeff1;
+      font-size: 13px;
+      line-height: 1.35;
+      text-align: left;
+      cursor: pointer;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      max-width: 100%;
+    }
+
+    .tbc-fs-chat-fav-item:hover {
+      background: rgba(145, 71, 255, 0.28);
+    }
+
+    .tbc-fs-chat-fav-item:active {
+      background: rgba(145, 71, 255, 0.4);
     }
 
     .tbc-fs-chat-close {
@@ -6150,24 +7184,26 @@ function injectStyles() {
 
     .tbc-fs-chat-meta {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: space-between;
       gap: 12px;
       padding: 0 4px;
       min-height: 16px;
     }
 
-    .tbc-fs-chat-hint {
-      color: rgba(239, 239, 241, 0.55);
-      font-size: 12px;
-      line-height: 1.3;
-    }
-
     .tbc-fs-chat-status {
+      flex: 1;
+      min-width: 0;
+      max-width: 60%;
       color: #ff8280;
       font-size: 12px;
-      line-height: 1.3;
-      text-align: right;
+      line-height: 1.35;
+      text-align: left;
+      word-break: break-word;
+    }
+
+    .tbc-fs-chat-status:empty {
+      display: none;
     }
 
     .tbc-fs-chat-status.is-ok {
@@ -6196,6 +7232,11 @@ const ICON_CHAT_CLEAR_PATH = 'M360 184h-8c4.4 0 8-3.6 8-8v8h304v-8c0 4.4 3.6 8 8
 const ICON_CHAT_CLEAR = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 1024 1024" fill="currentColor" aria-hidden="true"><path d="${ICON_CHAT_CLEAR_PATH}"></path></svg>`;
 
 const ICON_CHAT_SEND = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3.4 20.6 21 12 3.4 3.4l-.1 6.8L15 12 3.3 13.8z"/></svg>`;
+
+// Twitch viewer-card / ScButtonIcon close glyph (24 viewBox).
+const ICON_CLOSE = `<svg width="24" height="24" viewBox="0 0 24 24" focusable="false" aria-hidden="true" role="presentation"><path fill="currentColor" d="M6.414 5 5 6.414l5.588 5.588L5 17.59l1.414 1.414 5.588-5.588 5.588 5.588 1.414-1.414-5.588-5.588 5.588-5.588L17.59 5l-5.588 5.588L6.414 5Z"></path></svg>`;
+
+const ICON_FAVORITE = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>`;
 
 class SettingsPanel {
   constructor({ settings, onChange, onClose }) {
@@ -7584,11 +8625,690 @@ class HistoryPanel {
   }
 }
 
+class FavoritesPanel {
+  constructor() {
+    this.state = loadFavoritesState();
+    this.balloon = null;
+    this.anchor = null;
+    this.btn = null;
+    this.wrap = null;
+    this.isOpen = false;
+    this.sending = false;
+    this.wheel = {
+      running: false,
+      timer: null,
+      statusTimer: null,
+      sent: 0,
+      startedAt: 0,
+      endsAt: 0,
+      lastId: '',
+      failStreak: 0,
+    };
+    this.retryTimer = null;
+    this.boundKeyDown = (e) => this.onKeyDown(e);
+    this.boundReposition = () => this.reposition();
+    this.boundOutsideClick = (e) => this.handleOutsideClick(e);
+    this.listEl = null;
+    this.statusEl = null;
+    this.wheelStatusEl = null;
+    this.wheelToggleBtn = null;
+  }
+
+  attach() {
+    document.addEventListener('keydown', this.boundKeyDown, true);
+  }
+
+  destroy() {
+    this.stopWheel(false);
+    this.close();
+    document.removeEventListener('keydown', this.boundKeyDown, true);
+    clearTimeout(this.retryTimer);
+    this.wrap?.remove();
+    if (this.btn && this.btn !== this.wrap) this.btn.remove();
+    this.wrap = null;
+    this.btn = null;
+    this.anchor = null;
+  }
+
+  remount() {
+    if (this.wrap?.isConnected || this.btn?.isConnected) return;
+    this.wrap?.remove();
+    if (this.btn && this.btn !== this.wrap) this.btn.remove();
+    this.wrap = null;
+    this.btn = null;
+    clearTimeout(this.retryTimer);
+    this.retryTimer = setTimeout(() => this.mount(), 500);
+  }
+
+  currentChannel() {
+    return normalizeTwitchLogin(currentChannelLogin?.() || '');
+  }
+
+  visibleItems() {
+    return listFavoritesForChannel(this.state, this.currentChannel());
+  }
+
+  /**
+   * Only accept the shared Bits + Emote toolbar host (Twitch `cedEhw`).
+   * The host must contain both buttons under two distinct children.
+   */
+  findInputActionsHost() {
+    const bitsBtn = document.querySelector(SELECTORS.bitsButton);
+    const emoteBtn = document.querySelector(SELECTORS.emotePickerButton);
+    if (!bitsBtn || !emoteBtn) return { host: null, bitsBtn, emoteBtn };
+
+    const bitsPath = new Set();
+    for (let node = bitsBtn; node; node = node.parentElement) bitsPath.add(node);
+
+    let host = null;
+    for (let node = emoteBtn; node; node = node.parentElement) {
+      if (bitsPath.has(node)) {
+        host = node;
+        break;
+      }
+    }
+    if (!host || host === document.body || host === document.documentElement) {
+      return { host: null, bitsBtn, emoteBtn };
+    }
+    if (!host.contains(bitsBtn) || !host.contains(emoteBtn)) {
+      return { host: null, bitsBtn, emoteBtn };
+    }
+
+    const children = Array.from(host.children || []);
+    const bitsChild = children.find((child) => child.contains(bitsBtn));
+    const emoteChild = children.find((child) => child.contains(emoteBtn));
+    // Reject oversized ancestors where both controls sit under the same child.
+    if (!bitsChild || !emoteChild || bitsChild === emoteChild) {
+      return { host: null, bitsBtn, emoteBtn };
+    }
+
+    return { host, bitsBtn, emoteBtn };
+  }
+
+  createButton() {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'tbc-fav-btn';
+    btn.setAttribute('data-a-target', 'tbc-favorites-button');
+    btn.setAttribute('data-tbc-favorites', 'true');
+    btn.setAttribute('aria-label', t('favoritesTitle'));
+    btn.setAttribute('title', t('favoritesTitle'));
+    btn.innerHTML = ICON_FAVORITE;
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.toggle(btn);
+    });
+    return btn;
+  }
+
+  createFromBitsShell(bitsBtn) {
+    const shell = bitsBtn.closest('[class*="InjectLayout"]') || bitsBtn.parentElement;
+    if (!shell?.parentElement) return null;
+    const wrap = shell.cloneNode(true);
+    wrap.classList.add('tbc-fav-wrap');
+    wrap.setAttribute('data-tbc-favorites-wrap', 'true');
+    wrap.removeAttribute('id');
+    const btn = wrap.querySelector('button') || wrap.querySelector('[role="button"]');
+    if (!btn) return null;
+    btn.classList.add('tbc-fav-btn');
+    btn.type = 'button';
+    btn.setAttribute('data-a-target', 'tbc-favorites-button');
+    btn.setAttribute('data-tbc-favorites', 'true');
+    btn.setAttribute('aria-label', t('favoritesTitle'));
+    btn.setAttribute('title', t('favoritesTitle'));
+    btn.removeAttribute('data-test-selector');
+    btn.removeAttribute('id');
+    const svg = btn.querySelector('svg');
+    if (svg) svg.outerHTML = ICON_FAVORITE;
+    else btn.innerHTML = ICON_FAVORITE;
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.toggle(btn);
+    });
+    return { wrap, btn, host: shell.parentElement, after: shell };
+  }
+
+  async mount() {
+    if (this.wrap?.isConnected || this.btn?.isConnected) return;
+
+    await waitForElement(
+      `${SELECTORS.bitsButton}, ${SELECTORS.emotePickerButton}`,
+      document,
+      12000,
+    );
+
+    if (document.querySelector('[data-tbc-favorites="true"], [data-tbc-favorites-wrap="true"]')) return;
+
+    const { host, bitsBtn, emoteBtn } = this.findInputActionsHost();
+    // Refuse to mount unless Bits + Emote both live in the same toolbar host.
+    if (!host || !bitsBtn || !emoteBtn) {
+      clearTimeout(this.retryTimer);
+      this.retryTimer = setTimeout(() => this.mount(), 1200);
+      return;
+    }
+
+    const created = this.createFromBitsShell(bitsBtn);
+    if (created?.wrap && created.host === host) {
+      this.wrap = created.wrap;
+      this.btn = created.btn;
+      if (created.after?.nextSibling) {
+        host.insertBefore(created.wrap, created.after.nextSibling);
+      } else {
+        host.appendChild(created.wrap);
+      }
+      return;
+    }
+
+    this.btn = this.createButton();
+    this.wrap = this.btn;
+    host.appendChild(this.btn);
+  }
+
+  isEditableTarget(target) {
+    if (!target || target === document.body || target === document.documentElement) return false;
+    const el = target.nodeType === 1 ? target : target.parentElement;
+    if (!el) return false;
+    const tag = el.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+    if (el.isContentEditable) return true;
+    return !!el.closest?.('input, textarea, select, [contenteditable="true"], [role="textbox"]');
+  }
+
+  onKeyDown(e) {
+    if (e.isComposing || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    if (!/^[0-9]$/.test(e.key)) return;
+    if (this.isEditableTarget(e.target)) return;
+    if (this.isOpen && this.balloon?.contains(e.target)) return;
+
+    const channel = this.currentChannel();
+    const visible = listFavoritesForChannel(this.state, channel);
+    // Prefer channel-scoped shortcut over a colliding global one.
+    const item = visible.find((entry) => entry.shortcut === e.key && entry.channel === channel)
+      || visible.find((entry) => entry.shortcut === e.key && !entry.channel);
+    if (!item) return;
+    e.preventDefault();
+    e.stopPropagation();
+    this.sendFavorite(item);
+  }
+
+  toggle(anchor) {
+    if (this.isOpen && this.anchor === anchor) this.close();
+    else this.open(anchor || this.btn);
+  }
+
+  open(anchor) {
+    this.close();
+    this.state = loadFavoritesState();
+    this.anchor = anchor || this.btn;
+    this.isOpen = true;
+    this.render();
+    this.reposition();
+    requestAnimationFrame(() => this.reposition());
+    window.addEventListener('resize', this.boundReposition);
+    document.addEventListener('fullscreenchange', this.boundReposition);
+    document.addEventListener('webkitfullscreenchange', this.boundReposition);
+    document.addEventListener('scroll', this.boundReposition, true);
+    setTimeout(() => document.addEventListener('click', this.boundOutsideClick, true), 0);
+  }
+
+  close() {
+    const wasOpen = this.isOpen;
+    this.isOpen = false;
+    this.anchor = null;
+    this.balloon?.remove();
+    this.balloon = null;
+    this.listEl = null;
+    this.statusEl = null;
+    this.wheelStatusEl = null;
+    this.wheelToggleBtn = null;
+    window.removeEventListener('resize', this.boundReposition);
+    document.removeEventListener('fullscreenchange', this.boundReposition);
+    document.removeEventListener('webkitfullscreenchange', this.boundReposition);
+    document.removeEventListener('scroll', this.boundReposition, true);
+    document.removeEventListener('click', this.boundOutsideClick, true);
+    if (wasOpen) this.refreshWheelControls();
+  }
+
+  handleOutsideClick(event) {
+    if (!this.balloon || !this.isOpen) return;
+    if (this.balloon.contains(event.target)) return;
+    if (this.anchor?.contains?.(event.target)) return;
+    this.close();
+  }
+
+  reposition() {
+    if (!this.balloon || !this.anchor) return;
+    const mountTarget = getFullscreenElement() || document.body;
+    if (this.balloon.parentElement !== mountTarget) mountTarget.appendChild(this.balloon);
+
+    const rect = this.anchor.getBoundingClientRect();
+    const width = 380;
+    const gap = 8;
+    const height = this.balloon.offsetHeight || 320;
+    let left = rect.right - width;
+    let top = rect.top - height - gap;
+    left = clamp(left, 8, window.innerWidth - width - 8);
+    if (top < 8) top = Math.min(window.innerHeight - height - 8, rect.bottom + gap);
+    Object.assign(this.balloon.style, {
+      position: 'fixed',
+      left: `${left}px`,
+      top: `${Math.max(8, top)}px`,
+      width: `${width}px`,
+      zIndex: '100040',
+    });
+  }
+
+  setStatus(message, ok = false) {
+    if (!this.statusEl) return;
+    this.statusEl.textContent = message || '';
+    this.statusEl.classList.toggle('is-ok', !!ok && !!message);
+  }
+
+  persist() {
+    this.state = saveFavoritesState(this.state);
+    return this.state;
+  }
+
+  addFromText(text) {
+    const result = addFavoriteText(text);
+    this.state = result.state;
+    if (result.full) {
+      this.setStatus(t('favoritesFull'));
+      return false;
+    }
+    if (!result.item) {
+      this.setStatus(t('favoritesEmptyText'));
+      return false;
+    }
+    if (this.isOpen) this.renderList();
+    this.setStatus(result.added ? t('favoritesAdded') : t('favoritesExists'), true);
+    return true;
+  }
+
+  render() {
+    const balloon = document.createElement('div');
+    balloon.className = 'tbc-balloon tbc-fav-panel';
+    balloon.addEventListener('click', (e) => e.stopPropagation());
+
+    const header = document.createElement('div');
+    header.className = 'tbc-balloon-header';
+    const title = document.createElement('div');
+    title.className = 'tbc-balloon-title';
+    title.textContent = t('favoritesTitle');
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'tbc-balloon-close';
+    closeBtn.setAttribute('aria-label', t('panelClose'));
+    closeBtn.textContent = t('panelClose');
+    closeBtn.addEventListener('click', () => this.close());
+    header.append(title, closeBtn);
+
+    const addRow = document.createElement('div');
+    addRow.className = 'tbc-fav-add-row';
+    const addInput = document.createElement('input');
+    addInput.type = 'text';
+    addInput.className = 'tbc-fav-add-input';
+    addInput.maxLength = FAVORITE_TEXT_LIMIT;
+    addInput.placeholder = t('favoritesAddPlaceholder');
+    const addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.className = 'tbc-fav-add-btn';
+    addBtn.textContent = t('favoritesAdd');
+    const doAdd = () => {
+      const text = addInput.value.trim();
+      if (!text) return;
+      if (this.addFromText(text)) addInput.value = '';
+    };
+    addBtn.addEventListener('click', doAdd);
+    addInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        doAdd();
+      }
+    });
+    addRow.append(addInput, addBtn);
+
+    this.listEl = document.createElement('div');
+    this.listEl.className = 'tbc-fav-list';
+
+    const status = document.createElement('div');
+    status.className = 'tbc-fav-status';
+    this.statusEl = status;
+
+    const wheelBox = this.renderWheelSection();
+
+    balloon.append(header, addRow, this.listEl, status, wheelBox);
+    (getFullscreenElement() || document.body).appendChild(balloon);
+    this.balloon = balloon;
+    this.renderList();
+    this.refreshWheelControls();
+  }
+
+  renderWheelSection() {
+    const box = document.createElement('div');
+    box.className = 'tbc-fav-wheel';
+
+    const head = document.createElement('div');
+    head.className = 'tbc-fav-wheel-head';
+    const label = document.createElement('div');
+    label.className = 'tbc-fav-wheel-title';
+    label.textContent = t('favoritesWheel');
+    this.wheelToggleBtn = document.createElement('button');
+    this.wheelToggleBtn.type = 'button';
+    this.wheelToggleBtn.className = 'tbc-fav-wheel-toggle';
+    this.wheelToggleBtn.addEventListener('click', () => {
+      if (this.wheel.running) this.stopWheel(true);
+      else this.startWheel();
+    });
+    head.append(label, this.wheelToggleBtn);
+
+    const grid = document.createElement('div');
+    grid.className = 'tbc-fav-wheel-grid';
+
+    const fields = [
+      ['minIntervalSec', t('favoritesWheelMinInterval'), 1.5, 600],
+      ['maxIntervalSec', t('favoritesWheelMaxInterval'), 1.5, 600],
+      ['maxCount', t('favoritesWheelMaxCount'), 1, 500],
+      ['maxDurationSec', t('favoritesWheelMaxDuration'), 10, 7200],
+    ];
+
+    fields.forEach(([key, name, min, max]) => {
+      const field = document.createElement('label');
+      field.className = 'tbc-fav-wheel-field';
+      const span = document.createElement('span');
+      span.textContent = name;
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.min = String(min);
+      input.max = String(max);
+      input.step = key.includes('Interval') ? '0.5' : '1';
+      input.value = String(this.state.wheel[key]);
+      input.addEventListener('change', () => {
+        const value = clamp(Number(input.value) || min, min, max);
+        this.state.wheel[key] = value;
+        if (this.state.wheel.minIntervalSec > this.state.wheel.maxIntervalSec) {
+          if (key === 'minIntervalSec') this.state.wheel.maxIntervalSec = value;
+          else this.state.wheel.minIntervalSec = value;
+        }
+        this.persist();
+        this.state = loadFavoritesState();
+        Array.from(grid.querySelectorAll('.tbc-fav-wheel-field')).forEach((fieldEl, idx) => {
+          const fieldInput = fieldEl.querySelector('input');
+          const fieldKey = fields[idx]?.[0];
+          if (fieldInput && fieldKey) fieldInput.value = String(this.state.wheel[fieldKey]);
+        });
+      });
+      field.append(span, input);
+      grid.appendChild(field);
+    });
+
+    this.wheelStatusEl = document.createElement('div');
+    this.wheelStatusEl.className = 'tbc-fav-wheel-status';
+
+    box.append(head, grid, this.wheelStatusEl);
+    return box;
+  }
+
+  renderList() {
+    if (!this.listEl) return;
+    this.listEl.innerHTML = '';
+    const items = this.visibleItems();
+    if (!items.length) {
+      const empty = document.createElement('div');
+      empty.className = 'tbc-fav-empty';
+      empty.textContent = t('favoritesEmpty');
+      this.listEl.appendChild(empty);
+      return;
+    }
+
+    items.forEach((item) => {
+      this.listEl.appendChild(this.createItemRow(item));
+    });
+  }
+
+  createItemRow(item) {
+    const row = document.createElement('div');
+    row.className = 'tbc-fav-item';
+    row.dataset.id = item.id;
+    row.classList.toggle('is-global', !item.channel);
+
+    const meta = document.createElement('div');
+    meta.className = 'tbc-fav-item-meta';
+    meta.textContent = item.channel
+      ? t('favoritesScopeChannel').replace('{channel}', item.channel)
+      : t('favoritesScopeGlobal');
+
+    const text = document.createElement('textarea');
+    text.className = 'tbc-fav-item-text';
+    text.rows = 2;
+    text.maxLength = FAVORITE_TEXT_LIMIT;
+    text.value = item.text;
+    text.addEventListener('change', () => {
+      const next = text.value.trim().slice(0, FAVORITE_TEXT_LIMIT);
+      if (!next) {
+        text.value = item.text;
+        return;
+      }
+      item.text = next;
+      this.persist();
+    });
+
+    const tools = document.createElement('div');
+    tools.className = 'tbc-fav-item-tools';
+
+    const shortcut = document.createElement('select');
+    shortcut.className = 'tbc-fav-item-shortcut';
+    const none = document.createElement('option');
+    none.value = '';
+    none.textContent = t('favoritesShortcutNone');
+    shortcut.appendChild(none);
+    for (let i = 0; i <= 9; i += 1) {
+      const opt = document.createElement('option');
+      opt.value = String(i);
+      opt.textContent = String(i);
+      shortcut.appendChild(opt);
+    }
+    shortcut.value = item.shortcut || '';
+    shortcut.addEventListener('change', () => {
+      const value = sanitizeFavoriteShortcut(shortcut.value);
+      if (value) {
+        this.state.items.forEach((entry) => {
+          if (entry.id === item.id || entry.shortcut !== value) return;
+          const sameScope = (entry.channel || null) === (item.channel || null);
+          if (sameScope) entry.shortcut = null;
+        });
+      }
+      item.shortcut = value;
+      this.persist();
+      this.renderList();
+    });
+
+    const scopeBtn = document.createElement('button');
+    scopeBtn.type = 'button';
+    scopeBtn.className = 'tbc-fav-item-scope';
+    scopeBtn.textContent = item.channel ? t('favoritesMakeGlobal') : t('favoritesMakeChannel');
+    scopeBtn.title = item.channel ? t('favoritesMakeGlobalHint') : t('favoritesMakeChannelHint');
+    scopeBtn.addEventListener('click', () => {
+      const channel = this.currentChannel();
+      if (item.channel) {
+        const result = setFavoriteGlobal(item.id, true);
+        this.state = result.state;
+        this.renderList();
+        this.setStatus(t('favoritesScopedGlobal'), true);
+        return;
+      }
+      if (!channel) {
+        this.setStatus(t('favoritesNeedChannel'));
+        return;
+      }
+      item.channel = channel;
+      this.persist();
+      this.renderList();
+      this.setStatus(t('favoritesScopedChannel'), true);
+    });
+
+    const sendBtn = document.createElement('button');
+    sendBtn.type = 'button';
+    sendBtn.className = 'tbc-fav-item-send';
+    sendBtn.textContent = t('favoritesSend');
+    sendBtn.addEventListener('click', () => this.sendFavorite(item));
+
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'tbc-fav-item-remove';
+    removeBtn.textContent = t('favoritesRemove');
+    removeBtn.addEventListener('click', () => {
+      this.state.items = this.state.items.filter((entry) => entry.id !== item.id);
+      this.persist();
+      this.renderList();
+    });
+
+    tools.append(shortcut, scopeBtn, sendBtn, removeBtn);
+    row.append(meta, text, tools);
+    return row;
+  }
+
+  async sendFavorite(item) {
+    const text = String(item?.text || '').trim();
+    if (!text || this.sending) return false;
+    this.sending = true;
+    try {
+      await sendTwitchChatMessage(text);
+      this.setStatus(t('favoritesSent'), true);
+      return true;
+    } catch (error) {
+      this.setStatus(chatSendErrorMessage(error));
+      return false;
+    } finally {
+      this.sending = false;
+    }
+  }
+
+  refreshWheelControls() {
+    if (this.wheelToggleBtn) {
+      this.wheelToggleBtn.textContent = this.wheel.running ? t('favoritesWheelStop') : t('favoritesWheelStart');
+      this.wheelToggleBtn.classList.toggle('is-running', this.wheel.running);
+    }
+    if (!this.wheelStatusEl) return;
+    if (!this.wheel.running) {
+      this.wheelStatusEl.textContent = t('favoritesWheelIdle');
+      return;
+    }
+    const leftSec = Math.max(0, Math.ceil((this.wheel.endsAt - Date.now()) / 1000));
+    this.wheelStatusEl.textContent = t('favoritesWheelRunning')
+      .replace('{sent}', String(this.wheel.sent))
+      .replace('{max}', String(this.state.wheel.maxCount))
+      .replace('{left}', String(leftSec));
+  }
+
+  startWheel() {
+    this.state = loadFavoritesState();
+    if (!this.visibleItems().length) {
+      this.setStatus(t('favoritesEmpty'));
+      return;
+    }
+    this.stopWheel(false);
+    this.wheel.running = true;
+    this.wheel.sent = 0;
+    this.wheel.lastId = '';
+    this.wheel.failStreak = 0;
+    this.wheel.startedAt = Date.now();
+    this.wheel.endsAt = this.wheel.startedAt + this.state.wheel.maxDurationSec * 1000;
+    this.refreshWheelControls();
+    clearInterval(this.wheel.statusTimer);
+    this.wheel.statusTimer = setInterval(() => {
+      if (!this.wheel.running) return;
+      this.refreshWheelControls();
+    }, 1000);
+    // Send first message immediately (same as 独轮车.js), then cool down.
+    this.scheduleWheelTick(0);
+  }
+
+  stopWheel(showStatus) {
+    clearTimeout(this.wheel.timer);
+    clearInterval(this.wheel.statusTimer);
+    this.wheel.timer = null;
+    this.wheel.statusTimer = null;
+    const wasRunning = this.wheel.running;
+    this.wheel.running = false;
+    this.wheel.failStreak = 0;
+    this.refreshWheelControls();
+    if (showStatus && wasRunning) this.setStatus(t('favoritesWheelStopped'), true);
+  }
+
+  scheduleWheelTick(delayMs) {
+    clearTimeout(this.wheel.timer);
+    this.wheel.timer = setTimeout(() => this.runWheelTick(), Math.max(0, delayMs));
+  }
+
+  pickWheelItem(pool) {
+    if (!pool.length) return null;
+    if (pool.length === 1) return pool[0];
+    // Avoid sending the same favorite twice in a row when possible.
+    const choices = this.wheel.lastId
+      ? pool.filter((item) => item.id !== this.wheel.lastId)
+      : pool;
+    const list = choices.length ? choices : pool;
+    return list[Math.floor(Math.random() * list.length)];
+  }
+
+  nextWheelDelay(ok) {
+    const minMs = Math.max(1500, Number(this.state.wheel.minIntervalSec) * 1000);
+    const maxMs = Math.max(minMs, Number(this.state.wheel.maxIntervalSec) * 1000);
+    let delay = minMs + Math.random() * (maxMs - minMs);
+    // Back off after failures so Twitch rate limits / network blips cool down.
+    if (!ok && this.wheel.failStreak > 0) {
+      delay += Math.min(15000, this.wheel.failStreak * 2000);
+    }
+    return delay;
+  }
+
+  async runWheelTick() {
+    if (!this.wheel.running) return;
+    this.state = loadFavoritesState();
+    if (Date.now() >= this.wheel.endsAt || this.wheel.sent >= this.state.wheel.maxCount) {
+      this.stopWheel(true);
+      return;
+    }
+    const pool = this.visibleItems();
+    if (!pool.length) {
+      this.stopWheel(true);
+      return;
+    }
+
+    const item = this.pickWheelItem(pool);
+    const ok = await this.sendFavorite(item);
+    if (ok) {
+      this.wheel.sent += 1;
+      this.wheel.lastId = item?.id || '';
+      this.wheel.failStreak = 0;
+    } else {
+      this.wheel.failStreak += 1;
+      if (this.wheel.failStreak >= 5) {
+        this.stopWheel(true);
+        return;
+      }
+    }
+    this.refreshWheelControls();
+
+    if (!this.wheel.running) return;
+    if (Date.now() >= this.wheel.endsAt || this.wheel.sent >= this.state.wheel.maxCount) {
+      this.stopWheel(true);
+      return;
+    }
+
+    this.scheduleWheelTick(this.nextWheelDelay(ok));
+  }
+}
+
 class ChatContextMenu {
-  constructor({ getSettings, danmakuEmitter, isActive }) {
+  constructor({ getSettings, danmakuEmitter, isActive, favoritesPanel }) {
     this.getSettings = getSettings;
     this.danmakuEmitter = danmakuEmitter;
     this.isActive = isActive;
+    this.favoritesPanel = favoritesPanel;
     this.menu = null;
     this.targetEl = null;
     this.boundContext = (event) => this.handleContextMenu(event);
@@ -7664,6 +9384,9 @@ class ChatContextMenu {
       }),
       this.createItem(t('chatMenuResend'), () => {
         this.runResend(msgEl, snapshot, false);
+      }),
+      this.createItem(t('chatMenuFavorite'), () => {
+        this.runFavorite(snapshot);
       }),
     );
     if (login) {
@@ -7762,6 +9485,25 @@ class ChatContextMenu {
       }
       console.warn(`[TBC] ${t('chatMenuBlockFailed')}`, error);
     }
+  }
+
+  runFavorite(snapshot) {
+    const text = String(snapshot?.message || '').trim();
+    if (!text) return;
+    if (this.favoritesPanel?.addFromText) {
+      this.favoritesPanel.addFromText(text);
+      if (!this.favoritesPanel.isOpen && this.favoritesPanel.btn) {
+        this.favoritesPanel.open(this.favoritesPanel.btn);
+      }
+      return;
+    }
+    const result = addFavoriteText(text);
+    if (result.full) {
+      console.warn(`[TBC] ${t('favoritesFull')}`);
+      return;
+    }
+    if (result.added) console.info(`[TBC] ${t('favoritesAdded')}`);
+    else if (result.item) console.info(`[TBC] ${t('favoritesExists')}`);
   }
 
   async runTranslate(msgEl, snapshot, bustCache) {
@@ -7990,13 +9732,17 @@ class ChatClearButton {
 }
 
 class FullscreenChatInput {
-  constructor() {
+  constructor({ favoritesPanel } = {}) {
+    this.favoritesPanel = favoritesPanel || null;
     this.root = null;
     this.input = null;
     this.sendBtn = null;
     this.closeBtn = null;
+    this.favBtn = null;
+    this.favList = null;
     this.statusEl = null;
     this.sending = false;
+    this.favOpen = false;
     this.boundKeyDown = (e) => this.onKeyDown(e);
     this.boundFsChange = () => this.onFullscreenChange();
     this.boundPointerDown = (e) => this.onPointerDownOutside(e);
@@ -8041,6 +9787,13 @@ class FullscreenChatInput {
 
   onKeyDown(e) {
     if (e.isComposing) return;
+    if (e.key === 'Escape' && this.root) {
+      if (this.favOpen) {
+        this.stopEvent(e);
+        this.closeFavorites();
+        return;
+      }
+    }
     if (e.key !== 'Enter') return;
     if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
 
@@ -8076,6 +9829,15 @@ class FullscreenChatInput {
     this.statusEl.classList.toggle('is-ok', !!ok && !!message);
   }
 
+  listFavoriteItems() {
+    if (this.favoritesPanel?.visibleItems) {
+      this.favoritesPanel.state = loadFavoritesState();
+      return this.favoritesPanel.visibleItems();
+    }
+    const state = loadFavoritesState();
+    return listFavoritesForChannel(state, currentChannelLogin?.() || '');
+  }
+
   open() {
     if (this.root) {
       this.input?.focus();
@@ -8105,6 +9867,24 @@ class FullscreenChatInput {
     input.spellcheck = true;
     input.placeholder = t('fsChatPlaceholder');
 
+    const favWrap = document.createElement('div');
+    favWrap.className = 'tbc-fs-chat-fav-wrap';
+
+    const favBtn = document.createElement('button');
+    favBtn.type = 'button';
+    favBtn.className = 'tbc-fs-chat-fav';
+    favBtn.setAttribute('aria-label', t('fsChatFavorites'));
+    favBtn.setAttribute('aria-expanded', 'false');
+    favBtn.innerHTML = `${ICON_FAVORITE}<span>${t('fsChatFavorites')}</span>`;
+
+    const favList = document.createElement('div');
+    favList.className = 'tbc-fs-chat-fav-list';
+    favList.hidden = true;
+    favList.setAttribute('role', 'listbox');
+    favList.setAttribute('aria-label', t('fsChatFavorites'));
+
+    favWrap.append(favBtn, favList);
+
     const sendBtn = document.createElement('button');
     sendBtn.type = 'button';
     sendBtn.className = 'tbc-fs-chat-send';
@@ -8120,15 +9900,11 @@ class FullscreenChatInput {
     const meta = document.createElement('div');
     meta.className = 'tbc-fs-chat-meta';
 
-    const hint = document.createElement('div');
-    hint.className = 'tbc-fs-chat-hint';
-    hint.textContent = t('fsChatHint');
-
     const status = document.createElement('div');
     status.className = 'tbc-fs-chat-status';
 
-    row.append(input, sendBtn, closeBtn);
-    meta.append(hint, status);
+    row.append(input, favWrap, sendBtn, closeBtn);
+    meta.append(status);
     root.append(row, meta);
 
     const trap = (e) => {
@@ -8140,6 +9916,12 @@ class FullscreenChatInput {
     root.addEventListener('mousedown', trap);
     root.addEventListener('pointerdown', trap);
     root.addEventListener('click', trap);
+
+    favBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.toggleFavorites();
+    });
 
     sendBtn.addEventListener('click', (e) => {
       e.preventDefault();
@@ -8156,23 +9938,88 @@ class FullscreenChatInput {
     mount.appendChild(root);
     this.root = root;
     this.input = input;
+    this.favBtn = favBtn;
+    this.favList = favList;
     this.sendBtn = sendBtn;
     this.closeBtn = closeBtn;
     this.statusEl = status;
+    this.favOpen = false;
 
     requestAnimationFrame(() => {
       input.focus();
     });
   }
 
+  toggleFavorites() {
+    if (this.favOpen) this.closeFavorites();
+    else this.openFavorites();
+  }
+
+  openFavorites() {
+    if (!this.favList || !this.favBtn) return;
+    this.renderFavorites();
+    this.favList.hidden = false;
+    this.favBtn.setAttribute('aria-expanded', 'true');
+    this.favBtn.classList.add('is-open');
+    this.favOpen = true;
+  }
+
+  closeFavorites() {
+    if (!this.favList || !this.favBtn) return;
+    this.favList.hidden = true;
+    this.favList.replaceChildren();
+    this.favBtn.setAttribute('aria-expanded', 'false');
+    this.favBtn.classList.remove('is-open');
+    this.favOpen = false;
+  }
+
+  renderFavorites() {
+    if (!this.favList) return;
+    this.favList.replaceChildren();
+
+    const items = this.listFavoriteItems();
+    if (!items.length) {
+      const empty = document.createElement('div');
+      empty.className = 'tbc-fs-chat-fav-empty';
+      empty.textContent = t('fsChatFavoritesEmpty');
+      this.favList.appendChild(empty);
+      return;
+    }
+
+    items.forEach((item) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'tbc-fs-chat-fav-item';
+      btn.setAttribute('role', 'option');
+      btn.title = item.text;
+      btn.textContent = item.text;
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (this.input) {
+          this.input.value = item.text;
+          this.input.focus();
+          const len = this.input.value.length;
+          this.input.setSelectionRange(len, len);
+        }
+        this.closeFavorites();
+      });
+      this.favList.appendChild(btn);
+    });
+  }
+
   close() {
+    this.closeFavorites();
     this.root?.remove();
     this.root = null;
     this.input = null;
     this.sendBtn = null;
     this.closeBtn = null;
+    this.favBtn = null;
+    this.favList = null;
     this.statusEl = null;
     this.sending = false;
+    this.favOpen = false;
   }
 
   async submit() {
@@ -8185,6 +10032,7 @@ class FullscreenChatInput {
 
     this.sending = true;
     if (this.sendBtn) this.sendBtn.disabled = true;
+    this.closeFavorites();
     this.setStatus('');
 
     try {
@@ -8195,12 +10043,7 @@ class FullscreenChatInput {
         if (this.statusEl?.textContent === t('fsChatSent')) this.setStatus('');
       }, 1200);
     } catch (error) {
-      const code = error?.code || '';
-      if (code === 'not_logged_in') {
-        this.setStatus(t('fsChatNeedLogin'));
-      } else {
-        this.setStatus(t('fsChatFailed'));
-      }
+      this.setStatus(chatSendErrorMessage(error));
     } finally {
       this.sending = false;
       if (this.sendBtn) this.sendBtn.disabled = false;
@@ -8355,6 +10198,7 @@ let translateQueue = null;
 let chatObserver = null;
 let chatContextMenu = null;
 let chatClearButton = null;
+let favoritesPanel = null;
 let fullscreenChat = null;
 let settingsPanel = null;
 let speechPanel = null;
@@ -8414,6 +10258,7 @@ function teardown() {
   chatObserver?.stop();
   chatContextMenu?.detach();
   chatClearButton?.destroy();
+  favoritesPanel?.destroy();
   fullscreenChat?.destroy();
   danmaku?.destroy();
   controlButton?.destroy();
@@ -8427,6 +10272,7 @@ function teardown() {
   chatObserver = null;
   chatContextMenu = null;
   chatClearButton = null;
+  favoritesPanel = null;
   fullscreenChat = null;
   danmaku = null;
   danmakuEmitter = null;
@@ -8455,10 +10301,14 @@ async function boot() {
     isActive,
   });
 
+  favoritesPanel = new FavoritesPanel();
+  favoritesPanel.attach();
+
   chatContextMenu = new ChatContextMenu({
     getSettings,
     danmakuEmitter,
     isActive,
+    favoritesPanel,
   });
   chatContextMenu.attach(document);
 
@@ -8466,7 +10316,7 @@ async function boot() {
     onClear: () => chatObserver?.clearIrcHistory?.(),
   });
 
-  fullscreenChat = new FullscreenChatInput();
+  fullscreenChat = new FullscreenChatInput({ favoritesPanel });
   fullscreenChat.attach();
 
   if (!settingsPanel) {
@@ -8532,8 +10382,9 @@ async function boot() {
   await Promise.all([
     danmaku.mount(),
     controlButton.mount(),
-    chatClearButton.mount(),
+    favoritesPanel.mount(),
   ]);
+  await chatClearButton.mount();
   await chatObserver.start();
 
   console.log(`[TBC] Twitch Danmaku initialized${chatObserver.ffzActive ? ' (FFZ compat)' : ''}`);
@@ -8548,6 +10399,7 @@ function watchNavigation() {
     } else {
       controlButton?.remount();
       chatClearButton?.remount();
+      favoritesPanel?.remount();
     }
   }, 1500);
 }

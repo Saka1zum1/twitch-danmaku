@@ -236,6 +236,37 @@ function subscribeStyle() {
   return { background: 'linear-gradient(135deg, #8205b4 0%, #c13cff 100%)', color: '#ffffff', accent: '#bf94ff' };
 }
 
+// Sub / resub / gift / Prime — not watch-streak / raid / follow notices.
+// Allow markup splits like: 已通过 <a>Prime</a> <span>订阅</span>
+const SUBSCRIBE_NOTICE_RE = /(?:已通过[\s\S]{0,24}Prime[\s\S]{0,12}订阅|已订阅第\s*\d+\s*层级|订阅了|续订了|已經訂閱|續訂|已訂閱|訂閱了|subscribed(?:\s+with\s+Prime)?|resubscribed|gifted\s+\d+|is gifting|gift\s*sub|prime\s+gaming|サブスク|ギフト)/i;
+
+function subscribeAmountLabel(text) {
+  const raw = String(text || '');
+  if (/prime/i.test(raw)) return 'Prime';
+  const tier = raw.match(/(?:第\s*(\d+)\s*层级|tier\s*(\d+)|subscribed at Tier\s*(\d+))/i);
+  if (tier) return `Tier ${tier[1] || tier[2] || tier[3]}`;
+  if (/gift|赠送|ギフト|gifting/i.test(raw)) return 'Gift';
+  return 'Sub';
+}
+
+function readUserNoticeSystemText(msgEl) {
+  if (!msgEl) return '';
+  const clone = msgEl.cloneNode(true);
+  clone.querySelectorAll(
+    '[data-a-target="chat-resubscription-message__custom-message"], .chat-line__message, [data-a-target="chat-line-message"]',
+  ).forEach((node) => node.remove());
+  return (clone.textContent || '').replace(/\s+/g, ' ').trim();
+}
+
+function readUserNoticeCustomParts(msgEl) {
+  const customRoot = msgEl?.querySelector?.(
+    '[data-a-target="chat-resubscription-message__custom-message"]',
+  );
+  if (!customRoot) return [];
+  const line = customRoot.querySelector('[data-a-target="chat-line-message"], .chat-line__message') || customRoot;
+  return extractMessageParts(line);
+}
+
 function extractBitsAmount(msgEl, message = '', parts = []) {
   let total = bitsFromText(message);
   if (total > 0) return total;
@@ -256,16 +287,31 @@ function extractBitsAmount(msgEl, message = '', parts = []) {
   return total;
 }
 
-function isSubscribeNotice(msgEl) {
-  if (!msgEl) return false;
-  if (msgEl.closest('.user-notice-line, [class*="user-notice"], [data-a-target*="user-notice"], [data-test-selector*="user-notice"]')) {
-    return true;
+function isSubscribeNotice(msgEl, textHint = '') {
+  if (!msgEl && !textHint) return false;
+  // Always prefer full notice textContent — custom resub body ("Hii") must not veto detection.
+  const systemText = readUserNoticeSystemText(msgEl);
+  const fullText = String(msgEl?.textContent || '').replace(/\s+/g, ' ').trim();
+  const text = systemText || fullText || String(textHint || '').replace(/\s+/g, ' ').trim();
+  return !!text && SUBSCRIBE_NOTICE_RE.test(text);
+}
+
+function readNoticeActor(msgEl, message = '') {
+  const usernameEl = msgEl?.querySelector?.(SELECTORS.chatUsername);
+  let username = usernameEl?.textContent?.trim() || '';
+  let login = (
+    msgEl?.getAttribute?.('data-a-user')
+    || usernameEl?.getAttribute?.('data-a-user')
+    || ''
+  ).trim().toLowerCase();
+
+  if (!username) {
+    const text = String(message || msgEl?.textContent || '').replace(/\s+/g, ' ').trim();
+    const match = text.match(/^@?([A-Za-z0-9_]{3,25})\s+(?:已通过|已订阅|订阅了|续订|subscribed|resubscribed|is gifting)/i);
+    if (match) username = match[1];
   }
-  if (msgEl.querySelector('.user-notice-line, [data-a-target="user-notice-line"], [data-a-target*="sub-message"]')) {
-    return true;
-  }
-  const text = (msgEl.textContent || '').replace(/\s+/g, ' ');
-  return /subscribed|resubscribed|gifted\s+\d+\s+sub|is gifting|gift sub|prime gaming|订阅|訂閱|ギフト/i.test(text);
+  if (!login && username) login = username.toLowerCase();
+  return { username, login, usernameEl };
 }
 
 function readChatAvatarUrl(msgEl) {
@@ -287,7 +333,7 @@ function readSuperchatMeta(msgEl, message = '', parts = []) {
   const pinned = !!msgEl.closest('[data-test-selector="pinned-chat"], [data-test-selector="pinned-message"], [class*="pinned-chat"], [class*="paid-pinned"]');
   const bits = extractBitsAmount(msgEl, message, parts);
   const cheer = bits > 0 || hasCheer(msgEl);
-  const subscribe = isSubscribeNotice(msgEl);
+  const subscribe = isSubscribeNotice(msgEl, message);
   const background = paidBackground(msgEl);
   if (!cheer && !pinned && !background && !subscribe && bits <= 0) return null;
 
@@ -301,7 +347,7 @@ function readSuperchatMeta(msgEl, message = '', parts = []) {
   } else if (subscribe) {
     kind = 'sub';
     style = subscribeStyle();
-    amountLabel = 'Sub';
+    amountLabel = subscribeAmountLabel(message || msgEl?.textContent || '');
   } else {
     style = {
       background: background || '#9147ff',
@@ -335,31 +381,67 @@ function readSuperchatStyle(msgEl) {
 
 function snapshotChatMessage(msgEl) {
   if (!msgEl) return null;
-  const parts = extractMessageParts(msgEl);
+
+  const systemText = readUserNoticeSystemText(msgEl);
+  const subscribe = isSubscribeNotice(msgEl, systemText);
+  const customParts = subscribe ? readUserNoticeCustomParts(msgEl) : [];
+  const parts = customParts.length ? customParts : extractMessageParts(msgEl);
   let message = partsToPlain(parts);
-  const usernameEl = msgEl.querySelector(SELECTORS.chatUsername);
-  const username = usernameEl?.textContent?.trim() || '';
-  const login = (
-    msgEl.getAttribute('data-a-user')
-    || usernameEl?.getAttribute('data-a-user')
-    || username
-  ).trim().toLowerCase();
 
   // System / notice lines may put text outside the normal body selector.
   if (!message) {
-    const notice = msgEl.querySelector('[data-a-target="chat-line-message-body"], .chat-line__message-body, .user-notice-line');
-    message = (notice?.textContent || msgEl.textContent || '').replace(/\s+/g, ' ').trim();
+    if (subscribe && systemText) {
+      message = systemText;
+    } else {
+      const notice = msgEl.querySelector(
+        '[data-a-target="chat-line-message-body"], .chat-line__message-body, [data-test-selector="user-notice-line"], .user-notice-line',
+      );
+      message = (notice?.textContent || msgEl.textContent || '').replace(/\s+/g, ' ').trim();
+    }
   }
-  if (!message && !isSubscribeNotice(msgEl)) return null;
+
+  const actor = readNoticeActor(msgEl, systemText || message);
+  let { username, login, usernameEl } = actor;
+
+  // Nested resub chat-line may carry a better login/color than the notice header.
+  if (subscribe) {
+    const nestedUser = msgEl.querySelector(
+      '[data-a-target="chat-resubscription-message__custom-message"] [data-a-target="chat-message-username"]',
+    );
+    if (nestedUser) {
+      username = nestedUser.textContent?.trim() || username;
+      login = (nestedUser.getAttribute('data-a-user') || username || login).trim().toLowerCase();
+      usernameEl = nestedUser;
+    }
+  }
+
+  if (!message && !subscribe) return null;
+
+  // Avoid duplicating the name in the Super Chat body for "user 已订阅…" notices.
+  if (username && message && !customParts.length) {
+    const escaped = username.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const stripped = message.replace(new RegExp(`^@?${escaped}\\s+`, 'i'), '').trim();
+    if (stripped) message = stripped;
+  }
+
+  // Resub with empty custom body: still show the system notice text.
+  if (subscribe && !message && systemText) {
+    let noticeBody = systemText;
+    if (username) {
+      const escaped = username.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      noticeBody = noticeBody.replace(new RegExp(`^@?${escaped}\\s+`, 'i'), '').trim() || noticeBody;
+    }
+    message = noticeBody;
+  }
 
   const finalParts = parts.length ? parts : (message ? [{ type: 'text', value: message }] : []);
-  const meta = readSuperchatMeta(msgEl, message, finalParts);
+  const meta = readSuperchatMeta(msgEl, systemText || message, finalParts);
   return {
     message,
-    parts: finalParts,
+    parts: finalParts.length ? finalParts : (message ? [{ type: 'text', value: message }] : []),
     username: username || login,
     login,
-    usernameColor: getUsernameColor(msgEl),
+    usernameColor: getUsernameColor(msgEl) || (usernameEl ? getComputedStyle(usernameEl).color : ''),
     profileUrl: getTwitchProfileUrl(usernameEl, username || login),
     avatarUrl: meta?.avatarUrl || readChatAvatarUrl(msgEl),
     superchat: !!meta,
@@ -371,6 +453,16 @@ function snapshotChatMessage(msgEl) {
 function parseChatMessage(msgEl) {
   if (msgEl.classList.contains('tbc-processed')) return null;
   if (msgEl.closest('.tbc-processed')) return null;
+
+  // Nested resub/chat body is owned by the parent user-notice-line Super Chat path.
+  const isNotice = msgEl.matches?.('[data-test-selector="user-notice-line"], .user-notice-line');
+  if (
+    !isNotice
+    && msgEl.closest?.('[data-test-selector="user-notice-line"], .user-notice-line, [data-a-target="chat-resubscription-message__custom-message"]')
+  ) {
+    msgEl.classList.add('tbc-processed');
+    return null;
+  }
 
   const snapshot = snapshotChatMessage(msgEl);
   if (!snapshot) return null;

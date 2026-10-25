@@ -46,19 +46,27 @@ No more constantly glancing at the chat panel. Messages flow across the screen s
 - With translation on, the translated text is read. Symbols, emotes, and numbers alone are skipped
 
 ### Super Chat Pin
-- Recognizes Bits cheers, subscriptions, highlighted paid messages, and pinned chat
-- Shows avatar, truncated username, amount/Sub badge, and Twitch cheer-tier colors (1 / 100 / 1000 / 5000 / 10000 / 100000)
-- Bits amounts follow cheermote tokens and image assets (including Bits card presets such as 300 / 1000 / 5000 / 10000); cheer badges are ignored so they are not misread as 1 Bit
+- Recognizes Bits cheers, Prime / tier subscriptions (including resub messages), highlighted paid messages, and pinned chat
+- Shows real avatars, truncated usernames, amount / Prime / Tier badges, and Twitch cheer-tier colors
 - Multiple pins can show at once without covering each other; long text marquees inside the bubble
 - Animations: fade, slide, pop, or shine. Hover pauses the animation and shows the sender; a corner dismiss button closes a pin early
 
+### Favorites & Wheel Mode
+- Star button next to the chat input opens favorites: save frequent lines and send them with one click
+- Optional number shortcuts; favorites can be channel-only or site-wide
+- Right-click a chat line to add it to favorites
+- **Wheel mode** randomly sends favorites on a timer (with count and duration limits)
+- Failed sends show a clear reason (follow required, verification, subscribers-only, etc.) instead of a false “sent” status
+
 ### Chat Context Menu
-- Right-click a live chat line to translate / re-translate (always available, independent of the settings toggle), read aloud (prefers the on-screen chat translation), resend as danmaku, or block the user via Twitch’s native block
-- Translation follows the settings engine (with auto failover); speech follows speech panel voice/rate/volume
+- Right-click a live chat line to translate / re-translate, read aloud, resend as danmaku, add to favorites, or block the user
+- Translation follows the settings engine; speech follows the speech panel
 
 ### Clear Live Chat & Fullscreen Composer
-- Twitch-styled clear button in the live chat header empties the panel (and the IRC buffer when FrankerFaceZ is active)
-- In live fullscreen, press Enter to open a Twitch-themed composer and send chat via GraphQL; click outside when empty or use the red close button to dismiss without exiting fullscreen
+- Clear button in the live chat header empties the panel
+- In live fullscreen, press Enter to open a composer; use the favorites button to fill saved lines quickly
+- Click outside when empty or use the red close button to dismiss without exiting fullscreen
+- Restricted sends show the failure reason under the composer
 
 ### Blocked Users
 - View, add, or unblock Twitch’s native block list in the settings panel
@@ -87,11 +95,12 @@ No more constantly glancing at the chat panel. Messages flow across the screen s
 ### Quality of Life
 - No flood of historical messages when joining a stream
 - No burst of queued messages when returning to the tab
+- Skips bot spam, dividers, and link-only messages
 - UI auto-detects browser language (Chinese / English)
 - Zero external dependencies — lightweight and fast
 
 ### Demo
-Open the demo in your browser. No install or build step is required. Try Add cheer (Bits presets; hover to dismiss), the chat-header clear button, right-click a chat line (translate / speak / resend / block), speech, and in-chat translations:
+Open the demo in your browser. No install or build step is required. Try favorites, Super Chat (Bits / subs), clear chat, the context menu, speech, and in-chat translations:
 
 [Twitch Danmaku demo](https://saka1zum1.github.io/twitch-danmaku/)
 

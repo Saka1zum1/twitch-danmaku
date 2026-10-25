@@ -1,11 +1,15 @@
 class FullscreenChatInput {
-  constructor() {
+  constructor({ favoritesPanel } = {}) {
+    this.favoritesPanel = favoritesPanel || null;
     this.root = null;
     this.input = null;
     this.sendBtn = null;
     this.closeBtn = null;
+    this.favBtn = null;
+    this.favList = null;
     this.statusEl = null;
     this.sending = false;
+    this.favOpen = false;
     this.boundKeyDown = (e) => this.onKeyDown(e);
     this.boundFsChange = () => this.onFullscreenChange();
     this.boundPointerDown = (e) => this.onPointerDownOutside(e);
@@ -50,6 +54,13 @@ class FullscreenChatInput {
 
   onKeyDown(e) {
     if (e.isComposing) return;
+    if (e.key === 'Escape' && this.root) {
+      if (this.favOpen) {
+        this.stopEvent(e);
+        this.closeFavorites();
+        return;
+      }
+    }
     if (e.key !== 'Enter') return;
     if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
 
@@ -85,6 +96,15 @@ class FullscreenChatInput {
     this.statusEl.classList.toggle('is-ok', !!ok && !!message);
   }
 
+  listFavoriteItems() {
+    if (this.favoritesPanel?.visibleItems) {
+      this.favoritesPanel.state = loadFavoritesState();
+      return this.favoritesPanel.visibleItems();
+    }
+    const state = loadFavoritesState();
+    return listFavoritesForChannel(state, currentChannelLogin?.() || '');
+  }
+
   open() {
     if (this.root) {
       this.input?.focus();
@@ -114,6 +134,24 @@ class FullscreenChatInput {
     input.spellcheck = true;
     input.placeholder = t('fsChatPlaceholder');
 
+    const favWrap = document.createElement('div');
+    favWrap.className = 'tbc-fs-chat-fav-wrap';
+
+    const favBtn = document.createElement('button');
+    favBtn.type = 'button';
+    favBtn.className = 'tbc-fs-chat-fav';
+    favBtn.setAttribute('aria-label', t('fsChatFavorites'));
+    favBtn.setAttribute('aria-expanded', 'false');
+    favBtn.innerHTML = `${ICON_FAVORITE}<span>${t('fsChatFavorites')}</span>`;
+
+    const favList = document.createElement('div');
+    favList.className = 'tbc-fs-chat-fav-list';
+    favList.hidden = true;
+    favList.setAttribute('role', 'listbox');
+    favList.setAttribute('aria-label', t('fsChatFavorites'));
+
+    favWrap.append(favBtn, favList);
+
     const sendBtn = document.createElement('button');
     sendBtn.type = 'button';
     sendBtn.className = 'tbc-fs-chat-send';
@@ -129,15 +167,11 @@ class FullscreenChatInput {
     const meta = document.createElement('div');
     meta.className = 'tbc-fs-chat-meta';
 
-    const hint = document.createElement('div');
-    hint.className = 'tbc-fs-chat-hint';
-    hint.textContent = t('fsChatHint');
-
     const status = document.createElement('div');
     status.className = 'tbc-fs-chat-status';
 
-    row.append(input, sendBtn, closeBtn);
-    meta.append(hint, status);
+    row.append(input, favWrap, sendBtn, closeBtn);
+    meta.append(status);
     root.append(row, meta);
 
     const trap = (e) => {
@@ -149,6 +183,12 @@ class FullscreenChatInput {
     root.addEventListener('mousedown', trap);
     root.addEventListener('pointerdown', trap);
     root.addEventListener('click', trap);
+
+    favBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.toggleFavorites();
+    });
 
     sendBtn.addEventListener('click', (e) => {
       e.preventDefault();
@@ -165,23 +205,88 @@ class FullscreenChatInput {
     mount.appendChild(root);
     this.root = root;
     this.input = input;
+    this.favBtn = favBtn;
+    this.favList = favList;
     this.sendBtn = sendBtn;
     this.closeBtn = closeBtn;
     this.statusEl = status;
+    this.favOpen = false;
 
     requestAnimationFrame(() => {
       input.focus();
     });
   }
 
+  toggleFavorites() {
+    if (this.favOpen) this.closeFavorites();
+    else this.openFavorites();
+  }
+
+  openFavorites() {
+    if (!this.favList || !this.favBtn) return;
+    this.renderFavorites();
+    this.favList.hidden = false;
+    this.favBtn.setAttribute('aria-expanded', 'true');
+    this.favBtn.classList.add('is-open');
+    this.favOpen = true;
+  }
+
+  closeFavorites() {
+    if (!this.favList || !this.favBtn) return;
+    this.favList.hidden = true;
+    this.favList.replaceChildren();
+    this.favBtn.setAttribute('aria-expanded', 'false');
+    this.favBtn.classList.remove('is-open');
+    this.favOpen = false;
+  }
+
+  renderFavorites() {
+    if (!this.favList) return;
+    this.favList.replaceChildren();
+
+    const items = this.listFavoriteItems();
+    if (!items.length) {
+      const empty = document.createElement('div');
+      empty.className = 'tbc-fs-chat-fav-empty';
+      empty.textContent = t('fsChatFavoritesEmpty');
+      this.favList.appendChild(empty);
+      return;
+    }
+
+    items.forEach((item) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'tbc-fs-chat-fav-item';
+      btn.setAttribute('role', 'option');
+      btn.title = item.text;
+      btn.textContent = item.text;
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (this.input) {
+          this.input.value = item.text;
+          this.input.focus();
+          const len = this.input.value.length;
+          this.input.setSelectionRange(len, len);
+        }
+        this.closeFavorites();
+      });
+      this.favList.appendChild(btn);
+    });
+  }
+
   close() {
+    this.closeFavorites();
     this.root?.remove();
     this.root = null;
     this.input = null;
     this.sendBtn = null;
     this.closeBtn = null;
+    this.favBtn = null;
+    this.favList = null;
     this.statusEl = null;
     this.sending = false;
+    this.favOpen = false;
   }
 
   async submit() {
@@ -194,6 +299,7 @@ class FullscreenChatInput {
 
     this.sending = true;
     if (this.sendBtn) this.sendBtn.disabled = true;
+    this.closeFavorites();
     this.setStatus('');
 
     try {
@@ -204,12 +310,7 @@ class FullscreenChatInput {
         if (this.statusEl?.textContent === t('fsChatSent')) this.setStatus('');
       }, 1200);
     } catch (error) {
-      const code = error?.code || '';
-      if (code === 'not_logged_in') {
-        this.setStatus(t('fsChatNeedLogin'));
-      } else {
-        this.setStatus(t('fsChatFailed'));
-      }
+      this.setStatus(chatSendErrorMessage(error));
     } finally {
       this.sending = false;
       if (this.sendBtn) this.sendBtn.disabled = false;

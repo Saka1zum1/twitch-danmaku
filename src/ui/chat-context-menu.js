@@ -1,8 +1,9 @@
 class ChatContextMenu {
-  constructor({ getSettings, danmakuEmitter, isActive }) {
+  constructor({ getSettings, danmakuEmitter, isActive, favoritesPanel }) {
     this.getSettings = getSettings;
     this.danmakuEmitter = danmakuEmitter;
     this.isActive = isActive;
+    this.favoritesPanel = favoritesPanel;
     this.menu = null;
     this.targetEl = null;
     this.boundContext = (event) => this.handleContextMenu(event);
@@ -78,6 +79,9 @@ class ChatContextMenu {
       }),
       this.createItem(t('chatMenuResend'), () => {
         this.runResend(msgEl, snapshot, false);
+      }),
+      this.createItem(t('chatMenuFavorite'), () => {
+        this.runFavorite(snapshot);
       }),
     );
     if (login) {
@@ -176,6 +180,25 @@ class ChatContextMenu {
       }
       console.warn(`[TBC] ${t('chatMenuBlockFailed')}`, error);
     }
+  }
+
+  runFavorite(snapshot) {
+    const text = String(snapshot?.message || '').trim();
+    if (!text) return;
+    if (this.favoritesPanel?.addFromText) {
+      this.favoritesPanel.addFromText(text);
+      if (!this.favoritesPanel.isOpen && this.favoritesPanel.btn) {
+        this.favoritesPanel.open(this.favoritesPanel.btn);
+      }
+      return;
+    }
+    const result = addFavoriteText(text);
+    if (result.full) {
+      console.warn(`[TBC] ${t('favoritesFull')}`);
+      return;
+    }
+    if (result.added) console.info(`[TBC] ${t('favoritesAdded')}`);
+    else if (result.item) console.info(`[TBC] ${t('favoritesExists')}`);
   }
 
   async runTranslate(msgEl, snapshot, bustCache) {

@@ -5,6 +5,7 @@ let translateQueue = null;
 let chatObserver = null;
 let chatContextMenu = null;
 let chatClearButton = null;
+let favoritesPanel = null;
 let fullscreenChat = null;
 let settingsPanel = null;
 let speechPanel = null;
@@ -64,6 +65,7 @@ function teardown() {
   chatObserver?.stop();
   chatContextMenu?.detach();
   chatClearButton?.destroy();
+  favoritesPanel?.destroy();
   fullscreenChat?.destroy();
   danmaku?.destroy();
   controlButton?.destroy();
@@ -77,6 +79,7 @@ function teardown() {
   chatObserver = null;
   chatContextMenu = null;
   chatClearButton = null;
+  favoritesPanel = null;
   fullscreenChat = null;
   danmaku = null;
   danmakuEmitter = null;
@@ -105,10 +108,14 @@ async function boot() {
     isActive,
   });
 
+  favoritesPanel = new FavoritesPanel();
+  favoritesPanel.attach();
+
   chatContextMenu = new ChatContextMenu({
     getSettings,
     danmakuEmitter,
     isActive,
+    favoritesPanel,
   });
   chatContextMenu.attach(document);
 
@@ -116,7 +123,7 @@ async function boot() {
     onClear: () => chatObserver?.clearIrcHistory?.(),
   });
 
-  fullscreenChat = new FullscreenChatInput();
+  fullscreenChat = new FullscreenChatInput({ favoritesPanel });
   fullscreenChat.attach();
 
   if (!settingsPanel) {
@@ -182,8 +189,9 @@ async function boot() {
   await Promise.all([
     danmaku.mount(),
     controlButton.mount(),
-    chatClearButton.mount(),
+    favoritesPanel.mount(),
   ]);
+  await chatClearButton.mount();
   await chatObserver.start();
 
   console.log(`[TBC] Twitch Danmaku initialized${chatObserver.ffzActive ? ' (FFZ compat)' : ''}`);
@@ -198,6 +206,7 @@ function watchNavigation() {
     } else {
       controlButton?.remount();
       chatClearButton?.remount();
+      favoritesPanel?.remount();
     }
   }, 1500);
 }

@@ -30,10 +30,10 @@ const DEFAULT_SETTINGS = {
 
 const SELECTORS = {
   chatScroller: '[data-a-target="chat-scroller"], .video-chat__message-list-wrapper',
-  chatMessage: '[data-a-target="chat-message-container"], .chat-line__message, [data-test-selector="chat-message"], .vod-message',
+  chatMessage: '[data-a-target="chat-message-container"], [data-a-target="chat-line-message"], .chat-line__message, [data-test-selector="chat-message"], [data-test-selector="user-notice-line"], .vod-message',
   chatText: 'span[data-a-target="chat-message-text"], span.text-fragment',
-  chatUsername: '[data-a-target="chat-message-username"], .chat-author__display-name, .chat-line__username',
-  chatMessageBody: '[data-a-target="chat-line-message-body"], .chat-line__message-body, .video-chat__message',
+  chatUsername: '[data-a-target="chat-message-username"], .chat-author__display-name, .chat-line__username, .chatter-name',
+  chatMessageBody: '[data-a-target="chat-line-message-body"], .chat-line__message-body, .video-chat__message, [data-test-selector="user-notice-line"]',
   videoPlayer: '.video-player__container',
   videoOverlay: '.video-player__overlay',
   playerControlsRoot: '[data-a-target="player-controls"], .player-controls',
@@ -44,6 +44,10 @@ const SELECTORS = {
   chatHeader: '.stream-chat-header, [class*="stream-chat-header"]',
   chatViewerListBtn: '[data-test-selector="chat-viewer-list"]',
   chatMessageContainer: '[data-test-selector="chat-scrollable-area__message-container"], .chat-scrollable-area__message-container',
+  chatInputActions: '[data-tbc-chat-input-actions]',
+  bitsButton: '[data-a-target="bits-button"]',
+  emotePickerButton: '[data-a-target="emote-picker-button"]',
+  chatScrollableArea: '.chat-list--default .scrollable-area, .scrollable-area',
 };
 
 const TRANSLATE_PROVIDERS = ['auto', 'microsoft', 'google', 'volcengine', 'caiyun', 'tencent'];

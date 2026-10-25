@@ -109,6 +109,7 @@ class ChatObserver {
       if (!this.shouldEmit(msgEl)) continue;
       const parsed = parseChatMessage(msgEl);
       if (!parsed) continue;
+      if (shouldIgnoreChatPayload(parsed, msgEl)) continue;
       this.emitDanmaku(parsed, msgEl);
     }
   }
@@ -118,7 +119,7 @@ class ChatObserver {
     if (Date.now() - this.readyAt < WARMUP_MS) return;
 
     this.pushIrcBuffer(parsed);
-    this.emitDanmaku({
+    const payload = {
       username: parsed.username,
       usernameColor: parsed.usernameColor,
       profileUrl: parsed.profileUrl,
@@ -130,7 +131,9 @@ class ChatObserver {
       superchat: !!parsed.superchat,
       superchatStyle: parsed.superchatStyle || null,
       superchatMeta: parsed.superchatMeta || null,
-    }, null);
+    };
+    if (shouldIgnoreChatPayload(payload, null)) return;
+    this.emitDanmaku(payload, null);
   }
 
   pushIrcBuffer(parsed) {

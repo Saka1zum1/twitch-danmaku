@@ -12,10 +12,12 @@ A Tampermonkey userscript that turns Twitch live chat into scrolling video danma
 - **Copy to chat** — Click a danmaku, then use the copy button in the tooltip to paste the message into the live chat input
 - **Customization** — Speed, font, opacity, and scroll area (full / top half / top quarter)
 - **Read aloud** — Optional speech for each danmaku, with voice, rate, and a pace mode that speeds up long lines
-- **Super Chat pin** — Bits cheers, subscriptions, highlighted paid messages, and pinned chat stay on screen with avatar, truncated name, amount badge, Twitch cheer-tier colors (1 / 100 / 1000 / 5000 / 10000 / 100000), multi-pin stacking, and marquee for long text. Bits amounts follow cheermote tokens and image assets (including Bits card presets such as 300 / 1000 / 5000 / 10000), not cheer badges. Hover pauses them; a dismiss button in the corner closes a pin early
-- **Chat context menu** — Right-click a live chat line to translate / re-translate (always available, independent of the settings toggle), read aloud (prefers the on-screen translation), resend as danmaku, or block the user via Twitch’s native block
-- **Clear live chat** — Twitch-styled clear button in the live chat header empties the panel (and the IRC buffer when FrankerFaceZ is active)
-- **Fullscreen chat input** — In live fullscreen, press Enter to open a Twitch-themed composer and send chat via GraphQL; click outside when empty or use the red close button to dismiss (does not exit fullscreen)
+- **Super Chat pin** — Bits cheers, Prime / tier subscriptions (including resub messages), highlighted paid messages, and pinned chat stay on screen with real avatars, truncated names, amount / Prime / Tier badges, Twitch cheer-tier colors, multi-pin stacking, and marquee for long text. Hover pauses them; a dismiss button closes a pin early
+- **Favorites & wheel mode** — Star button beside chat input to save lines, send with one click or number shortcuts (channel-only or site-wide). Wheel mode randomly sends favorites on a timer. Failed sends show a clear reason instead of a false success
+- **Chat context menu** — Right-click a live chat line to translate / re-translate, read aloud, resend as danmaku, add to favorites, or block the user
+- **Clear live chat** — Clear button in the live chat header empties the panel
+- **Fullscreen chat input** — In live fullscreen, press Enter to open a composer; favorites button fills saved lines quickly. Restricted sends show the reason under the bar. Click outside when empty or use the red close button to dismiss (does not exit fullscreen)
+- **Noise filter** — Skips bot spam, dividers, and link-only messages
 - **Blocked users** — Manage Twitch’s native block list in the settings panel (view, add, unblock)
 - **Chat history download** — On live pages, export messages currently in the chat panel; on VOD pages, export archived chat via Twitch. JSON, CSV, or TXT, with keyword, username, Super Chat, and (VOD) time-range filters
 - **Fullscreen-aware** — Adapts to resize and fullscreen automatically
@@ -69,7 +71,7 @@ npm run build
 | Block keywords | Hides a danmaku when the original or the translation contains a keyword |
 | Blocked users | Twitch native block list: view, add, or unblock in the panel |
 | Read aloud | Speaks each danmaku. With translation on, the translated text is read |
-| Super Chat pin | Pins cheers (correct Bits amount + tier colors), subscriptions, highlighted paid messages, and pinned chat. Hover pauses; dismiss closes early |
+| Super Chat pin | Pins cheers, Prime / tier subs, highlighted paid messages, and pinned chat. Hover pauses; dismiss closes early |
 
 Settings are saved locally and persist across sessions.
 
@@ -92,7 +94,7 @@ npm run build
 npm run watch
 ```
 
-The public demo needs no build step: [Twitch Danmaku demo](https://saka1zum1.github.io/twitch-danmaku/). It stands in for a watch page (player, control bar, and chat list). Lines already in the list stay put; lines added after the short warm-up scroll across the video. Try read-aloud, Super Chat cheers at Bits card presets (hover to dismiss), the chat-header clear button, and right-click a chat line for translate / speak / resend / block. With translation enabled, the demo shows marked preview translations and optional purple TL lines in chat. The preview keeps running when its browser tab is in the background.
+The public demo needs no build step: [Twitch Danmaku demo](https://saka1zum1.github.io/twitch-danmaku/). It stands in for a watch page (player, control bar, and chat list). Lines already in the list stay put; lines added after the short warm-up scroll across the video. Try favorites (star beside the input), Super Chat (Bits / sub notices), clear chat, and right-click a chat line for translate / speak / resend / favorite / block. With translation enabled, the demo shows marked preview translations and optional purple TL lines in chat. The preview keeps running when its browser tab is in the background.
 
 ## Notes
 

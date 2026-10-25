@@ -6,6 +6,8 @@ const TWITCH_GQL_HASH = {
   blockedUserDetail: 'f1e276239a93802a4c533616dcb9f79d5e9b439e8b3cafb782be297b99d2d413',
   blockUser: 'c58b580efdc4187fa30c144c57425d7051602c848069be705f07e8d590a12515',
   unblockUser: 'f1b612a6df709cfa5fea630b20c78c9ba7f4c0be386bfd51486eaf02afbfbf92',
+  // Captured from twitch.tv ViewerCard open (profileImageURL on targetUser).
+  viewerCard: '2c6cc05878bf2f007613fe807512546000401362a2d7d87ab20ebf259960a29e',
 };
 
 function getCookieValue(name) {

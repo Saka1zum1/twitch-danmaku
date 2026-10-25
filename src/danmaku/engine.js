@@ -370,7 +370,7 @@ class DanmakuEngine {
     closeBtn.type = 'button';
     closeBtn.className = 'tbc-sc-close';
     closeBtn.setAttribute('aria-label', t('superchatClose'));
-    closeBtn.textContent = t('superchatClose');
+    closeBtn.innerHTML = ICON_CLOSE;
 
     item.append(avatar, main, closeBtn);
     this.superchatLayer.appendChild(item);
@@ -379,8 +379,9 @@ class DanmakuEngine {
     requestAnimationFrame(() => this.armSuperchatMarquee(body, track));
     requestSpeech(speechSourceText(message, parts));
 
-    const loginKey = String(login || '').toLowerCase();
-    if (loginKey && !avatarUrl) {
+    const loginKey = String(login || username || '').toLowerCase().replace(/^@+/, '');
+    // Always resolve a real profile image via ViewerCard when possible (letter avatars are fallback only).
+    if (loginKey && (!avatarUrl || String(avatarUrl).startsWith('data:'))) {
       fetchTwitchAvatar(loginKey).then((url) => {
         if (!url || !item.isConnected) return;
         avatar.src = url;

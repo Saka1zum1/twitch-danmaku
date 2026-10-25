@@ -136,9 +136,13 @@
     .chat-input-wrap {
       padding: 8px;
       border-top: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      align-items: flex-end;
+      gap: 6px;
     }
     textarea[data-a-target="chat-input"] {
-      width: 100%;
+      flex: 1;
+      min-width: 0;
       min-height: 40px;
       resize: vertical;
       border: 1px solid #3a3a3d;
@@ -148,6 +152,29 @@
       padding: 8px;
       font: inherit;
       box-sizing: border-box;
+    }
+    .chat-input-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      flex-shrink: 0;
+      height: 40px;
+    }
+    .chat-input-actions button[data-a-target="bits-button"] {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      border: none;
+      border-radius: 4px;
+      background: transparent;
+      color: #efeff1;
+      cursor: pointer;
+    }
+    .chat-input-actions button[data-a-target="bits-button"]:hover {
+      background: rgba(255, 255, 255, 0.15);
     }
     .toolbar {
       padding: 0 8px 8px;
@@ -207,12 +234,21 @@
       </div>
       <div class="chat-input-wrap">
         <textarea data-a-target="chat-input" placeholder="Send a message"></textarea>
+        <div class="chat-input-actions" data-tbc-chat-input-actions>
+          <button type="button" data-a-target="bits-button" aria-label="Bits" title="Bits">
+            <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path fill="currentColor" d="M10 2 3 7v6l7 5 7-5V7l-7-5zm0 2.2 4.8 3.4v4.8L10 15.8 5.2 12.4V7.6L10 4.2z"/></svg>
+          </button>
+          <button type="button" data-a-target="emote-picker-button" aria-label="Emotes" title="Emotes">
+            <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path fill="currentColor" d="M10 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16zm-3 7a1.25 1.25 0 1 1 0-2.5A1.25 1.25 0 0 1 7 9zm7.5-1.25a1.25 1.25 0 1 1-2.5 0 1.25 1.25 0 0 1 2.5 0zM6.7 12.2a.75.75 0 0 1 1.05-.1 3.5 3.5 0 0 0 4.5 0 .75.75 0 1 1 .95 1.16 5 5 0 0 1-6.4 0 .75.75 0 0 1-.1-1.06z"/></svg>
+          </button>
+        </div>
       </div>
       <div class="toolbar">
         <button id="add-chat" type="button">Add chat</button>
         <button id="add-cheer" class="secondary" type="button">Add cheer</button>
+        <button id="add-sub" class="secondary" type="button">Add sub</button>
       </div>
-      <p class="hint">列表里已有的消息不会变成弹幕。预热结束后，点按钮或等待自动插入的新消息会从视频上飘过。可试用朗读、悬停暂停、复制到输入框、顶栏清空聊天、Super Chat（Bits 预设 300 / 1000 / 5000 / 10000，悬停右上角可关闭）、右键聊天行（翻译 / 朗读 / 重发 / 屏蔽），以及设置里的「启用翻译 / 聊天室显示译文 / 屏蔽用户列表」（演示环境用标记译文，聊天室里会显示紫色译文行；屏蔽与全屏发消息需真实 Twitch 登录）。</p>
+      <p class="hint">列表里已有的消息不会变成弹幕。预热结束后，点按钮或等待自动插入的新消息会从视频上飘过。可试用朗读、悬停暂停、复制到输入框、顶栏清空聊天、输入框旁收藏星标与独轮车、Super Chat（Bits / 订阅，悬停可关闭）、右键聊天行（翻译 / 朗读 / 重发 / 收藏 / 屏蔽）。机器人刷屏、分隔线、纯链接不会进弹幕。演示环境屏蔽与真实发送需 Twitch 登录。</p>
     </div>
   </div>
 
@@ -305,6 +341,13 @@
       scroller.scrollTop = scroller.scrollHeight;
     }
 
+    const subPresets = [
+      { name: 'cbas_o', color: '#253cdf', system: '已通过 Prime 订阅。这位用户已经订阅了 27 个月！', custom: 'Hii' },
+      { name: 'okoklucy', color: '#9147ff', system: '已订阅第 1 层级', custom: '' },
+      { name: 'karinsq2', color: '#00c7ac', system: '已通过 Prime 订阅', custom: 'welcome back' },
+    ];
+    let subSeq = 0;
+
     function addCheerMessage() {
       const preset = cheerPresets[cheerSeq % cheerPresets.length];
       cheerSeq += 1;
@@ -313,6 +356,56 @@
         cheerAmount: preset.amount,
         background: preset.background,
       });
+      seq += 1;
+    }
+
+    function addSubMessage() {
+      const preset = subPresets[subSeq % subPresets.length];
+      subSeq += 1;
+      const wrap = document.createElement('div');
+      wrap.className = 'Layout-sc-1xcs6mc-0';
+
+      const notice = document.createElement('div');
+      notice.setAttribute('data-test-selector', 'user-notice-line');
+      notice.className = 'Layout-sc-1xcs6mc-0';
+      notice.style.overflowWrap = 'break-word';
+
+      const body = document.createElement('div');
+      const nameBtn = document.createElement('span');
+      nameBtn.className = 'chatter-name';
+      nameBtn.setAttribute('role', 'button');
+      nameBtn.textContent = preset.name;
+      body.append(nameBtn, document.createTextNode(' ' + preset.system));
+      notice.appendChild(body);
+
+      if (preset.custom) {
+        const custom = document.createElement('div');
+        custom.setAttribute('data-a-target', 'chat-resubscription-message__custom-message');
+        const line = document.createElement('div');
+        line.className = 'chat-line__message';
+        line.setAttribute('data-a-target', 'chat-line-message');
+        line.setAttribute('data-a-user', preset.name.toLowerCase());
+        const author = document.createElement('span');
+        author.className = 'chat-author__display-name';
+        author.setAttribute('data-a-target', 'chat-message-username');
+        author.setAttribute('data-a-user', preset.name.toLowerCase());
+        author.style.color = preset.color;
+        author.textContent = preset.name;
+        const msgBody = document.createElement('span');
+        msgBody.setAttribute('data-a-target', 'chat-line-message-body');
+        const text = document.createElement('span');
+        text.className = 'text-fragment';
+        text.setAttribute('data-a-target', 'chat-message-text');
+        text.textContent = preset.custom;
+        msgBody.appendChild(text);
+        line.append(author, document.createTextNode(': '), msgBody);
+        custom.appendChild(line);
+        notice.appendChild(custom);
+      }
+
+      wrap.appendChild(notice);
+      scroller.appendChild(wrap);
+      scroller.scrollTop = scroller.scrollHeight;
       seq += 1;
     }
 
@@ -325,12 +418,17 @@
       addCheerMessage();
     });
 
+    document.getElementById('add-sub').addEventListener('click', () => {
+      addSubMessage();
+    });
+
     setTimeout(() => {
       samples.forEach((sample, index) => {
         setTimeout(() => addMessage(sample[0], sample[1], sample[2]), index * 700);
       });
       setTimeout(() => {
         addCheerMessage();
+        setTimeout(() => addSubMessage(), 700);
       }, samples.length * 700);
     }, 4000);
   </script>

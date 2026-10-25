@@ -93,10 +93,17 @@ function buildIrcPayload({ channel, login, displayName, color, message, tags, bi
     };
   } else if (subscribe) {
     const style = subscribeStyle();
+    const plan = String(tags['msg-param-sub-plan'] || '').toLowerCase();
+    let amountLabel = 'Sub';
+    if (plan === 'prime') amountLabel = 'Prime';
+    else if (plan === '2000') amountLabel = 'Tier 2';
+    else if (plan === '3000') amountLabel = 'Tier 3';
+    else if (plan === '1000') amountLabel = 'Tier 1';
+    else if (/gift/i.test(String(tags['msg-id'] || ''))) amountLabel = 'Gift';
     meta = {
       kind: 'sub',
       bits: 0,
-      amountLabel: 'Sub',
+      amountLabel,
       avatarUrl: '',
       style,
     };

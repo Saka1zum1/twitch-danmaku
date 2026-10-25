@@ -275,6 +275,267 @@ function injectStyles() {
       pointer-events: none;
     }
 
+    .tbc-fav-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      box-sizing: border-box;
+      width: 32px;
+      height: 32px;
+      margin: 0;
+      padding: 0;
+      border: none;
+      border-radius: 0.4rem;
+      background: transparent;
+      color: var(--color-fill-button-icon, var(--color-text-base, #efeff1));
+      cursor: pointer;
+      transition: background-color 0.1s ease, color 0.1s ease;
+    }
+
+    .tbc-fav-btn:hover {
+      background-color: var(--color-background-interactable-hover, rgba(83, 83, 95, 0.48));
+      color: #ffca5f;
+    }
+
+    .tbc-fav-btn:active {
+      background-color: var(--color-background-interactable-active, rgba(83, 83, 95, 0.7));
+    }
+
+    .tbc-fav-btn svg {
+      width: 20px;
+      height: 20px;
+      fill: currentColor;
+      display: block;
+      pointer-events: none;
+    }
+
+    .tbc-fav-panel {
+      max-height: min(80vh, 580px);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .tbc-fav-add-row {
+      display: flex;
+      gap: 8px;
+      padding: 10px 12px 0;
+    }
+
+    .tbc-fav-add-input {
+      flex: 1;
+      min-width: 0;
+      height: 32px;
+      box-sizing: border-box;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      background: #18181b;
+      color: #efeff1;
+      padding: 0 10px;
+      font-size: 13px;
+    }
+
+    .tbc-fav-add-btn,
+    .tbc-fav-item-send,
+    .tbc-fav-wheel-toggle {
+      border: none;
+      border-radius: 4px;
+      background: #9147ff;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 0 10px;
+      height: 32px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .tbc-fav-add-btn:hover,
+    .tbc-fav-item-send:hover,
+    .tbc-fav-wheel-toggle:hover {
+      background: #772ce8;
+    }
+
+    .tbc-fav-wheel-toggle.is-running {
+      background: #eb0400;
+    }
+
+    .tbc-fav-wheel-toggle.is-running:hover {
+      background: #c50300;
+    }
+
+    .tbc-fav-list {
+      margin-top: 10px;
+      padding: 0 12px;
+      overflow: auto;
+      max-height: 240px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .tbc-fav-empty {
+      color: #adadb8;
+      font-size: 12px;
+      padding: 12px 0;
+      text-align: center;
+    }
+
+    .tbc-fav-wrap {
+      flex-shrink: 0;
+    }
+
+    .tbc-fav-item {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 8px;
+      border-radius: 6px;
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .tbc-fav-item.is-global {
+      border-color: rgba(145, 71, 255, 0.45);
+    }
+
+    .tbc-fav-item-meta {
+      font-size: 11px;
+      font-weight: 600;
+      color: #adadb8;
+    }
+
+    .tbc-fav-item.is-global .tbc-fav-item-meta {
+      color: #bf94ff;
+    }
+
+    .tbc-fav-item-text {
+      width: 100%;
+      box-sizing: border-box;
+      resize: vertical;
+      min-height: 32px;
+      height: 32px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: #18181b;
+      color: #efeff1;
+      padding: 6px 8px;
+      font: inherit;
+      font-size: 13px;
+    }
+
+    .tbc-fav-item-tools {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .tbc-fav-item-shortcut {
+      height: 28px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: #18181b;
+      color: #efeff1;
+      font-size: 12px;
+    }
+
+    .tbc-fav-item-scope {
+      height: 28px;
+      border: none;
+      border-radius: 4px;
+      background: #3a3a3d;
+      color: #efeff1;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 0 10px;
+      cursor: pointer;
+    }
+
+    .tbc-fav-item-scope:hover {
+      background: #9147ff;
+    }
+
+    .tbc-fav-item-remove {
+      margin-left: auto;
+      height: 28px;
+      border: none;
+      border-radius: 4px;
+      background: #3a3a3d;
+      color: #efeff1;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 0 10px;
+      cursor: pointer;
+    }
+
+    .tbc-fav-item-remove:hover {
+      background: #ad1c1c;
+    }
+
+    .tbc-fav-status {
+      min-height: 16px;
+      margin: 6px 12px 0;
+      color: #ff8280;
+      font-size: 12px;
+    }
+
+    .tbc-fav-status.is-ok {
+      color: #00f593;
+    }
+
+    .tbc-fav-wheel {
+      margin-top: 10px;
+      padding: 10px 12px 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .tbc-fav-wheel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .tbc-fav-wheel-title {
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .tbc-fav-wheel-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 6px;
+    }
+
+    .tbc-fav-wheel-field {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      color: #adadb8;
+      font-size: 12px;
+    }
+
+    .tbc-fav-wheel-field input {
+      width: 88px;
+      height: 28px;
+      box-sizing: border-box;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: #18181b;
+      color: #efeff1;
+      padding: 0 8px;
+      font-size: 12px;
+    }
+
+    .tbc-fav-wheel-status {
+      color: #adadb8;
+      font-size: 12px;
+    }
+
     .tbc-superchat-layer {
       pointer-events: none;
       display: none;
@@ -314,23 +575,24 @@ function injectStyles() {
 
     .tbc-sc-close {
       position: absolute;
-      top: 4px;
-      right: 4px;
+      top: 2px;
+      right: 2px;
       z-index: 3;
-      width: 22px;
-      height: 22px;
+      width: 24px;
+      height: 24px;
+      margin: 0;
       padding: 0;
       border: none;
-      border-radius: 4px;
+      border-radius: 9000px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      background: rgba(14, 14, 16, 0.45);
-      color: #efeff1;
+      background: transparent;
+      color: #ffffff;
       cursor: pointer;
       opacity: 0;
       pointer-events: none;
-      transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+      transition: opacity 0.15s ease, background-color 0.1s ease, color 0.1s ease;
     }
 
     .tbc-superchat-item:hover .tbc-sc-close,
@@ -341,19 +603,20 @@ function injectStyles() {
     }
 
     .tbc-sc-close:hover {
-      background: #9147ff;
+      background: rgba(255, 255, 255, 0.2);
       color: #ffffff;
     }
 
     .tbc-sc-close:active {
-      background: #772ce8;
+      background: rgba(255, 255, 255, 0.28);
     }
 
     .tbc-sc-close svg {
-      width: 14px;
-      height: 14px;
+      width: 16px;
+      height: 16px;
       display: block;
       pointer-events: none;
+      fill: currentColor;
     }
 
     .tbc-sc-avatar {
@@ -1127,6 +1390,12 @@ function injectStyles() {
       box-shadow: 0 0 0 1px #9147ff;
     }
 
+    .tbc-fs-chat-fav-wrap {
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .tbc-fs-chat-fav,
     .tbc-fs-chat-send {
       flex-shrink: 0;
       display: inline-flex;
@@ -1138,12 +1407,36 @@ function injectStyles() {
       padding: 0 14px;
       border: none;
       border-radius: 6px;
-      background: #9147ff;
       color: #ffffff;
       font-size: 13px;
       font-weight: 600;
       cursor: pointer;
       transition: background 0.15s ease;
+    }
+
+    .tbc-fs-chat-fav {
+      background: #3a3a3d;
+    }
+
+    .tbc-fs-chat-fav:hover,
+    .tbc-fs-chat-fav.is-open {
+      background: #53535f;
+    }
+
+    .tbc-fs-chat-fav:active {
+      background: #2e2e33;
+    }
+
+    .tbc-fs-chat-fav svg,
+    .tbc-fs-chat-send svg {
+      width: 16px;
+      height: 16px;
+      display: block;
+      flex-shrink: 0;
+    }
+
+    .tbc-fs-chat-send {
+      background: #9147ff;
     }
 
     .tbc-fs-chat-send:hover:not(:disabled) {
@@ -1159,10 +1452,59 @@ function injectStyles() {
       cursor: default;
     }
 
-    .tbc-fs-chat-send svg {
-      width: 16px;
-      height: 16px;
+    .tbc-fs-chat-fav-list {
+      position: absolute;
+      left: 0;
+      bottom: calc(100% + 6px);
+      z-index: 2;
+      box-sizing: border-box;
+      width: max(220px, 100%);
+      max-width: min(360px, 70vw);
+      max-height: 220px;
+      overflow-x: hidden;
+      overflow-y: auto;
+      padding: 6px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: rgba(14, 14, 16, 0.96);
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+      backdrop-filter: blur(10px);
+    }
+
+    .tbc-fs-chat-fav-empty {
+      padding: 10px 8px;
+      color: #adadb8;
+      font-size: 12px;
+      line-height: 1.4;
+      text-align: center;
+    }
+
+    .tbc-fs-chat-fav-item {
       display: block;
+      width: 100%;
+      box-sizing: border-box;
+      margin: 0;
+      padding: 8px 10px;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      color: #efeff1;
+      font-size: 13px;
+      line-height: 1.35;
+      text-align: left;
+      cursor: pointer;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      max-width: 100%;
+    }
+
+    .tbc-fs-chat-fav-item:hover {
+      background: rgba(145, 71, 255, 0.28);
+    }
+
+    .tbc-fs-chat-fav-item:active {
+      background: rgba(145, 71, 255, 0.4);
     }
 
     .tbc-fs-chat-close {
@@ -1200,24 +1542,26 @@ function injectStyles() {
 
     .tbc-fs-chat-meta {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: space-between;
       gap: 12px;
       padding: 0 4px;
       min-height: 16px;
     }
 
-    .tbc-fs-chat-hint {
-      color: rgba(239, 239, 241, 0.55);
-      font-size: 12px;
-      line-height: 1.3;
-    }
-
     .tbc-fs-chat-status {
+      flex: 1;
+      min-width: 0;
+      max-width: 60%;
       color: #ff8280;
       font-size: 12px;
-      line-height: 1.3;
-      text-align: right;
+      line-height: 1.35;
+      text-align: left;
+      word-break: break-word;
+    }
+
+    .tbc-fs-chat-status:empty {
+      display: none;
     }
 
     .tbc-fs-chat-status.is-ok {

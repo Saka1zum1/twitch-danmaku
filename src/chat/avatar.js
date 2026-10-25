@@ -1,4 +1,5 @@
 const avatarCache = new Map();
+let cachedViewerChannel = { login: '', id: '' };
 
 function letterAvatarDataUri(name, color) {
   const letter = String(name || '?').trim().charAt(0).toUpperCase() || '?';
@@ -19,19 +20,36 @@ function rememberAvatar(login, url) {
   avatarCache.set(key, url);
 }
 
-function fetchTwitchAvatar(login) {
+async function resolveViewerChannelContext() {
+  const login = normalizeTwitchLogin(currentChannelLogin?.() || '');
+  if (!login) return { login: '', id: '' };
+  if (cachedViewerChannel.login === login && cachedViewerChannel.id) {
+    return cachedViewerChannel;
+  }
+  try {
+    const id = await resolveTwitchUserId(login);
+    if (id) {
+      cachedViewerChannel = { login, id: String(id) };
+      return cachedViewerChannel;
+    }
+  } catch (_) {
+    /* ignore */
+  }
+  return { login, id: '' };
+}
+
+function fetchTwitchAvatarViaUserQuery(login) {
   const key = String(login || '').trim().toLowerCase();
   if (!key) return Promise.resolve('');
-  if (avatarCache.has(key) && !String(avatarCache.get(key)).startsWith('data:')) {
-    return Promise.resolve(avatarCache.get(key));
-  }
 
   return new Promise((resolve) => {
     GM_xmlhttpRequest({
       method: 'POST',
       url: 'https://gql.twitch.tv/gql',
       headers: {
-        'Client-ID': 'kd1unb4b3q4t58fwlpcbzcbnm76a8fp',
+        'Client-ID': typeof TWITCH_WEB_CLIENT_ID !== 'undefined'
+          ? TWITCH_WEB_CLIENT_ID
+          : 'kimne78kx3ncx6brgo4mv6wki5h1ko',
         'Content-Type': 'application/json',
       },
       data: JSON.stringify({
@@ -55,4 +73,52 @@ function fetchTwitchAvatar(login) {
       ontimeout: () => resolve(''),
     });
   });
+}
+
+async function fetchTwitchAvatarViaViewerCard(login) {
+  const key = normalizeTwitchLogin(login);
+  if (!key) return '';
+  if (typeof twitchGqlRequest !== 'function' || typeof gqlPersisted !== 'function') return '';
+
+  const channel = await resolveViewerChannelContext();
+  if (!channel.login) return '';
+
+  try {
+    const data = await twitchGqlRequest([
+      gqlPersisted(
+        'ViewerCard',
+        {
+          channelID: channel.id || '',
+          channelLogin: channel.login,
+          hasChannelID: !!channel.id,
+          giftRecipientLogin: key,
+          withStandardGifting: true,
+          badgeSourceChannelID: channel.id || '',
+          badgeSourceChannelLogin: channel.login,
+        },
+        TWITCH_GQL_HASH.viewerCard,
+      ),
+    ]);
+    const payload = unwrapGqlPayload(data);
+    const url = payload?.data?.targetUser?.profileImageURL || '';
+    if (url) {
+      rememberAvatar(key, url);
+      return url;
+    }
+  } catch (_) {
+    /* fall through */
+  }
+  return '';
+}
+
+function fetchTwitchAvatar(login) {
+  const key = String(login || '').trim().toLowerCase();
+  if (!key) return Promise.resolve('');
+  if (avatarCache.has(key) && !String(avatarCache.get(key)).startsWith('data:')) {
+    return Promise.resolve(avatarCache.get(key));
+  }
+
+  return fetchTwitchAvatarViaViewerCard(key)
+    .then((url) => url || fetchTwitchAvatarViaUserQuery(key))
+    .catch(() => fetchTwitchAvatarViaUserQuery(key));
 }
