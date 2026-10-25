@@ -12,6 +12,24 @@ class ChatObserver {
     this.ffzActive = false;
     this.ircSource = null;
     this.ircBuffer = [];
+    this.ircBackgroundOnly = false;
+    this.recentEmitKeys = new Map();
+  }
+
+  isDuplicateEmit(login, message) {
+    const text = String(message || '').trim();
+    if (!text) return false;
+    const key = `${String(login || '').toLowerCase()}|${text}`.slice(0, 240);
+    const now = Date.now();
+    const prev = this.recentEmitKeys.get(key);
+    if (prev && now - prev < 3500) return true;
+    this.recentEmitKeys.set(key, now);
+    if (this.recentEmitKeys.size > 200) {
+      for (const [k, ts] of this.recentEmitKeys) {
+        if (now - ts > 4000) this.recentEmitKeys.delete(k);
+      }
+    }
+    return false;
   }
 
   async start() {
@@ -63,7 +81,9 @@ class ChatObserver {
     console.log(`[TBC] Chat observer started (${this.isVodChat ? 'vod' : 'live'}${this.ffzActive ? ', ffz-dom' : ''})`);
   }
 
-  startIrc(fallbackChannel) {
+  startIrc(fallbackChannel, { backgroundOnly = false } = {}) {
+    if (this.ircSource) return;
+    this.ircBackgroundOnly = !!backgroundOnly;
     this.ircBuffer = [];
     this.ircSource = new TwitchIrcChatSource({
       getChannel: () => currentChannelLogin() || fallbackChannel || '',
@@ -82,6 +102,26 @@ class ChatObserver {
     this.ircSource?.stop();
     this.ircSource = null;
     this.ircBuffer = [];
+    this.ircBackgroundOnly = false;
+    this.recentEmitKeys.clear();
+  }
+
+  ensureBackgroundIrc() {
+    if (currentVodId()) return;
+    const channel = currentChannelLogin();
+    if (!channel || this.ircSource) return;
+    this.startIrc(channel, { backgroundOnly: this.mode === 'dom' });
+    console.log('[TBC] IRC started for background / PiP chat');
+  }
+
+  maybeStopBackgroundIrc() {
+    if (!this.ircSource || !this.ircBackgroundOnly) return;
+    if (enhancedPip?.isOpen?.()) return;
+    if (this.getSettings?.().tabAntiFreeze) return;
+    if (document.hidden) return;
+    this.ircSource.stop();
+    this.ircSource = null;
+    this.ircBackgroundOnly = false;
   }
 
   shouldEmit(msgEl) {
@@ -163,6 +203,8 @@ class ChatObserver {
   emitDanmaku(parsed, msgEl) {
     const settings = this.getSettings();
     if (!this.isActive()) return;
+
+    if (this.isDuplicateEmit(parsed.login || parsed.username, parsed.message)) return;
 
     if (isKeywordBlocked(parsed.message, settings.blockedKeywords)) return;
 

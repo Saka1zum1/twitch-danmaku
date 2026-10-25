@@ -11,6 +11,21 @@ class SpeechPanel {
     this.boundReposition = () => this.reposition();
     this.boundOutsideClick = (e) => this.handleOutsideClick(e);
     this.boundVoices = () => this.fillVoices();
+    this.uiBindings = {};
+  }
+
+  syncFromSettings() {
+    if (!this.isOpen || !this.balloon) return;
+    for (const [key, binding] of Object.entries(this.uiBindings)) {
+      const value = this.settings[key];
+      if (binding.type === 'checkbox') {
+        binding.el.checked = !!value;
+      } else if (binding.type === 'range') {
+        binding.el.value = String(value);
+        if (binding.format) binding.valueEl.textContent = binding.format(value);
+      }
+    }
+    this.fillVoices();
   }
 
   toggle(anchor) {
@@ -116,12 +131,14 @@ class SpeechPanel {
       this.updateSetting(key, input.checked);
     });
 
+    this.uiBindings[key] = { type: 'checkbox', el: input };
     switchWrap.append(input, slider);
     row.append(labelEl, switchWrap);
     return row;
   }
 
   render() {
+    this.uiBindings = {};
     this.balloon = document.createElement('div');
     this.balloon.className = 'tbc-balloon tbc-speech-panel';
 
@@ -317,6 +334,7 @@ class SpeechPanel {
       this.updateSetting(key, val);
     });
 
+    this.uiBindings[key] = { type: 'range', el: input, valueEl: valueSpan, format };
     row.append(header, input);
     return row;
   }

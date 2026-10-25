@@ -14,6 +14,7 @@ const MODULES = [
   'config.js',
   'storage.js',
   'utils/dom.js',
+  'utils/tab-antifreeze.js',
   'speech/speaker.js',
   'danmaku/lanes.js',
   'danmaku/engine.js',
@@ -44,6 +45,7 @@ const MODULES = [
   'ui/chat-context-menu.js',
   'ui/chat-clear-button.js',
   'ui/fullscreen-chat.js',
+  'ui/enhanced-pip.js',
   'ui/control-button.js',
   'main.js',
 ];

@@ -8,6 +8,23 @@ class SettingsPanel {
     this.isOpen = false;
     this.boundReposition = () => this.reposition();
     this.boundOutsideClick = (e) => this.handleOutsideClick(e);
+    this.uiBindings = {};
+  }
+
+  syncFromSettings() {
+    if (!this.isOpen || !this.balloon) return;
+    for (const [key, binding] of Object.entries(this.uiBindings)) {
+      const value = this.settings[key];
+      if (binding.type === 'checkbox') {
+        binding.el.checked = !!value;
+      } else if (binding.type === 'range') {
+        binding.el.value = String(value);
+        if (binding.format) binding.valueEl.textContent = binding.format(value);
+      } else if (binding.type === 'select') {
+        binding.el.value = String(value);
+      }
+    }
+    this.syncTranslateDependentRows();
   }
 
   toggle(anchor) {
@@ -119,6 +136,7 @@ class SettingsPanel {
       options.onChange?.(input.checked);
     });
 
+    this.uiBindings[key] = { type: 'checkbox', el: input };
     switchWrap.append(input, slider);
     row.append(labelEl, switchWrap);
     return row;
@@ -167,6 +185,7 @@ class SettingsPanel {
       this.updateSetting(key, val);
     });
 
+    this.uiBindings[key] = { type: 'range', el: input, valueEl: valueSpan, format };
     row.append(header, input);
     return row;
   }
@@ -193,6 +212,7 @@ class SettingsPanel {
       this.updateSetting(key, select.value);
     });
 
+    this.uiBindings[key] = { type: 'select', el: select };
     row.append(labelEl, select);
     return row;
   }
@@ -495,6 +515,7 @@ class SettingsPanel {
   }
 
   render() {
+    this.uiBindings = {};
     this.balloon = document.createElement('div');
     this.balloon.className = 'tbc-balloon';
     this.balloon.setAttribute('role', 'dialog');
@@ -528,6 +549,9 @@ class SettingsPanel {
       this.createRange(t('danmakuOpacity'), 'danmakuOpacity', 10, 100, 5, (v) => `${v}%`),
       this.createSelect(t('fontFamily'), 'fontFamily', getFontOptions()),
       this.createSelect(t('scrollArea'), 'scrollArea', getScrollAreaOptions()),
+      this.createDivider(),
+      this.createToggle(t('tabAntiFreeze'), 'tabAntiFreeze'),
+      this.createHint(t('tabAntiFreezeHint')),
       this.createDivider(),
       this.createToggle(t('superchatPinned'), 'superchatPinned'),
       this.createSelect(t('superchatPosition'), 'superchatPosition', getSuperchatPositionOptions()),

@@ -26,6 +26,7 @@ const DEFAULT_SETTINGS = {
   superchatPosition: 'top',
   superchatDuration: 15,
   superchatAnimation: 'slide',
+  tabAntiFreeze: false,
 };
 
 const SELECTORS = {
@@ -62,6 +63,26 @@ const CHEER_EMOTE_PREFIXES = [
 ];
 const CHEER_PREFIX_PATTERN = CHEER_EMOTE_PREFIXES.map((prefix) => prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
 const BITS_TOKEN_PATTERN = `(?:^|\\s)(?:[A-Za-z][\\w]*?(?:Cheer|cheer)|(?:${CHEER_PREFIX_PATTERN}))([1-9]\\d{0,6})(?=\\s|$)`;
+
+const SCROLL_AREAS = ['full', 'top-half', 'bottom-half', 'top-quarter'];
+const SUPERCHAT_POSITIONS = ['top', 'bottom', 'top-left', 'top-right', 'bottom-left', 'bottom-right'];
+
+function resolveSuperchatPlacement(value) {
+  const key = String(value || 'top').toLowerCase().replace(/_/g, '-');
+  const map = {
+    top: { vertical: 'top', horizontal: 'center' },
+    bottom: { vertical: 'bottom', horizontal: 'center' },
+    'top-left': { vertical: 'top', horizontal: 'left' },
+    topleft: { vertical: 'top', horizontal: 'left' },
+    'top-right': { vertical: 'top', horizontal: 'right' },
+    topright: { vertical: 'top', horizontal: 'right' },
+    'bottom-left': { vertical: 'bottom', horizontal: 'left' },
+    bottomleft: { vertical: 'bottom', horizontal: 'left' },
+    'bottom-right': { vertical: 'bottom', horizontal: 'right' },
+    bottomright: { vertical: 'bottom', horizontal: 'right' },
+  };
+  return map[key] || map.top;
+}
 
 const STORAGE_KEY = 'tbc_settings_v1';
 

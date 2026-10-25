@@ -6,6 +6,9 @@ function loadSettings() {
       if (merged.scrollArea === 'half') {
         merged.scrollArea = 'top-half';
       }
+      if (!SCROLL_AREAS.includes(merged.scrollArea)) {
+        merged.scrollArea = DEFAULT_SETTINGS.scrollArea;
+      }
       if (!TRANSLATE_PROVIDERS.includes(merged.translateProvider)) {
         merged.translateProvider = DEFAULT_SETTINGS.translateProvider;
       }
@@ -24,9 +27,11 @@ function loadSettings() {
       merged.speechVoice = typeof merged.speechVoice === 'string' ? merged.speechVoice : '';
       merged.speechLang = typeof merged.speechLang === 'string' ? merged.speechLang : '';
       merged.superchatPinned = !!merged.superchatPinned;
-      if (!['top', 'bottom'].includes(merged.superchatPosition)) merged.superchatPosition = 'top';
+      const scPos = String(merged.superchatPosition || 'top').toLowerCase().replace(/_/g, '-');
+      merged.superchatPosition = SUPERCHAT_POSITIONS.includes(scPos) ? scPos : 'top';
       if (!['fade', 'slide', 'pop', 'shine'].includes(merged.superchatAnimation)) merged.superchatAnimation = 'slide';
       merged.superchatDuration = clamp(finiteNumber(merged.superchatDuration, DEFAULT_SETTINGS.superchatDuration), 2, 300);
+      merged.tabAntiFreeze = !!merged.tabAntiFreeze;
       return merged;
     }
   } catch (_) {

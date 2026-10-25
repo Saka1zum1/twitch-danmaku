@@ -1,18 +1,35 @@
 class ControlButton {
-  constructor({ onToggleDanmaku, onTogglePanel, onToggleSpeech, onToggleHistory, getSettings, isPanelOpen, isSpeechPanelOpen, isHistoryPanelOpen }) {
+  constructor({
+    onToggleDanmaku,
+    onToggleTranslate,
+    onTogglePanel,
+    onToggleSpeech,
+    onToggleHistory,
+    onTogglePip,
+    getSettings,
+    isPanelOpen,
+    isSpeechPanelOpen,
+    isHistoryPanelOpen,
+    isPipOpen,
+  }) {
     this.onToggleDanmaku = onToggleDanmaku;
+    this.onToggleTranslate = onToggleTranslate;
     this.onTogglePanel = onTogglePanel;
     this.onToggleSpeech = onToggleSpeech;
     this.onToggleHistory = onToggleHistory;
+    this.onTogglePip = onTogglePip;
     this.getSettings = getSettings;
     this.isPanelOpen = isPanelOpen;
     this.isSpeechPanelOpen = isSpeechPanelOpen;
     this.isHistoryPanelOpen = isHistoryPanelOpen;
+    this.isPipOpen = isPipOpen;
     this.wrap = null;
     this.danmakuBtn = null;
+    this.translateBtn = null;
     this.speechBtn = null;
     this.historyBtn = null;
     this.settingsBtn = null;
+    this.pipBtn = null;
     this.controlsGroup = null;
     this.retryTimer = null;
   }
@@ -45,6 +62,15 @@ class ControlButton {
       this.onToggleDanmaku();
     });
 
+    this.translateBtn = this.createBtn('tbc-translate-btn', t('translateToggle'), `
+      <span class="tbc-icon tbc-icon-on">${ICON_TRANSLATE_ON}</span>
+      <span class="tbc-icon tbc-icon-off">${ICON_TRANSLATE_OFF}</span>
+    `);
+    this.translateBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.onToggleTranslate?.();
+    });
+
     this.speechBtn = this.createBtn('tbc-speech-btn', t('speechToggle'), `
       <span class="tbc-icon tbc-icon-on">${ICON_SPEECH_ON}</span>
       <span class="tbc-icon tbc-icon-mute">${ICON_SPEECH_MUTE}</span>
@@ -67,21 +93,31 @@ class ControlButton {
       this.onToggleHistory(this.historyBtn);
     });
 
-    this.wrap.append(this.danmakuBtn, this.settingsBtn, this.speechBtn, this.historyBtn);
+    this.pipBtn = this.createBtn('tbc-pip-btn', t('pipOpen'), ICON_PIP);
+    this.pipBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.onTogglePip?.();
+    });
+
+    this.wrap.append(this.danmakuBtn, this.translateBtn, this.settingsBtn, this.speechBtn, this.historyBtn, this.pipBtn);
     this.controlsGroup.appendChild(this.wrap);
     this.updateDanmakuState();
+    this.updateTranslateState();
     this.updateSpeechState();
     this.updatePanelState();
+    this.updatePipState();
   }
 
   remount() {
-    if (this.wrap?.isConnected && this.wrap.querySelector('.tbc-speech-btn') && this.wrap.querySelector('.tbc-history-btn')) return;
+    if (this.wrap?.isConnected && this.wrap.querySelector('.tbc-translate-btn') && this.wrap.querySelector('.tbc-speech-btn') && this.wrap.querySelector('.tbc-history-btn') && this.wrap.querySelector('.tbc-pip-btn')) return;
     this.wrap?.remove();
     this.wrap = null;
     this.danmakuBtn = null;
+    this.translateBtn = null;
     this.speechBtn = null;
     this.historyBtn = null;
     this.settingsBtn = null;
+    this.pipBtn = null;
     clearTimeout(this.retryTimer);
     this.retryTimer = setTimeout(() => this.mount(), 500);
   }
@@ -92,6 +128,15 @@ class ControlButton {
     this.danmakuBtn.classList.toggle('tbc-danmaku-enabled', enabled);
     this.danmakuBtn.classList.toggle('tbc-danmaku-disabled', !enabled);
     this.danmakuBtn.title = enabled ? t('danmakuOn') : t('danmakuOff');
+  }
+
+  updateTranslateState() {
+    if (!this.translateBtn) return;
+    const enabled = !!this.getSettings().translateEnabled;
+    this.translateBtn.classList.toggle('tbc-translate-on', enabled);
+    this.translateBtn.classList.toggle('tbc-translate-off', !enabled);
+    this.translateBtn.title = enabled ? t('translateOn') : t('translateOff');
+    this.translateBtn.setAttribute('aria-pressed', enabled ? 'true' : 'false');
   }
 
   updateSpeechState() {
@@ -118,10 +163,19 @@ class ControlButton {
     this.historyBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
   }
 
+  updatePipState() {
+    if (!this.pipBtn) return;
+    const open = !!this.isPipOpen?.();
+    this.pipBtn.classList.toggle('tbc-active', open);
+    this.pipBtn.title = open ? t('pipClose') : t('pipOpen');
+    this.pipBtn.setAttribute('aria-pressed', open ? 'true' : 'false');
+  }
+
   updatePanelState() {
     if (!this.settingsBtn) return;
     this.settingsBtn.classList.toggle('tbc-active', this.isPanelOpen());
     this.settingsBtn.setAttribute('aria-expanded', this.isPanelOpen() ? 'true' : 'false');
+    this.updateTranslateState();
     this.updateSpeechState();
     this.updateHistoryState();
   }
@@ -131,8 +185,10 @@ class ControlButton {
     this.wrap?.remove();
     this.wrap = null;
     this.danmakuBtn = null;
+    this.translateBtn = null;
     this.speechBtn = null;
     this.historyBtn = null;
     this.settingsBtn = null;
+    this.pipBtn = null;
   }
 }

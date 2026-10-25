@@ -16,9 +16,11 @@ No more constantly glancing at the chat panel. Messages flow across the screen s
 2. Install this script, then open any Twitch live stream or VOD
 3. New buttons appear in the player control bar:
    - **Danmaku button** — Toggle danmaku on/off
+   - **Translation button** — Toggle live translation
    - **Read button** — Open speech settings
    - **Download button** — Export the live chat buffer or archived VOD chat
    - **Settings button** — Open the options panel
+   - **Enhanced PiP** — Open a resizable mini window (Chrome / Edge 116+)
 4. Customize appearance, opacity, keyword blocking, or enable translation in the settings panel
 
 **Tip:** Hover over a danmaku to pause and read it. Click to see who sent it.
@@ -37,7 +39,7 @@ No more constantly glancing at the chat panel. Messages flow across the screen s
 ### Customization
 - Adjust scroll speed, font size, and choose from 18 system fonts
 - **Danmaku opacity** — 10–100% (default 100%). Changes apply to danmaku already on screen
-- Scroll area: full screen / top half / top quarter
+- Scroll area: full screen / top half / bottom half / top quarter
 - Auto-adapts to fullscreen and window resize
 
 ### Read Aloud
@@ -47,9 +49,15 @@ No more constantly glancing at the chat panel. Messages flow across the screen s
 
 ### Super Chat Pin
 - Recognizes Bits cheers, Prime / tier subscriptions (including resub messages), highlighted paid messages, and pinned chat
-- Shows real avatars, truncated usernames, amount / Prime / Tier badges, and Twitch cheer-tier colors
-- Multiple pins can show at once without covering each other; long text marquees inside the bubble
-- Animations: fade, slide, pop, or shine. Hover pauses the animation and shows the sender; a corner dismiss button closes a pin early
+- Pin at top/bottom center or any corner; pins can sit on top of scrolling danmaku
+- Shows real avatars, truncated usernames, badges, and Twitch cheer-tier colors
+- Multiple pins at once; long text marquees inside the bubble
+- Animations: fade, slide, pop, or shine. Hover pauses; dismiss closes early
+
+### Enhanced Picture-in-Picture
+- Resizable mini window from the player bar, video fills the frame
+- Danmaku stays in sync with the live page; sidebar for danmaku toggle and settings
+- Chat input with favorites; helps keep chat active when the tab is in the background
 
 ### Favorites & Wheel Mode
 - Star button next to the chat input opens favorites: save frequent lines and send them with one click
@@ -95,12 +103,14 @@ No more constantly glancing at the chat panel. Messages flow across the screen s
 ### Quality of Life
 - No flood of historical messages when joining a stream
 - No burst of queued messages when returning to the tab
-- Skips bot spam, dividers, and link-only messages
+- Skips common bots, dividers, link-only lines, and system notices without real user chat (watch streaks, channel-point redemptions, etc.)
+- Translation and speech toggles stay in sync across the player bar, settings, and demo page
+- Optional anti tab-freeze for smoother background viewing
 - UI auto-detects browser language (Chinese / English)
 - Zero external dependencies — lightweight and fast
 
 ### Demo
-Open the demo in your browser. No install or build step is required. Try favorites, Super Chat (Bits / subs), clear chat, the context menu, speech, and in-chat translations:
+Open the demo in your browser. No install or build step is required. Header toggles for translation and speech. Try scroll area, Super Chat positions, favorites, enhanced PiP, the context menu, and in-chat translations:
 
 [Twitch Danmaku demo](https://saka1zum1.github.io/twitch-danmaku/)
 

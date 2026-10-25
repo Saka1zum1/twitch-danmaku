@@ -24,6 +24,29 @@
       height: 56px;
       z-index: 2000;
       background: #0e0e10;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      padding: 0 16px;
+      box-sizing: border-box;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .page-header__toggle {
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 6px;
+      background: #18181b;
+      color: #adadb8;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 6px 12px;
+      cursor: pointer;
+    }
+    .page-header__toggle.is-on {
+      color: #efeff1;
+      border-color: #9147ff;
+      background: rgba(145, 71, 255, 0.22);
     }
     .video-player__container {
       position: relative;
@@ -36,17 +59,98 @@
       position: absolute;
       inset: 0;
     }
-    .fake-stage {
+    .tbc-demo-stage {
       position: absolute;
       inset: 0;
-      display: grid;
-      place-items: center;
+      z-index: 1;
+      overflow: hidden;
+      background: #0e0e10;
+      pointer-events: none;
+    }
+
+    .tbc-demo-stage__bg,
+    .tbc-demo-stage__glow,
+    .tbc-demo-stage__sheen {
+      position: absolute;
+      inset: -40%;
+      will-change: transform, background-position, opacity;
+    }
+
+    .tbc-demo-stage__bg {
+      background: linear-gradient(
+        120deg,
+        #0e0e10 0%,
+        #2b1055 18%,
+        #9147ff 32%,
+        #1a0a2e 48%,
+        #0e0e10 62%,
+        #772ce8 78%,
+        #0e0e10 100%
+      );
+      background-size: 320% 320%;
+      animation: tbc-demo-bg-shift 7s ease-in-out infinite;
+    }
+
+    .tbc-demo-stage__glow {
+      background:
+        radial-gradient(circle at 20% 30%, rgba(145, 71, 255, 0.75), transparent 42%),
+        radial-gradient(circle at 80% 70%, rgba(191, 148, 255, 0.55), transparent 40%),
+        radial-gradient(circle at 55% 15%, rgba(119, 44, 232, 0.45), transparent 38%);
+      mix-blend-mode: screen;
+      animation: tbc-demo-glow-drift 9s ease-in-out infinite;
+    }
+
+    .tbc-demo-stage__sheen {
+      inset: -60%;
+      background: linear-gradient(
+        105deg,
+        transparent 35%,
+        rgba(255, 255, 255, 0.08) 48%,
+        rgba(191, 148, 255, 0.22) 52%,
+        transparent 65%
+      );
+      background-size: 220% 100%;
+      animation: tbc-demo-sheen-sweep 5.5s linear infinite;
+      opacity: 0.9;
+    }
+
+    .tbc-demo-stage__label {
+      position: absolute;
+      left: 24px;
+      bottom: 20px;
+      z-index: 2;
       color: #adadb8;
       font-size: 14px;
-      background:
-        linear-gradient(135deg, rgba(145, 71, 255, 0.22), transparent 42%),
-        repeating-linear-gradient(0deg, #111 0 2px, #161616 2px 4px);
+      line-height: 1.4;
+      text-shadow: 0 1px 8px rgba(0, 0, 0, 0.85);
       pointer-events: none;
+    }
+
+    .tbc-demo-stage__title {
+      display: block;
+      margin-bottom: 4px;
+      color: #efeff1;
+      font-size: 24px;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+    }
+
+    @keyframes tbc-demo-bg-shift {
+      0% { background-position: 0% 50%; transform: scale(1.05) rotate(0deg); }
+      33% { background-position: 50% 100%; transform: scale(1.12) rotate(2deg); }
+      66% { background-position: 100% 0%; transform: scale(1.08) rotate(-2deg); }
+      100% { background-position: 0% 50%; transform: scale(1.05) rotate(0deg); }
+    }
+
+    @keyframes tbc-demo-glow-drift {
+      0% { transform: translate(-12%, -8%) scale(1) rotate(0deg); }
+      50% { transform: translate(14%, 10%) scale(1.15) rotate(12deg); }
+      100% { transform: translate(-12%, -8%) scale(1) rotate(0deg); }
+    }
+
+    @keyframes tbc-demo-sheen-sweep {
+      0% { background-position: -120% 0; transform: translateX(-8%); }
+      100% { background-position: 220% 0; transform: translateX(8%); }
     }
     .player-controls {
       position: absolute;
@@ -203,11 +307,22 @@
   </style>
 </head>
 <body>
-  <div class="page-header"></div>
+  <div class="page-header">
+    <button type="button" id="demo-toggle-translate" class="page-header__toggle">翻译：关</button>
+    <button type="button" id="demo-toggle-speech" class="page-header__toggle">朗读：关</button>
+  </div>
   <div class="layout">
     <div class="video-player__container">
+      <div class="tbc-demo-stage" aria-hidden="true">
+        <div class="tbc-demo-stage__bg"></div>
+        <div class="tbc-demo-stage__glow"></div>
+        <div class="tbc-demo-stage__sheen"></div>
+        <div class="tbc-demo-stage__label">
+          <span class="tbc-demo-stage__title">Twitch Danmaku</span>
+          enhanced PiP preview
+        </div>
+      </div>
       <div class="video-player__overlay"></div>
-      <div class="fake-stage">Twitch Danmaku demo player</div>
       <div data-a-target="player-controls" class="player-controls">
         <div class="player-controls__right-control-group"></div>
       </div>
@@ -248,7 +363,7 @@
         <button id="add-cheer" class="secondary" type="button">Add cheer</button>
         <button id="add-sub" class="secondary" type="button">Add sub</button>
       </div>
-      <p class="hint">列表里已有的消息不会变成弹幕。预热结束后，点按钮或等待自动插入的新消息会从视频上飘过。可试用朗读、悬停暂停、复制到输入框、顶栏清空聊天、输入框旁收藏星标与独轮车、Super Chat（Bits / 订阅，悬停可关闭）、右键聊天行（翻译 / 朗读 / 重发 / 收藏 / 屏蔽）。机器人刷屏、分隔线、纯链接不会进弹幕。演示环境屏蔽与真实发送需 Twitch 登录。</p>
+      <p class="hint">列表里已有的消息不会变成弹幕。预热结束后，点按钮或等待自动插入的新消息会从视频上飘过。顶栏可一键开关翻译与朗读，并与播放器按钮、设置面板同步。可试用滚动区域（全屏/上或下半屏/顶部四分之一）、Super Chat 悬停位置（含四角，可叠在滚动弹幕上）、朗读、悬停暂停、复制到输入框、收藏与独轮车、Super Chat（Bits / 订阅）、右键菜单（翻译 / 朗读 / 重发 / 收藏 / 屏蔽）、增强画中画（Chrome / Edge 116+）。连续观看、频道点数等系统通知和常见机器人消息不会进入弹幕。演示环境屏蔽与真实发送需 Twitch 登录。</p>
     </div>
   </div>
 
@@ -287,9 +402,9 @@
       ['表情', '#ffab91', '😂😂😂'],
       ['长句', '#80d8ff', '这是一条比较长的弹幕，用来试听变速模式会不会在超过单条最长朗读时间之后自动加快语速。'],
     ];
-    // Twitch Bits card presets → cheer-tier colors: 300 purple, 1000 teal, 5000 blue, 10000 red
+    // Twitch Bits card presets → cheer-tier colors: 100 purple, 1000 teal, 5000 blue, 10000 red
     const cheerPresets = [
-      { amount: 300, background: 'rgb(156, 62, 232)' },
+      { amount: 100, background: 'rgb(156, 62, 232)' },
       { amount: 1000, background: 'rgb(29, 178, 165)' },
       { amount: 5000, background: 'rgb(0, 153, 254)' },
       { amount: 10000, background: 'rgb(244, 48, 33)' },
@@ -421,6 +536,53 @@
     document.getElementById('add-sub').addEventListener('click', () => {
       addSubMessage();
     });
+
+    function syncDemoHeaderToggles() {
+      const settings = window.__tbcGetSettings?.() || loadSettings();
+      const translateBtn = document.getElementById('demo-toggle-translate');
+      const speechBtn = document.getElementById('demo-toggle-speech');
+      if (translateBtn) {
+        const on = !!settings.translateEnabled;
+        translateBtn.classList.toggle('is-on', on);
+        translateBtn.textContent = on ? '翻译：开' : '翻译：关';
+      }
+      if (speechBtn) {
+        const on = !!settings.speechEnabled;
+        speechBtn.classList.toggle('is-on', on);
+        speechBtn.textContent = on ? '朗读：开' : '朗读：关';
+      }
+    }
+
+    document.getElementById('demo-toggle-translate')?.addEventListener('click', () => {
+      if (window.__tbcToggleTranslate) {
+        window.__tbcToggleTranslate();
+        return;
+      }
+      const next = loadSettings();
+      next.translateEnabled = !next.translateEnabled;
+      saveSettings(next);
+      window.__tbcApplySettings?.(next);
+      syncDemoHeaderToggles();
+    });
+
+    document.getElementById('demo-toggle-speech')?.addEventListener('click', () => {
+      if (window.__tbcToggleSpeech) {
+        window.__tbcToggleSpeech();
+        return;
+      }
+      const next = loadSettings();
+      next.speechEnabled = !next.speechEnabled;
+      saveSettings(next);
+      window.__tbcApplySettings?.(next);
+      syncDemoHeaderToggles();
+    });
+
+    window.addEventListener('tbc-settings-updated', syncDemoHeaderToggles);
+    const bootWatch = setInterval(() => {
+      if (!window.__tbcGetSettings) return;
+      syncDemoHeaderToggles();
+      clearInterval(bootWatch);
+    }, 200);
 
     setTimeout(() => {
       samples.forEach((sample, index) => {

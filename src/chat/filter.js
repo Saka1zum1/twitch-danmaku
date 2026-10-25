@@ -1,6 +1,19 @@
 const IGNORED_CHAT_BOTS = new Set([
   'streamelements',
   'streamelement',
+  'nightbot',
+  'moobot',
+  'fossabot',
+  'streamlabs',
+  'wizebot',
+  'botrix',
+  'botrixlive',
+  'coeabot',
+  'phantombot',
+  'stay_hydrated_bot',
+  'soundalerts',
+  'streamholics',
+  'commanderroot',
 ]);
 
 const CHAT_DIVIDER_TEXT_RE = /^(全新|新消息|新訊息|消息分隔|訊息分隔|new messages?|welcome to the chat(?: room)?!?|chat cleared|room modes?)$/i;
@@ -13,6 +26,54 @@ function normalizeChatActor(value) {
 function isIgnoredChatBot(login, username) {
   const actors = [login, username].map(normalizeChatActor).filter(Boolean);
   return actors.some((name) => IGNORED_CHAT_BOTS.has(name));
+}
+
+function isUserNoticeLine(msgEl) {
+  return !!msgEl?.matches?.('[data-test-selector="user-notice-line"], .user-notice-line');
+}
+
+function hasUserAuthoredChatBody(msgEl) {
+  if (!msgEl) return false;
+
+  const customRoot = msgEl.querySelector('[data-a-target="chat-resubscription-message__custom-message"]');
+  const chatRoot = customRoot || msgEl;
+  const body = chatRoot.querySelector(
+    '[data-a-target="chat-line-message-body"], .chat-line__message-body, [data-a-target="chat-message-container"]',
+  ) || chatRoot;
+
+  if (body.querySelector('[data-a-target="chat-message-text"], .text-fragment')?.textContent?.trim()) {
+    return true;
+  }
+  if (body.querySelector('img[data-emote-name], img.chat-line__message--emote, .chat-line__message--emote')) {
+    return true;
+  }
+  return false;
+}
+
+function isPaidSuperChatNotice(snapshot) {
+  const meta = snapshot?.superchatMeta;
+  return !!snapshot?.superchat && !!meta && (meta.kind === 'cheer' || meta.kind === 'sub');
+}
+
+function lacksUserLiveChatContent(snapshot, msgEl = null) {
+  if (!snapshot) return true;
+
+  if (isPaidSuperChatNotice(snapshot)) return false;
+
+  if (msgEl && hasUserAuthoredChatBody(msgEl)) return false;
+
+  const plain = String(snapshot.message || '').replace(/\s+/g, ' ').trim();
+  const hasRenderableParts = Array.isArray(snapshot.parts) && snapshot.parts.some((part) => (
+    (part.type === 'text' && String(part.value || '').trim())
+    || (part.type === 'emote' && (part.name || part.src))
+  ));
+  if (hasRenderableParts && !isUserNoticeLine(msgEl)) return false;
+
+  if (msgEl && isUserNoticeLine(msgEl)) return true;
+
+  if (!msgEl) return !plain;
+
+  return !plain && !hasRenderableParts;
 }
 
 function isPureLinkMessage(text) {
@@ -55,8 +116,11 @@ function isChatDividerMessage(msgEl, snapshot = null) {
 function shouldIgnoreChatPayload(snapshot, msgEl = null) {
   if (!snapshot) return true;
   if (isIgnoredChatBot(snapshot.login, snapshot.username)) return true;
-  // Subscribe / cheer Super Chats must not be dropped as "divider" system lines.
-  if (snapshot.superchat) return false;
+  if (isPaidSuperChatNotice(snapshot)) {
+    if (isPureLinkMessage(snapshot.message)) return true;
+    return false;
+  }
+  if (lacksUserLiveChatContent(snapshot, msgEl)) return true;
   if (isChatDividerMessage(msgEl, snapshot)) return true;
   if (isPureLinkMessage(snapshot.message)) return true;
   return false;

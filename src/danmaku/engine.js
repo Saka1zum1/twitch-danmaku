@@ -91,11 +91,11 @@ class DanmakuEngine {
     this.pinnedItems = live;
     if (!live.length || !this.getSettings().superchatPinned || !this.getSettings().enabled) return null;
     const band = this.getPinnedBandHeight();
-    const pos = this.getSettings().superchatPosition === 'bottom' ? 'bottom' : 'top';
-    const top = pos === 'bottom'
+    const placement = resolveSuperchatPlacement(this.getSettings().superchatPosition);
+    const top = placement.vertical === 'bottom'
       ? Math.max(0, playerHeight - this.getBottomReserve() - band)
       : 8;
-    return { pos, top, height: band };
+    return { ...placement, top, height: band };
   }
 
   getScrollAreaRect(playerRect) {
@@ -109,6 +109,12 @@ class DanmakuEngine {
       case 'top-half':
         area = { top: 0, height: Math.max(laneHeight, h * 0.5) };
         break;
+      case 'bottom-half':
+        area = {
+          top: h * 0.5,
+          height: Math.max(laneHeight, h * 0.5 - bottomReserve),
+        };
+        break;
       case 'top-quarter':
         area = { top: 0, height: Math.max(laneHeight, h * 0.25) };
         break;
@@ -117,17 +123,7 @@ class DanmakuEngine {
         break;
     }
 
-    const band = this.getPinnedBandRect(h);
-    if (!band) return area;
-    const areaBottom = area.top + area.height;
-    const bandBottom = band.top + band.height;
-    if (bandBottom <= area.top || band.top >= areaBottom) return area;
-    if (band.pos === 'top') {
-      const nextTop = Math.max(area.top, bandBottom + 4);
-      return { top: nextTop, height: Math.max(laneHeight, areaBottom - nextTop) };
-    }
-    const nextBottom = Math.min(areaBottom, band.top - 4);
-    return { top: area.top, height: Math.max(laneHeight, nextBottom - area.top) };
+    return area;
   }
 
   migrateDanmakuItems(items, oldRect, newWidth, newHeight) {
@@ -252,7 +248,9 @@ class DanmakuEngine {
       this.superchatLayer.style.display = 'none';
       return;
     }
-    this.superchatLayer.classList.toggle('tbc-sc-bottom', band.pos === 'bottom');
+    this.superchatLayer.classList.toggle('tbc-sc-bottom', band.vertical === 'bottom');
+    this.superchatLayer.classList.toggle('tbc-sc-align-left', band.horizontal === 'left');
+    this.superchatLayer.classList.toggle('tbc-sc-align-right', band.horizontal === 'right');
     Object.assign(this.superchatLayer.style, fullscreen ? {
       display: 'flex',
       position: 'fixed',
@@ -462,12 +460,31 @@ class DanmakuEngine {
     }
   }
 
-  renderScrolling({ username, message, parts, usernameColor, profileUrl, originalMessage, translated }) {
+  renderScrolling(payload) {
+    const {
+      username,
+      message,
+      parts,
+      usernameColor,
+      profileUrl,
+      originalMessage,
+      translated,
+    } = payload || {};
     const settings = this.getSettings();
     const displayParts = parts?.length
       ? parts
       : (message ? [{ type: 'text', value: message }] : []);
-    if (!settings.enabled || !this.layer || !displayParts.length) return;
+    if (!settings.enabled || !displayParts.length) return;
+
+    if (typeof this.onComment === 'function') {
+      try {
+        this.onComment(payload);
+      } catch (error) {
+        console.error('[TBC] PiP danmaku failed:', error);
+      }
+    }
+
+    if (!this.layer) return;
 
     const layerWidth = this.layer.clientWidth || 800;
     const speed = clamp(settings.speed, 1, 10);

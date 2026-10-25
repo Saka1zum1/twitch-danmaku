@@ -231,6 +231,20 @@ function injectStyles() {
       opacity: 0.55;
     }
 
+    .tbc-translate-btn .tbc-icon {
+      display: none;
+      line-height: 0;
+    }
+
+    .tbc-translate-btn.tbc-translate-on .tbc-icon-on,
+    .tbc-translate-btn.tbc-translate-off .tbc-icon-off {
+      display: block;
+    }
+
+    .tbc-translate-btn.tbc-translate-off {
+      opacity: 0.55;
+    }
+
     /* Cloned InjectLayout keeps Twitch button chrome; fallback is for demo / missing shell. */
     .tbc-chat-clear-wrap {
       flex-shrink: 0;
@@ -550,6 +564,16 @@ function injectStyles() {
 
     .tbc-superchat-layer.tbc-sc-bottom {
       justify-content: flex-end;
+    }
+
+    .tbc-superchat-layer.tbc-sc-align-left {
+      align-items: flex-start;
+      padding-left: 8px;
+    }
+
+    .tbc-superchat-layer.tbc-sc-align-right {
+      align-items: flex-end;
+      padding-right: 8px;
     }
 
     .tbc-superchat-item {
@@ -1566,6 +1590,29 @@ function injectStyles() {
 
     .tbc-fs-chat-status.is-ok {
       color: #00f593;
+    }
+
+    .tbc-pip-page-toast {
+      position: fixed;
+      left: 50%;
+      bottom: 24px;
+      transform: translateX(-50%);
+      z-index: 100000;
+      max-width: min(420px, calc(100% - 24px));
+      padding: 10px 14px;
+      border-radius: 8px;
+      background: rgba(14, 14, 16, 0.94);
+      color: #efeff1;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      font-size: 13px;
+      line-height: 1.4;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s ease;
+    }
+
+    .tbc-pip-page-toast.is-show {
+      opacity: 1;
     }
   `);
 }

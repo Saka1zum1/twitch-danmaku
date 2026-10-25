@@ -4,7 +4,7 @@
 // @name:zh-TW   Twitch 彈幕 | 即時翻譯
 // @name:ja      Twitch 弾幕 | リアルタイム翻訳
 // @namespace    https://github.com/saka1zum1/twitch-danmaku
-// @version      1.9.2
+// @version      1.9.9
 // @description  Convert Twitch live chat to video danmaku with real-time translation
 // @description:zh-CN  将 Twitch 直播评论转换为视频弹幕，支持实时翻译
 // @description:zh-TW  將聊天室中的新訊息轉換成影片上的滾動彈幕，支持即時翻譯
@@ -46,6 +46,9 @@ const LOCALES = {
     fontFamily: '字体',
     scrollArea: '滚动区域',
     translateEnable: '启用翻译',
+    translateToggle: '实时翻译',
+    translateOn: '翻译已开启',
+    translateOff: '翻译已关闭',
     translateInChat: '聊天室显示译文',
     translateBadge: '译',
     translateProvider: '翻译引擎',
@@ -178,8 +181,12 @@ const LOCALES = {
     superchatPosition: '悬停位置',
     superchatDuration: '悬停时间',
     superchatAnimation: '悬停动画',
-    superchatTop: '顶部',
-    superchatBottom: '底部',
+    superchatTop: '顶部居中',
+    superchatBottom: '底部居中',
+    superchatTopLeft: '左上角',
+    superchatTopRight: '右上角',
+    superchatBottomLeft: '左下角',
+    superchatBottomRight: '右下角',
     superchatFade: '淡入淡出',
     superchatSlide: '滑入',
     superchatPop: '弹出',
@@ -206,6 +213,7 @@ const LOCALES = {
     fsChatSent: '已发送',
     scrollAreaFull: '全屏',
     scrollAreaTopHalf: '上半屏',
+    scrollAreaBottomHalf: '下半屏',
     scrollAreaTopQuarter: '顶部 1/4',
     fontSystem: '系统默认',
     fontYaHei: '微软雅黑',
@@ -238,6 +246,24 @@ const LOCALES = {
     tooltipCopy: '复制到聊天框',
     tooltipOpenProfile: '打开发送者主页',
     chatClear: '清空聊天',
+    pipOpen: '增强画中画',
+    pipClose: '关闭增强画中画',
+    pipTitle: '增强画中画',
+    pipNeedBrowser: '增强画中画需要 Chrome 或 Edge 116 及以上',
+    pipNoVideo: '没有可用的播放器画面',
+    pipCaptureFailed: '无法捕获画面',
+    pipOpenFailed: '无法打开画中画窗口',
+    pipReload: '刷新画面',
+    pipReloaded: '画面已刷新',
+    pipReloadFailed: '刷新失败，请检查直播页视频',
+    pipDanmaku: '弹幕开关',
+    pipSettings: '弹幕设置',
+    pipSettingsHint: '已在直播页打开设置',
+    pipSend: '发送消息',
+    pipBack: '回到直播页',
+    pipVodNoSend: '回放页不能发送聊天',
+    tabAntiFreeze: '防页签冻结',
+    tabAntiFreezeHint: '伪造页面始终可见，减轻后台时聊天与播放器被挂起（增强 PiP 打开时自动启用）',
   },
   en: {
     danmakuToggle: 'Danmaku toggle',
@@ -252,6 +278,9 @@ const LOCALES = {
     fontFamily: 'Font',
     scrollArea: 'Scroll area',
     translateEnable: 'Enable translation',
+    translateToggle: 'Live translation',
+    translateOn: 'Translation on',
+    translateOff: 'Translation off',
     translateInChat: 'Show translation in chat',
     translateBadge: 'TL',
     translateProvider: 'Translation engine',
@@ -384,8 +413,12 @@ const LOCALES = {
     superchatPosition: 'Pin position',
     superchatDuration: 'Pin time',
     superchatAnimation: 'Pin animation',
-    superchatTop: 'Top',
-    superchatBottom: 'Bottom',
+    superchatTop: 'Top center',
+    superchatBottom: 'Bottom center',
+    superchatTopLeft: 'Top left',
+    superchatTopRight: 'Top right',
+    superchatBottomLeft: 'Bottom left',
+    superchatBottomRight: 'Bottom right',
     superchatFade: 'Fade',
     superchatSlide: 'Slide',
     superchatPop: 'Pop',
@@ -412,6 +445,7 @@ const LOCALES = {
     fsChatSent: 'Sent',
     scrollAreaFull: 'Full screen',
     scrollAreaTopHalf: 'Top half',
+    scrollAreaBottomHalf: 'Bottom half',
     scrollAreaTopQuarter: 'Top quarter',
     fontSystem: 'System default',
     fontYaHei: 'Microsoft YaHei',
@@ -444,6 +478,24 @@ const LOCALES = {
     tooltipCopy: 'Copy to chat',
     tooltipOpenProfile: 'Open sender profile',
     chatClear: 'Clear chat',
+    pipOpen: 'Enhanced picture-in-picture',
+    pipClose: 'Close enhanced picture-in-picture',
+    pipTitle: 'Enhanced PiP',
+    pipNeedBrowser: 'Enhanced picture-in-picture needs Chrome or Edge 116 or newer',
+    pipNoVideo: 'No player video is available',
+    pipCaptureFailed: 'Could not capture the video',
+    pipOpenFailed: 'Could not open the picture-in-picture window',
+    pipReload: 'Refresh video',
+    pipReloaded: 'Video refreshed',
+    pipReloadFailed: 'Refresh failed. Check the video on the live page',
+    pipDanmaku: 'Danmaku',
+    pipSettings: 'Danmaku settings',
+    pipSettingsHint: 'Settings opened on the Twitch page',
+    pipSend: 'Send a message',
+    pipBack: 'Back to stream',
+    pipVodNoSend: 'Chat cannot be sent on a VOD page',
+    tabAntiFreeze: 'Anti tab freeze',
+    tabAntiFreezeHint: 'Pretend the page stays visible to reduce chat/player throttling when backgrounded (auto on while enhanced PiP is open)',
   },
 };
 
@@ -497,6 +549,7 @@ function getScrollAreaOptions() {
   return [
     { label: t('scrollAreaFull'), value: 'full' },
     { label: t('scrollAreaTopHalf'), value: 'top-half' },
+    { label: t('scrollAreaBottomHalf'), value: 'bottom-half' },
     { label: t('scrollAreaTopQuarter'), value: 'top-quarter' },
   ];
 }
@@ -504,7 +557,11 @@ function getScrollAreaOptions() {
 function getSuperchatPositionOptions() {
   return [
     { label: t('superchatTop'), value: 'top' },
+    { label: t('superchatTopLeft'), value: 'top-left' },
+    { label: t('superchatTopRight'), value: 'top-right' },
     { label: t('superchatBottom'), value: 'bottom' },
+    { label: t('superchatBottomLeft'), value: 'bottom-left' },
+    { label: t('superchatBottomRight'), value: 'bottom-right' },
   ];
 }
 
@@ -575,6 +632,7 @@ const DEFAULT_SETTINGS = {
   superchatPosition: 'top',
   superchatDuration: 15,
   superchatAnimation: 'slide',
+  tabAntiFreeze: false,
 };
 
 const SELECTORS = {
@@ -612,6 +670,26 @@ const CHEER_EMOTE_PREFIXES = [
 const CHEER_PREFIX_PATTERN = CHEER_EMOTE_PREFIXES.map((prefix) => prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
 const BITS_TOKEN_PATTERN = `(?:^|\\s)(?:[A-Za-z][\\w]*?(?:Cheer|cheer)|(?:${CHEER_PREFIX_PATTERN}))([1-9]\\d{0,6})(?=\\s|$)`;
 
+const SCROLL_AREAS = ['full', 'top-half', 'bottom-half', 'top-quarter'];
+const SUPERCHAT_POSITIONS = ['top', 'bottom', 'top-left', 'top-right', 'bottom-left', 'bottom-right'];
+
+function resolveSuperchatPlacement(value) {
+  const key = String(value || 'top').toLowerCase().replace(/_/g, '-');
+  const map = {
+    top: { vertical: 'top', horizontal: 'center' },
+    bottom: { vertical: 'bottom', horizontal: 'center' },
+    'top-left': { vertical: 'top', horizontal: 'left' },
+    topleft: { vertical: 'top', horizontal: 'left' },
+    'top-right': { vertical: 'top', horizontal: 'right' },
+    topright: { vertical: 'top', horizontal: 'right' },
+    'bottom-left': { vertical: 'bottom', horizontal: 'left' },
+    bottomleft: { vertical: 'bottom', horizontal: 'left' },
+    'bottom-right': { vertical: 'bottom', horizontal: 'right' },
+    bottomright: { vertical: 'bottom', horizontal: 'right' },
+  };
+  return map[key] || map.top;
+}
+
 const STORAGE_KEY = 'tbc_settings_v1';
 
 const LIVE_MESSAGE_TAIL = 8;
@@ -626,6 +704,9 @@ function loadSettings() {
       const merged = { ...DEFAULT_SETTINGS, ...saved };
       if (merged.scrollArea === 'half') {
         merged.scrollArea = 'top-half';
+      }
+      if (!SCROLL_AREAS.includes(merged.scrollArea)) {
+        merged.scrollArea = DEFAULT_SETTINGS.scrollArea;
       }
       if (!TRANSLATE_PROVIDERS.includes(merged.translateProvider)) {
         merged.translateProvider = DEFAULT_SETTINGS.translateProvider;
@@ -645,9 +726,11 @@ function loadSettings() {
       merged.speechVoice = typeof merged.speechVoice === 'string' ? merged.speechVoice : '';
       merged.speechLang = typeof merged.speechLang === 'string' ? merged.speechLang : '';
       merged.superchatPinned = !!merged.superchatPinned;
-      if (!['top', 'bottom'].includes(merged.superchatPosition)) merged.superchatPosition = 'top';
+      const scPos = String(merged.superchatPosition || 'top').toLowerCase().replace(/_/g, '-');
+      merged.superchatPosition = SUPERCHAT_POSITIONS.includes(scPos) ? scPos : 'top';
       if (!['fade', 'slide', 'pop', 'shine'].includes(merged.superchatAnimation)) merged.superchatAnimation = 'slide';
       merged.superchatDuration = clamp(finiteNumber(merged.superchatDuration, DEFAULT_SETTINGS.superchatDuration), 2, 300);
+      merged.tabAntiFreeze = !!merged.tabAntiFreeze;
       return merged;
     }
   } catch (_) {
@@ -903,6 +986,113 @@ async function setChatInputText(text) {
   }
 
   return false;
+}
+
+const TabAntiFreeze = {
+  active: false,
+  captureHandler: null,
+  saved: null,
+};
+
+function tabAntiFreezeBlockVisibilityEvent(event) {
+  event.stopImmediatePropagation();
+}
+
+function tabAntiFreezeSaveDescriptor(object, key) {
+  const descriptor = Object.getOwnPropertyDescriptor(object, key);
+  if (descriptor) TabAntiFreeze.saved[key] = descriptor;
+}
+
+function tabAntiFreezeEnable() {
+  if (TabAntiFreeze.active) return;
+  TabAntiFreeze.saved = {};
+  tabAntiFreezeSaveDescriptor(document, 'hidden');
+  tabAntiFreezeSaveDescriptor(document, 'visibilityState');
+  tabAntiFreezeSaveDescriptor(document, 'webkitVisibilityState');
+
+  try {
+    Object.defineProperty(document, 'hidden', {
+      configurable: true,
+      enumerable: true,
+      get() { return false; },
+    });
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      enumerable: true,
+      get() { return 'visible'; },
+    });
+    Object.defineProperty(document, 'webkitVisibilityState', {
+      configurable: true,
+      enumerable: true,
+      get() { return 'visible'; },
+    });
+  } catch (error) {
+    console.warn('[TBC] Tab anti-freeze: could not patch visibility', error);
+    TabAntiFreeze.saved = null;
+    return;
+  }
+
+  TabAntiFreeze.saved.hasFocus = document.hasFocus;
+  document.hasFocus = () => true;
+
+  TabAntiFreeze.captureHandler = tabAntiFreezeBlockVisibilityEvent;
+  document.addEventListener('visibilitychange', TabAntiFreeze.captureHandler, true);
+
+  TabAntiFreeze.active = true;
+  try {
+    document.dispatchEvent(new Event('visibilitychange'));
+  } catch {
+    /* ignore */
+  }
+}
+
+function tabAntiFreezeRestoreProperty(object, key) {
+  const saved = TabAntiFreeze.saved?.[key];
+  if (!saved) return;
+  try {
+    Object.defineProperty(object, key, saved);
+  } catch {
+    try {
+      delete object[key];
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+function tabAntiFreezeDisable() {
+  if (!TabAntiFreeze.active) return;
+
+  if (TabAntiFreeze.captureHandler) {
+    document.removeEventListener('visibilitychange', TabAntiFreeze.captureHandler, true);
+    TabAntiFreeze.captureHandler = null;
+  }
+
+  if (TabAntiFreeze.saved) {
+    tabAntiFreezeRestoreProperty(document, 'hidden');
+    tabAntiFreezeRestoreProperty(document, 'visibilityState');
+    tabAntiFreezeRestoreProperty(document, 'webkitVisibilityState');
+    if (TabAntiFreeze.saved.hasFocus) {
+      document.hasFocus = TabAntiFreeze.saved.hasFocus;
+    }
+  }
+
+  TabAntiFreeze.saved = null;
+  TabAntiFreeze.active = false;
+}
+
+function tabAntiFreezeIsEnabled() {
+  return TabAntiFreeze.active;
+}
+
+function tabAntiFreezeShouldEnable(getSettings, isPipOpen) {
+  if (getSettings?.().tabAntiFreeze) return true;
+  return !!isPipOpen?.();
+}
+
+function syncTabAntiFreeze(getSettings, isPipOpen) {
+  if (tabAntiFreezeShouldEnable(getSettings, isPipOpen)) tabAntiFreezeEnable();
+  else tabAntiFreezeDisable();
 }
 
 const SPEECH_GAP_MS = 250;
@@ -1268,11 +1458,11 @@ class DanmakuEngine {
     this.pinnedItems = live;
     if (!live.length || !this.getSettings().superchatPinned || !this.getSettings().enabled) return null;
     const band = this.getPinnedBandHeight();
-    const pos = this.getSettings().superchatPosition === 'bottom' ? 'bottom' : 'top';
-    const top = pos === 'bottom'
+    const placement = resolveSuperchatPlacement(this.getSettings().superchatPosition);
+    const top = placement.vertical === 'bottom'
       ? Math.max(0, playerHeight - this.getBottomReserve() - band)
       : 8;
-    return { pos, top, height: band };
+    return { ...placement, top, height: band };
   }
 
   getScrollAreaRect(playerRect) {
@@ -1286,6 +1476,12 @@ class DanmakuEngine {
       case 'top-half':
         area = { top: 0, height: Math.max(laneHeight, h * 0.5) };
         break;
+      case 'bottom-half':
+        area = {
+          top: h * 0.5,
+          height: Math.max(laneHeight, h * 0.5 - bottomReserve),
+        };
+        break;
       case 'top-quarter':
         area = { top: 0, height: Math.max(laneHeight, h * 0.25) };
         break;
@@ -1294,17 +1490,7 @@ class DanmakuEngine {
         break;
     }
 
-    const band = this.getPinnedBandRect(h);
-    if (!band) return area;
-    const areaBottom = area.top + area.height;
-    const bandBottom = band.top + band.height;
-    if (bandBottom <= area.top || band.top >= areaBottom) return area;
-    if (band.pos === 'top') {
-      const nextTop = Math.max(area.top, bandBottom + 4);
-      return { top: nextTop, height: Math.max(laneHeight, areaBottom - nextTop) };
-    }
-    const nextBottom = Math.min(areaBottom, band.top - 4);
-    return { top: area.top, height: Math.max(laneHeight, nextBottom - area.top) };
+    return area;
   }
 
   migrateDanmakuItems(items, oldRect, newWidth, newHeight) {
@@ -1429,7 +1615,9 @@ class DanmakuEngine {
       this.superchatLayer.style.display = 'none';
       return;
     }
-    this.superchatLayer.classList.toggle('tbc-sc-bottom', band.pos === 'bottom');
+    this.superchatLayer.classList.toggle('tbc-sc-bottom', band.vertical === 'bottom');
+    this.superchatLayer.classList.toggle('tbc-sc-align-left', band.horizontal === 'left');
+    this.superchatLayer.classList.toggle('tbc-sc-align-right', band.horizontal === 'right');
     Object.assign(this.superchatLayer.style, fullscreen ? {
       display: 'flex',
       position: 'fixed',
@@ -1639,12 +1827,31 @@ class DanmakuEngine {
     }
   }
 
-  renderScrolling({ username, message, parts, usernameColor, profileUrl, originalMessage, translated }) {
+  renderScrolling(payload) {
+    const {
+      username,
+      message,
+      parts,
+      usernameColor,
+      profileUrl,
+      originalMessage,
+      translated,
+    } = payload || {};
     const settings = this.getSettings();
     const displayParts = parts?.length
       ? parts
       : (message ? [{ type: 'text', value: message }] : []);
-    if (!settings.enabled || !this.layer || !displayParts.length) return;
+    if (!settings.enabled || !displayParts.length) return;
+
+    if (typeof this.onComment === 'function') {
+      try {
+        this.onComment(payload);
+      } catch (error) {
+        console.error('[TBC] PiP danmaku failed:', error);
+      }
+    }
+
+    if (!this.layer) return;
 
     const layerWidth = this.layer.clientWidth || 800;
     const speed = clamp(settings.speed, 1, 10);
@@ -5174,6 +5381,19 @@ async function sendTwitchChatMessage(message) {
 const IGNORED_CHAT_BOTS = new Set([
   'streamelements',
   'streamelement',
+  'nightbot',
+  'moobot',
+  'fossabot',
+  'streamlabs',
+  'wizebot',
+  'botrix',
+  'botrixlive',
+  'coeabot',
+  'phantombot',
+  'stay_hydrated_bot',
+  'soundalerts',
+  'streamholics',
+  'commanderroot',
 ]);
 
 const CHAT_DIVIDER_TEXT_RE = /^(全新|新消息|新訊息|消息分隔|訊息分隔|new messages?|welcome to the chat(?: room)?!?|chat cleared|room modes?)$/i;
@@ -5186,6 +5406,54 @@ function normalizeChatActor(value) {
 function isIgnoredChatBot(login, username) {
   const actors = [login, username].map(normalizeChatActor).filter(Boolean);
   return actors.some((name) => IGNORED_CHAT_BOTS.has(name));
+}
+
+function isUserNoticeLine(msgEl) {
+  return !!msgEl?.matches?.('[data-test-selector="user-notice-line"], .user-notice-line');
+}
+
+function hasUserAuthoredChatBody(msgEl) {
+  if (!msgEl) return false;
+
+  const customRoot = msgEl.querySelector('[data-a-target="chat-resubscription-message__custom-message"]');
+  const chatRoot = customRoot || msgEl;
+  const body = chatRoot.querySelector(
+    '[data-a-target="chat-line-message-body"], .chat-line__message-body, [data-a-target="chat-message-container"]',
+  ) || chatRoot;
+
+  if (body.querySelector('[data-a-target="chat-message-text"], .text-fragment')?.textContent?.trim()) {
+    return true;
+  }
+  if (body.querySelector('img[data-emote-name], img.chat-line__message--emote, .chat-line__message--emote')) {
+    return true;
+  }
+  return false;
+}
+
+function isPaidSuperChatNotice(snapshot) {
+  const meta = snapshot?.superchatMeta;
+  return !!snapshot?.superchat && !!meta && (meta.kind === 'cheer' || meta.kind === 'sub');
+}
+
+function lacksUserLiveChatContent(snapshot, msgEl = null) {
+  if (!snapshot) return true;
+
+  if (isPaidSuperChatNotice(snapshot)) return false;
+
+  if (msgEl && hasUserAuthoredChatBody(msgEl)) return false;
+
+  const plain = String(snapshot.message || '').replace(/\s+/g, ' ').trim();
+  const hasRenderableParts = Array.isArray(snapshot.parts) && snapshot.parts.some((part) => (
+    (part.type === 'text' && String(part.value || '').trim())
+    || (part.type === 'emote' && (part.name || part.src))
+  ));
+  if (hasRenderableParts && !isUserNoticeLine(msgEl)) return false;
+
+  if (msgEl && isUserNoticeLine(msgEl)) return true;
+
+  if (!msgEl) return !plain;
+
+  return !plain && !hasRenderableParts;
 }
 
 function isPureLinkMessage(text) {
@@ -5228,8 +5496,11 @@ function isChatDividerMessage(msgEl, snapshot = null) {
 function shouldIgnoreChatPayload(snapshot, msgEl = null) {
   if (!snapshot) return true;
   if (isIgnoredChatBot(snapshot.login, snapshot.username)) return true;
-  // Subscribe / cheer Super Chats must not be dropped as "divider" system lines.
-  if (snapshot.superchat) return false;
+  if (isPaidSuperChatNotice(snapshot)) {
+    if (isPureLinkMessage(snapshot.message)) return true;
+    return false;
+  }
+  if (lacksUserLiveChatContent(snapshot, msgEl)) return true;
   if (isChatDividerMessage(msgEl, snapshot)) return true;
   if (isPureLinkMessage(snapshot.message)) return true;
   return false;
@@ -5435,6 +5706,24 @@ class ChatObserver {
     this.ffzActive = false;
     this.ircSource = null;
     this.ircBuffer = [];
+    this.ircBackgroundOnly = false;
+    this.recentEmitKeys = new Map();
+  }
+
+  isDuplicateEmit(login, message) {
+    const text = String(message || '').trim();
+    if (!text) return false;
+    const key = `${String(login || '').toLowerCase()}|${text}`.slice(0, 240);
+    const now = Date.now();
+    const prev = this.recentEmitKeys.get(key);
+    if (prev && now - prev < 3500) return true;
+    this.recentEmitKeys.set(key, now);
+    if (this.recentEmitKeys.size > 200) {
+      for (const [k, ts] of this.recentEmitKeys) {
+        if (now - ts > 4000) this.recentEmitKeys.delete(k);
+      }
+    }
+    return false;
   }
 
   async start() {
@@ -5486,7 +5775,9 @@ class ChatObserver {
     console.log(`[TBC] Chat observer started (${this.isVodChat ? 'vod' : 'live'}${this.ffzActive ? ', ffz-dom' : ''})`);
   }
 
-  startIrc(fallbackChannel) {
+  startIrc(fallbackChannel, { backgroundOnly = false } = {}) {
+    if (this.ircSource) return;
+    this.ircBackgroundOnly = !!backgroundOnly;
     this.ircBuffer = [];
     this.ircSource = new TwitchIrcChatSource({
       getChannel: () => currentChannelLogin() || fallbackChannel || '',
@@ -5505,6 +5796,26 @@ class ChatObserver {
     this.ircSource?.stop();
     this.ircSource = null;
     this.ircBuffer = [];
+    this.ircBackgroundOnly = false;
+    this.recentEmitKeys.clear();
+  }
+
+  ensureBackgroundIrc() {
+    if (currentVodId()) return;
+    const channel = currentChannelLogin();
+    if (!channel || this.ircSource) return;
+    this.startIrc(channel, { backgroundOnly: this.mode === 'dom' });
+    console.log('[TBC] IRC started for background / PiP chat');
+  }
+
+  maybeStopBackgroundIrc() {
+    if (!this.ircSource || !this.ircBackgroundOnly) return;
+    if (enhancedPip?.isOpen?.()) return;
+    if (this.getSettings?.().tabAntiFreeze) return;
+    if (document.hidden) return;
+    this.ircSource.stop();
+    this.ircSource = null;
+    this.ircBackgroundOnly = false;
   }
 
   shouldEmit(msgEl) {
@@ -5586,6 +5897,8 @@ class ChatObserver {
   emitDanmaku(parsed, msgEl) {
     const settings = this.getSettings();
     if (!this.isActive()) return;
+
+    if (this.isDuplicateEmit(parsed.login || parsed.username, parsed.message)) return;
 
     if (isKeywordBlocked(parsed.message, settings.blockedKeywords)) return;
 
@@ -5870,6 +6183,20 @@ function injectStyles() {
 
     .tbc-speech-btn.tbc-speech-mute,
     .tbc-speech-btn.tbc-speech-off {
+      opacity: 0.55;
+    }
+
+    .tbc-translate-btn .tbc-icon {
+      display: none;
+      line-height: 0;
+    }
+
+    .tbc-translate-btn.tbc-translate-on .tbc-icon-on,
+    .tbc-translate-btn.tbc-translate-off .tbc-icon-off {
+      display: block;
+    }
+
+    .tbc-translate-btn.tbc-translate-off {
       opacity: 0.55;
     }
 
@@ -6192,6 +6519,16 @@ function injectStyles() {
 
     .tbc-superchat-layer.tbc-sc-bottom {
       justify-content: flex-end;
+    }
+
+    .tbc-superchat-layer.tbc-sc-align-left {
+      align-items: flex-start;
+      padding-left: 8px;
+    }
+
+    .tbc-superchat-layer.tbc-sc-align-right {
+      align-items: flex-end;
+      padding-right: 8px;
     }
 
     .tbc-superchat-item {
@@ -7209,6 +7546,29 @@ function injectStyles() {
     .tbc-fs-chat-status.is-ok {
       color: #00f593;
     }
+
+    .tbc-pip-page-toast {
+      position: fixed;
+      left: 50%;
+      bottom: 24px;
+      transform: translateX(-50%);
+      z-index: 100000;
+      max-width: min(420px, calc(100% - 24px));
+      padding: 10px 14px;
+      border-radius: 8px;
+      background: rgba(14, 14, 16, 0.94);
+      color: #efeff1;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      font-size: 13px;
+      line-height: 1.4;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s ease;
+    }
+
+    .tbc-pip-page-toast.is-show {
+      opacity: 1;
+    }
   `);
 }
 
@@ -7226,6 +7586,10 @@ const ICON_SPEECH_MUTE = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2
 
 const ICON_SPEECH_OFF = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3z"/></svg>`;
 
+const ICON_TRANSLATE_ON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.87 15.07l-2.54-2.51.03-.03A17.52 17.52 0 0 0 14.07 6H17V4h-7V2H8v2H1v1.99h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z"/></svg>`;
+
+const ICON_TRANSLATE_OFF = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.87 15.07l-2.54-2.51.03-.03A17.52 17.52 0 0 0 14.07 6H17V4h-7V2H8v2H1v1.99h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z"/><path d="M3.4 2.8 2 4.2l18 18 1.4-1.4-18-18z" opacity="0.95"/></svg>`;
+
 const ICON_DOWNLOAD = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a1 1 0 0 1 1 1v8.59l2.3-2.3a1 1 0 0 1 1.4 1.42l-4 4a1 1 0 0 1-1.4 0l-4-4a1 1 0 1 1 1.4-1.42l2.3 2.3V4a1 1 0 0 1 1-1zM5 19a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H6a1 1 0 0 1-1-1z"/></svg>`;
 
 const ICON_CHAT_CLEAR_PATH = 'M360 184h-8c4.4 0 8-3.6 8-8v8h304v-8c0 4.4 3.6 8 8 8h-8v72h72v-80c0-35.3-28.7-64-64-64H352c-35.3 0-64 28.7-64 64v80h72v-72zm504 72H160c-17.7 0-32 14.3-32 32v32c0 4.4 3.6 8 8 8h60.4l24.7 523c1.6 34.1 29.8 61 63.9 61h454c34.2 0 62.3-26.8 63.9-61l24.7-523H888c4.4 0 8-3.6 8-8v-32c0-17.7-14.3-32-32-32zM731.3 840H292.7l-24.2-512h487l-24.2 512z';
@@ -7233,10 +7597,11 @@ const ICON_CHAT_CLEAR = `<svg xmlns="http://www.w3.org/2000/svg" width="20" heig
 
 const ICON_CHAT_SEND = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3.4 20.6 21 12 3.4 3.4l-.1 6.8L15 12 3.3 13.8z"/></svg>`;
 
-// Twitch viewer-card / ScButtonIcon close glyph (24 viewBox).
 const ICON_CLOSE = `<svg width="24" height="24" viewBox="0 0 24 24" focusable="false" aria-hidden="true" role="presentation"><path fill="currentColor" d="M6.414 5 5 6.414l5.588 5.588L5 17.59l1.414 1.414 5.588-5.588 5.588 5.588 1.414-1.414-5.588-5.588 5.588-5.588L17.59 5l-5.588 5.588L6.414 5Z"></path></svg>`;
 
 const ICON_FAVORITE = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>`;
+
+const ICON_PIP = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 5.5A2.5 2.5 0 0 1 5.5 3h13A2.5 2.5 0 0 1 21 5.5v13a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 18.5v-13Zm2.5-.5a.5.5 0 0 0-.5.5v13a.5.5 0 0 0 .5.5H11V13.5A1.5 1.5 0 0 1 12.5 12H19V5.5a.5.5 0 0 0-.5-.5h-13ZM19 14h-6.5a.5.5 0 0 0-.5.5V19H19v-5Z"/></svg>`;
 
 class SettingsPanel {
   constructor({ settings, onChange, onClose }) {
@@ -7248,6 +7613,23 @@ class SettingsPanel {
     this.isOpen = false;
     this.boundReposition = () => this.reposition();
     this.boundOutsideClick = (e) => this.handleOutsideClick(e);
+    this.uiBindings = {};
+  }
+
+  syncFromSettings() {
+    if (!this.isOpen || !this.balloon) return;
+    for (const [key, binding] of Object.entries(this.uiBindings)) {
+      const value = this.settings[key];
+      if (binding.type === 'checkbox') {
+        binding.el.checked = !!value;
+      } else if (binding.type === 'range') {
+        binding.el.value = String(value);
+        if (binding.format) binding.valueEl.textContent = binding.format(value);
+      } else if (binding.type === 'select') {
+        binding.el.value = String(value);
+      }
+    }
+    this.syncTranslateDependentRows();
   }
 
   toggle(anchor) {
@@ -7359,6 +7741,7 @@ class SettingsPanel {
       options.onChange?.(input.checked);
     });
 
+    this.uiBindings[key] = { type: 'checkbox', el: input };
     switchWrap.append(input, slider);
     row.append(labelEl, switchWrap);
     return row;
@@ -7407,6 +7790,7 @@ class SettingsPanel {
       this.updateSetting(key, val);
     });
 
+    this.uiBindings[key] = { type: 'range', el: input, valueEl: valueSpan, format };
     row.append(header, input);
     return row;
   }
@@ -7433,6 +7817,7 @@ class SettingsPanel {
       this.updateSetting(key, select.value);
     });
 
+    this.uiBindings[key] = { type: 'select', el: select };
     row.append(labelEl, select);
     return row;
   }
@@ -7735,6 +8120,7 @@ class SettingsPanel {
   }
 
   render() {
+    this.uiBindings = {};
     this.balloon = document.createElement('div');
     this.balloon.className = 'tbc-balloon';
     this.balloon.setAttribute('role', 'dialog');
@@ -7768,6 +8154,9 @@ class SettingsPanel {
       this.createRange(t('danmakuOpacity'), 'danmakuOpacity', 10, 100, 5, (v) => `${v}%`),
       this.createSelect(t('fontFamily'), 'fontFamily', getFontOptions()),
       this.createSelect(t('scrollArea'), 'scrollArea', getScrollAreaOptions()),
+      this.createDivider(),
+      this.createToggle(t('tabAntiFreeze'), 'tabAntiFreeze'),
+      this.createHint(t('tabAntiFreezeHint')),
       this.createDivider(),
       this.createToggle(t('superchatPinned'), 'superchatPinned'),
       this.createSelect(t('superchatPosition'), 'superchatPosition', getSuperchatPositionOptions()),
@@ -7813,6 +8202,21 @@ class SpeechPanel {
     this.boundReposition = () => this.reposition();
     this.boundOutsideClick = (e) => this.handleOutsideClick(e);
     this.boundVoices = () => this.fillVoices();
+    this.uiBindings = {};
+  }
+
+  syncFromSettings() {
+    if (!this.isOpen || !this.balloon) return;
+    for (const [key, binding] of Object.entries(this.uiBindings)) {
+      const value = this.settings[key];
+      if (binding.type === 'checkbox') {
+        binding.el.checked = !!value;
+      } else if (binding.type === 'range') {
+        binding.el.value = String(value);
+        if (binding.format) binding.valueEl.textContent = binding.format(value);
+      }
+    }
+    this.fillVoices();
   }
 
   toggle(anchor) {
@@ -7918,12 +8322,14 @@ class SpeechPanel {
       this.updateSetting(key, input.checked);
     });
 
+    this.uiBindings[key] = { type: 'checkbox', el: input };
     switchWrap.append(input, slider);
     row.append(labelEl, switchWrap);
     return row;
   }
 
   render() {
+    this.uiBindings = {};
     this.balloon = document.createElement('div');
     this.balloon.className = 'tbc-balloon tbc-speech-panel';
 
@@ -8119,6 +8525,7 @@ class SpeechPanel {
       this.updateSetting(key, val);
     });
 
+    this.uiBindings[key] = { type: 'range', el: input, valueEl: valueSpan, format };
     row.append(header, input);
     return row;
   }
@@ -10052,21 +10459,899 @@ class FullscreenChatInput {
   }
 }
 
-class ControlButton {
-  constructor({ onToggleDanmaku, onTogglePanel, onToggleSpeech, onToggleHistory, getSettings, isPanelOpen, isSpeechPanelOpen, isHistoryPanelOpen }) {
+class EnhancedPip {
+  constructor({ getSettings, danmaku, favoritesPanel, onToggleDanmaku, onOpenSettings, onStateChange } = {}) {
+    this.getSettings = getSettings;
+    this.danmaku = danmaku || null;
+    this.favoritesPanel = favoritesPanel || null;
     this.onToggleDanmaku = onToggleDanmaku;
+    this.onOpenSettings = onOpenSettings;
+    this.onStateChange = onStateChange;
+    this.pipWindow = null;
+    this.sourceVideo = null;
+    this.pipVideo = null;
+    this.laneManager = new LaneManager();
+    this.opening = false;
+    this.inputOpen = false;
+    this.favOpen = false;
+    this.sending = false;
+    this.nodes = null;
+    this.keepAliveVideo = null;
+    this.keepAliveHandle = null;
+    this.keepAliveTimer = null;
+    this.closedTimer = null;
+    this.pageToastTimer = null;
+    this.toastTimer = null;
+    this.statusTimer = null;
+    this.boundPlay = () => this.syncPlayback();
+    this.boundPause = () => this.syncPlayback();
+    this.boundResize = () => this.resetLanes();
+    this.boundPageHide = () => this.cleanup();
+    this.boundKeyDown = (event) => this.onKeyDown(event);
+    this.boundComment = (payload) => this.renderComment(payload);
+  }
+
+  pageWindow() {
+    try {
+      if (typeof unsafeWindow !== 'undefined' && unsafeWindow?.documentPictureInPicture) {
+        return unsafeWindow;
+      }
+    } catch (error) {
+      // The sandbox may refuse unsafeWindow; the page window is the fallback.
+    }
+    return window;
+  }
+
+  isSupported() {
+    const api = this.pageWindow().documentPictureInPicture;
+    return typeof api?.requestWindow === 'function';
+  }
+
+  isOpen() {
+    return !!(this.pipWindow && !this.pipWindow.closed);
+  }
+
+  isMediaStream(value) {
+    return !!value && typeof value.getVideoTracks === 'function' && typeof value.getTracks === 'function';
+  }
+
+  captureSource(video) {
+    const existing = video?.srcObject;
+    if (this.isMediaStream(existing)) {
+      try {
+        const clone = typeof existing.clone === 'function' ? existing.clone() : null;
+        if (this.isMediaStream(clone) && clone.getVideoTracks().length) return clone;
+      } catch (error) {
+        // Fall through to a fresh capture of a decoded element.
+      }
+    }
+    if (typeof video?.captureStream !== 'function') return null;
+    return video.captureStream();
+  }
+
+  findSourceVideo() {
+    const root = document.querySelector(SELECTORS.videoPlayer);
+    if (!root) return null;
+    const videos = [...root.querySelectorAll('video')];
+    const area = (video) => (video.videoWidth || 0) * (video.videoHeight || 0);
+    const playing = videos
+      .filter((video) => video.videoWidth > 0 && !video.paused && video.readyState >= 2)
+      .sort((a, b) => area(b) - area(a));
+    if (playing.length) return playing[0];
+    const sized = videos
+      .filter((video) => video.videoWidth > 0)
+      .sort((a, b) => area(b) - area(a));
+    if (sized.length) return sized[0];
+    return videos[0] || null;
+  }
+
+  toggle() {
+    if (this.opening) return;
+    if (this.isOpen()) {
+      this.close(true);
+      return;
+    }
+    this.open();
+  }
+
+  async open() {
+    if (this.opening || this.isOpen()) {
+      if (this.isOpen()) {
+        try { this.pipWindow.focus(); } catch (error) { /* window may already be closing */ }
+      }
+      return;
+    }
+    if (!this.isSupported()) {
+      this.showPageToast(t('pipNeedBrowser'));
+      return;
+    }
+
+    const source = this.findSourceVideo();
+    if (!source || (typeof source.captureStream !== 'function' && !this.isMediaStream(source.srcObject))) {
+      this.showPageToast(t('pipNoVideo'));
+      return;
+    }
+
+    let stream = null;
+    try {
+      stream = this.captureSource(source);
+    } catch (error) {
+      this.showPageToast(t('pipCaptureFailed'));
+      return;
+    }
+    if (!stream) {
+      this.showPageToast(t('pipCaptureFailed'));
+      return;
+    }
+
+    this.opening = true;
+    let pipWindow = null;
+    try {
+      pipWindow = await this.pageWindow().documentPictureInPicture.requestWindow({
+        width: 670,
+        height: 380,
+      });
+    } catch (error) {
+      this.stopStream(stream);
+      this.showPageToast(t('pipOpenFailed'));
+      return;
+    } finally {
+      this.opening = false;
+    }
+
+    if (!pipWindow) {
+      this.stopStream(stream);
+      this.showPageToast(t('pipOpenFailed'));
+      return;
+    }
+
+    this.pipWindow = pipWindow;
+    this.sourceVideo = source;
+    this.mountDocument(pipWindow);
+    const pipVideo = this.nodes.video;
+    this.pipVideo = pipVideo;
+    pipVideo.srcObject = stream;
+    pipVideo.muted = true;
+    try { await pipVideo.play(); } catch (error) { /* autoplay can reject until the next frame */ }
+
+    this.dimSource(true);
+    this.bindSourceSync(source);
+    this.startKeepAlive(source);
+    this.attachDanmaku();
+    this.bindCleanup(pipWindow);
+    this.syncSettings();
+    this.syncPlayback();
+    this.onStateChange?.();
+    try { pipWindow.focus(); } catch (error) { /* focus is best-effort */ }
+  }
+
+  close(focusOpener = false) {
+    const source = this.sourceVideo;
+    this.cleanup();
+    if (focusOpener) {
+      try { window.focus(); } catch (error) { /* opener may be gone */ }
+      try { source?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (error) { /* not laid out */ }
+    }
+  }
+
+  destroy() {
+    this.close(false);
+    this.clearPageToast();
+  }
+
+  cleanup() {
+    if (!this.pipWindow && !this.sourceVideo && !this.pipVideo) return;
+    const win = this.pipWindow;
+    const pipVideo = this.pipVideo;
+    this.pipWindow = null;
+    this.pipVideo = null;
+
+    this.detachDanmaku();
+    this.stopKeepAlive();
+    this.unbindSourceSync();
+    this.dimSource(false);
+    clearInterval(this.closedTimer);
+    this.closedTimer = null;
+    clearTimeout(this.toastTimer);
+    this.toastTimer = null;
+    clearTimeout(this.statusTimer);
+    this.statusTimer = null;
+
+    if (win) {
+      win.removeEventListener('pagehide', this.boundPageHide);
+      win.removeEventListener('resize', this.boundResize);
+      win.document?.removeEventListener('keydown', this.boundKeyDown, true);
+    }
+    this.stopStream(pipVideo?.srcObject);
+    if (pipVideo) pipVideo.srcObject = null;
+
+    this.nodes = null;
+    this.inputOpen = false;
+    this.favOpen = false;
+    this.sending = false;
+    this.sourceVideo = null;
+
+    if (win && !win.closed) {
+      try { win.close(); } catch (error) { /* already closing */ }
+    }
+    this.onStateChange?.();
+  }
+
+  stopStream(stream) {
+    try {
+      stream?.getTracks?.().forEach((track) => track.stop());
+    } catch (error) {
+      // Stopping a capture track must not break the source video.
+    }
+  }
+
+  dimSource(hidden) {
+    const video = this.sourceVideo;
+    if (!video) return;
+    if (hidden) {
+      video.style.setProperty('opacity', '0.01', 'important');
+      video.style.setProperty('pointer-events', 'none', 'important');
+      return;
+    }
+    video.style.removeProperty('opacity');
+    video.style.removeProperty('pointer-events');
+  }
+
+  bindSourceSync(source) {
+    source.addEventListener('play', this.boundPlay);
+    source.addEventListener('pause', this.boundPause);
+  }
+
+  unbindSourceSync() {
+    const source = this.sourceVideo;
+    if (!source) return;
+    source.removeEventListener('play', this.boundPlay);
+    source.removeEventListener('pause', this.boundPause);
+  }
+
+  syncPlayback() {
+    const source = this.sourceVideo;
+    const pipVideo = this.pipVideo;
+    if (!source || !pipVideo) return;
+    if (source.paused) pipVideo.pause();
+    else pipVideo.play().catch(() => {});
+  }
+
+  startKeepAlive(video) {
+    this.stopKeepAlive();
+    if (!video) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = 2;
+    canvas.height = 2;
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    this.keepAliveVideo = video;
+    const tick = () => {
+      if (!this.isOpen() || this.keepAliveVideo !== video) return;
+      try {
+        if (video.readyState >= 2) context.drawImage(video, 0, 0, 2, 2);
+      } catch (error) {
+        // A tainted frame should not stop the keep-alive loop.
+      }
+      if (typeof video.requestVideoFrameCallback === 'function') {
+        this.keepAliveHandle = video.requestVideoFrameCallback(tick);
+      } else {
+        this.keepAliveTimer = setTimeout(tick, 200);
+      }
+    };
+    tick();
+  }
+
+  stopKeepAlive() {
+    const video = this.keepAliveVideo;
+    if (video && this.keepAliveHandle != null && typeof video.cancelVideoFrameCallback === 'function') {
+      try { video.cancelVideoFrameCallback(this.keepAliveHandle); } catch (error) { /* already cancelled */ }
+    }
+    clearTimeout(this.keepAliveTimer);
+    this.keepAliveHandle = null;
+    this.keepAliveTimer = null;
+    this.keepAliveVideo = null;
+  }
+
+  bindCleanup(pipWindow) {
+    pipWindow.addEventListener('pagehide', this.boundPageHide);
+    clearInterval(this.closedTimer);
+    this.closedTimer = setInterval(() => {
+      if (this.pipWindow?.closed) this.cleanup();
+    }, 1000);
+  }
+
+  attachDanmaku() {
+    if (!this.danmaku) return;
+    this.danmaku.onComment = this.boundComment;
+  }
+
+  detachDanmaku() {
+    if (this.danmaku?.onComment === this.boundComment) this.danmaku.onComment = null;
+  }
+
+  syncSettings() {
+    if (!this.isOpen()) return;
+    this.applyDanmakuVisibility();
+    this.resetLanes();
+  }
+
+  applyDanmakuVisibility() {
+    const layer = this.nodes?.layer;
+    const button = this.nodes?.danmakuBtn;
+    if (!layer) return;
+    const enabled = !!this.getSettings().enabled;
+    layer.style.visibility = enabled ? '' : 'hidden';
+    button?.classList.toggle('is-off', !enabled);
+    if (button) {
+      button.title = enabled ? t('danmakuOn') : t('danmakuOff');
+      button.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+    }
+  }
+
+  resetLanes() {
+    if (!this.isOpen()) return;
+    const metrics = this.laneMetrics();
+    this.laneManager.reset(metrics.count, metrics.laneHeight);
+  }
+
+  laneMetrics() {
+    const settings = this.getSettings();
+    const win = this.pipWindow;
+    const main = this.nodes?.main;
+    const height = main?.clientHeight || win?.innerHeight || 1;
+    const laneHeight = Math.max(14, (Number(settings.fontSize) || 22) + 6);
+    let areaHeight = height;
+    if (settings.scrollArea === 'top-half') areaHeight = height * 0.5;
+    else if (settings.scrollArea === 'bottom-half') {
+      const reserve = this.inputOpen ? (this.nodes?.input?.offsetHeight || 52) + 4 : 0;
+      areaHeight = Math.max(laneHeight, height * 0.5 - reserve);
+    } else if (settings.scrollArea === 'top-quarter') areaHeight = height * 0.25;
+    else {
+      const reserve = this.inputOpen ? (this.nodes?.input?.offsetHeight || 52) + 4 : 0;
+      areaHeight = Math.max(laneHeight, height - reserve);
+    }
+    return {
+      laneHeight,
+      count: Math.max(1, Math.floor(areaHeight / laneHeight)),
+    };
+  }
+
+  renderComment(payload) {
+    if (!this.isOpen() || !this.nodes?.layer) return;
+    const settings = this.getSettings();
+    if (!settings.enabled) return;
+    const parts = payload?.parts?.length
+      ? payload.parts
+      : (payload?.message ? [{ type: 'text', value: payload.message }] : []);
+    if (!parts.length) return;
+
+    const doc = this.pipWindow.document;
+    const layer = this.nodes.layer;
+    const item = doc.createElement('div');
+    item.className = 'tbc-pip-dm';
+    this.appendParts(doc, item, parts);
+    const opacity = clamp(Number(settings.danmakuOpacity) || 100, 10, 100) / 100;
+    item.style.color = payload.usernameColor || '#efeff1';
+    item.style.fontSize = `${settings.fontSize || 22}px`;
+    item.style.fontFamily = settings.fontFamily || 'sans-serif';
+    item.style.opacity = String(opacity);
+    item.style.visibility = 'hidden';
+    item.style.animation = 'none';
+    layer.appendChild(item);
+
+    const layerWidth = layer.clientWidth || this.pipWindow.innerWidth || 670;
+    const itemWidth = item.offsetWidth;
+    const speed = clamp(Number(settings.speed) || 5, 1, 10);
+    const travel = layerWidth + itemWidth;
+    const durationMs = Math.round((travel / Math.max(1, layerWidth)) * (30000 / speed));
+    const metrics = this.laneMetrics();
+    if (!this.laneManager.lanes.length) this.laneManager.reset(metrics.count, metrics.laneHeight);
+    const lane = this.laneManager.acquire(durationMs);
+
+    item.style.top = `${lane * metrics.laneHeight}px`;
+    item.style.left = `${layerWidth}px`;
+    item.style.setProperty('--tbc-travel', `${travel}px`);
+    item.style.setProperty('--tbc-duration', `${durationMs}ms`);
+    item.style.visibility = '';
+    item.addEventListener('animationend', () => item.remove(), { once: true });
+    void item.offsetWidth;
+    item.style.animation = '';
+  }
+
+  appendParts(doc, item, parts) {
+    for (const part of parts) {
+      if (part.type === 'emote' && part.src) {
+        const img = doc.createElement('img');
+        img.className = 'tbc-pip-emote';
+        img.src = part.src;
+        img.alt = part.name || '';
+        img.draggable = false;
+        item.appendChild(img);
+        continue;
+      }
+      const text = part.type === 'emote' ? (part.name || '') : (part.value || '');
+      if (text) item.appendChild(doc.createTextNode(text));
+    }
+  }
+
+  mountDocument(pipWindow) {
+    const doc = pipWindow.document;
+    doc.documentElement.lang = document.documentElement.lang || 'zh-CN';
+    doc.head.replaceChildren();
+    doc.body.replaceChildren();
+    const title = doc.createElement('title');
+    title.textContent = t('pipTitle');
+    doc.head.appendChild(title);
+    doc.title = t('pipTitle');
+
+    const style = doc.createElement('style');
+    style.textContent = this.windowCss();
+    doc.head.appendChild(style);
+
+    const wrap = doc.createElement('div');
+    wrap.id = 'tbc-pip-wrap';
+    const main = doc.createElement('div');
+    main.id = 'tbc-pip-main';
+
+    const back = this.makeButton(doc, 'tbc-pip-back', t('pipBack'), t('pipBack'));
+    back.textContent = t('pipBack');
+
+    const buttons = doc.createElement('div');
+    buttons.id = 'tbc-pip-btns';
+    const reloadBtn = this.makeButton(doc, 'tbc-pip-reload', t('pipReload'), t('pipReload'), this.iconReload());
+    const danmakuBtn = this.makeButton(doc, 'tbc-pip-danmaku-btn', t('pipDanmaku'), t('pipDanmaku'), ICON_DANMAKU_ON);
+    const settingsBtn = this.makeButton(doc, 'tbc-pip-settings', t('pipSettings'), t('pipSettings'), ICON_SETTINGS);
+    const sendBtn = this.makeButton(doc, 'tbc-pip-send', t('pipSend'), t('pipSend'), ICON_CHAT_SEND);
+    buttons.append(reloadBtn, danmakuBtn, settingsBtn, sendBtn);
+
+    const video = doc.createElement('video');
+    video.id = 'tbc-pip-video';
+    video.autoplay = true;
+    video.muted = true;
+    video.playsInline = true;
+    video.setAttribute('playsinline', '');
+
+    const layer = doc.createElement('div');
+    layer.id = 'tbc-pip-danmaku';
+
+    const toast = doc.createElement('div');
+    toast.id = 'tbc-pip-toast';
+
+    const input = doc.createElement('div');
+    input.id = 'tbc-pip-input';
+    const field = doc.createElement('input');
+    field.id = 'tbc-pip-field';
+    field.type = 'text';
+    field.maxLength = 500;
+    field.autocomplete = 'off';
+    field.spellcheck = true;
+    field.placeholder = currentVodId() ? t('pipVodNoSend') : t('fsChatPlaceholder');
+
+    const favWrap = doc.createElement('div');
+    favWrap.className = 'tbc-pip-fav-wrap';
+    const favBtn = this.makeButton(doc, 'tbc-pip-fav', t('fsChatFavorites'), t('fsChatFavorites'), ICON_FAVORITE);
+    const favList = doc.createElement('div');
+    favList.id = 'tbc-pip-fav-list';
+    favList.hidden = true;
+    favWrap.append(favBtn, favList);
+
+    const submit = this.makeButton(doc, 'tbc-pip-submit', t('fsChatSend'), t('fsChatSend'));
+    submit.textContent = t('fsChatSend');
+
+    const status = doc.createElement('div');
+    status.id = 'tbc-pip-status';
+
+    input.append(field, favWrap, submit, status);
+    main.append(back, buttons, video, layer, toast);
+    wrap.append(main, input);
+    doc.body.appendChild(wrap);
+
+    this.nodes = {
+      wrap, main, back, reloadBtn, danmakuBtn, settingsBtn, sendBtn,
+      video, layer, toast, input, field, favBtn, favList, submit, status,
+    };
+
+    const stop = (event) => event.stopPropagation();
+    reloadBtn.addEventListener('click', (event) => {
+      stop(event);
+      this.reloadVideo();
+    });
+    danmakuBtn.addEventListener('click', (event) => {
+      stop(event);
+      this.onToggleDanmaku?.();
+    });
+    settingsBtn.addEventListener('click', (event) => {
+      stop(event);
+      this.openSettings();
+    });
+    sendBtn.addEventListener('click', (event) => {
+      stop(event);
+      this.setInputOpen(true);
+    });
+    back.addEventListener('click', (event) => {
+      stop(event);
+      this.close(true);
+    });
+    favBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      stop(event);
+      this.toggleFavorites();
+    });
+    submit.addEventListener('click', (event) => {
+      event.preventDefault();
+      stop(event);
+      this.submit();
+    });
+    main.addEventListener('click', (event) => {
+      if (event.target.closest('#tbc-pip-btns, #tbc-pip-back, #tbc-pip-input')) return;
+      this.setInputOpen(false);
+    });
+    pipWindow.addEventListener('resize', this.boundResize);
+    doc.addEventListener('keydown', this.boundKeyDown, true);
+    this.resetLanes();
+    pipWindow.requestAnimationFrame(() => this.resetLanes());
+  }
+
+  makeButton(doc, id, label, title, html) {
+    const button = doc.createElement('button');
+    button.type = 'button';
+    button.id = id;
+    button.className = id === 'tbc-pip-back' || id === 'tbc-pip-submit' || id === 'tbc-pip-fav'
+      ? id
+      : 'tbc-pip-btn';
+    if (id === 'tbc-pip-fav' || id === 'tbc-pip-submit' || id === 'tbc-pip-back') {
+      button.className = id;
+    }
+    button.setAttribute('aria-label', label);
+    button.title = title;
+    if (html) button.innerHTML = html;
+    return button;
+  }
+
+  iconReload() {
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M17.65 6.35A7.95 7.95 0 0 0 12 4a8 8 0 1 0 7.75 10h-2.1A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>';
+  }
+
+  windowCss() {
+    return `
+      html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #000; }
+      #tbc-pip-wrap, #tbc-pip-main { position: relative; width: 100%; height: 100%; overflow: hidden; }
+      #tbc-pip-video {
+        position: absolute; inset: 0; width: 100%; height: 100%;
+        object-fit: fill; background: #000; z-index: 1;
+      }
+      #tbc-pip-danmaku { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 2; }
+      .tbc-pip-dm {
+        position: absolute; white-space: nowrap; font-weight: 700; line-height: 1.2;
+        pointer-events: none; will-change: transform;
+        text-shadow: 1px 1px 2px rgba(0,0,0,.9), -1px -1px 2px rgba(0,0,0,.9), 0 0 4px rgba(0,0,0,.8);
+        animation: tbc-pip-scroll var(--tbc-duration, 8s) linear forwards;
+      }
+      .tbc-pip-emote {
+        height: 1.2em; width: auto; vertical-align: -0.22em; margin: 0 0.1em; pointer-events: none;
+      }
+      @keyframes tbc-pip-scroll {
+        from { transform: translateX(0); }
+        to { transform: translateX(calc(-1 * var(--tbc-travel, 100vw))); }
+      }
+      #tbc-pip-btns {
+        position: absolute; top: 50%; left: -50px; transform: translateY(-50%);
+        display: flex; flex-direction: column; gap: 8px; z-index: 5;
+        transition: left 0.3s ease;
+      }
+      #tbc-pip-wrap:hover #tbc-pip-btns { left: 10px; }
+      .tbc-pip-btn, #tbc-pip-fav {
+        position: relative; width: 36px; height: 36px; padding: 0; box-sizing: border-box;
+        border: 2px solid #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+        background: rgba(0,0,0,.58); color: #fff; cursor: pointer;
+      }
+      .tbc-pip-btn svg, #tbc-pip-fav svg { width: 18px; height: 18px; fill: currentColor; display: block; }
+      .tbc-pip-btn:hover, #tbc-pip-fav:hover { background: rgba(0,0,0,.82); }
+      #tbc-pip-danmaku-btn.is-off { opacity: 0.45; }
+      #tbc-pip-danmaku-btn.is-off::after {
+        content: ""; position: absolute; width: 22px; height: 2px; background: #fff; transform: rotate(-40deg);
+      }
+      #tbc-pip-back {
+        position: absolute; top: 10px; right: -180px; z-index: 6;
+        padding: 6px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,.35);
+        background: rgba(0,0,0,.65); color: #fff; font: 600 14px/1.25 sans-serif;
+        cursor: pointer; white-space: nowrap; transition: right 0.3s ease;
+      }
+      #tbc-pip-wrap:hover #tbc-pip-back { right: 10px; }
+      #tbc-pip-back:hover { background: rgba(0,0,0,.88); }
+      #tbc-pip-toast {
+        position: absolute; left: 50%; top: 16px; transform: translateX(-50%);
+        z-index: 7; padding: 6px 12px; border-radius: 6px; background: rgba(0,0,0,.72);
+        color: #fff; font: 13px/1.3 sans-serif; opacity: 0; pointer-events: none; transition: opacity .2s;
+      }
+      #tbc-pip-toast.is-show { opacity: 1; }
+      #tbc-pip-input {
+        display: none; position: absolute; left: 0; right: 0; bottom: 0; z-index: 8;
+        box-sizing: border-box; gap: 8px; padding: 8px 10px; align-items: center; flex-wrap: wrap;
+        background: rgba(14,14,16,.94); border-top: 1px solid rgba(255,255,255,.12);
+        font-family: sans-serif;
+      }
+      #tbc-pip-input.is-active { display: flex; }
+      #tbc-pip-field {
+        flex: 1; min-width: 0; height: 34px; box-sizing: border-box; padding: 0 10px;
+        border-radius: 6px; border: 1px solid rgba(255,255,255,.16); background: #18181b;
+        color: #efeff1; font-size: 14px; outline: none;
+      }
+      #tbc-pip-field:focus { border-color: #9147ff; }
+      #tbc-pip-fav { flex-shrink: 0; }
+      .tbc-pip-fav-wrap { position: relative; flex-shrink: 0; }
+      #tbc-pip-fav-list {
+        position: absolute; left: 0; bottom: calc(100% + 6px); width: 220px; max-height: 180px;
+        overflow: auto; background: #18181b; border: 1px solid rgba(255,255,255,.14); border-radius: 6px;
+      }
+      .tbc-pip-fav-item, .tbc-pip-fav-empty {
+        display: block; width: 100%; box-sizing: border-box; text-align: left; background: transparent;
+        color: #efeff1; border: 0; padding: 8px 10px; font-size: 13px;
+      }
+      .tbc-pip-fav-item { cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .tbc-pip-fav-item:hover { background: rgba(255,255,255,.08); }
+      .tbc-pip-fav-empty { color: #adadb8; }
+      #tbc-pip-submit {
+        flex-shrink: 0; height: 34px; padding: 0 12px; border: 0; border-radius: 6px;
+        background: #9147ff; color: #fff; font-weight: 700; cursor: pointer;
+      }
+      #tbc-pip-submit:disabled { opacity: 0.55; cursor: default; }
+      #tbc-pip-status { flex: 1 0 100%; min-height: 0; color: #ff8280; font-size: 12px; line-height: 1.35; }
+      #tbc-pip-status:empty { display: none; }
+      #tbc-pip-status.is-ok { color: #00f593; }
+    `;
+  }
+
+  onKeyDown(event) {
+    if (!this.isOpen() || event.isComposing) return;
+    if (event.key === 'Escape') {
+      if (this.favOpen) {
+        event.preventDefault();
+        this.closeFavorites();
+        return;
+      }
+      if (this.inputOpen) {
+        event.preventDefault();
+        this.setInputOpen(false);
+      }
+      return;
+    }
+    if (event.key !== 'Enter' || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    const field = this.nodes?.field;
+    if (field && this.pipWindow.document.activeElement === field) {
+      event.preventDefault();
+      this.submit();
+      return;
+    }
+    event.preventDefault();
+    this.setInputOpen(true);
+  }
+
+  setInputOpen(open) {
+    if (!this.nodes?.input) return;
+    this.inputOpen = !!open;
+    this.nodes.input.classList.toggle('is-active', this.inputOpen);
+    if (!this.inputOpen) this.closeFavorites();
+    if (this.inputOpen) {
+      this.nodes.field.placeholder = currentVodId() ? t('pipVodNoSend') : t('fsChatPlaceholder');
+      this.pipWindow.requestAnimationFrame(() => this.nodes?.field?.focus());
+    }
+    this.resetLanes();
+  }
+
+  async reloadVideo() {
+    const source = this.sourceVideo;
+    const pipVideo = this.pipVideo;
+    if (!source || !pipVideo || (typeof source.captureStream !== 'function' && !this.isMediaStream(source.srcObject))) {
+      this.showToast(t('pipReloadFailed'));
+      return;
+    }
+    try {
+      if (source.paused) await source.play();
+    } catch (error) {
+      // Keep going; a paused source can still be recaptured.
+    }
+    let stream = null;
+    try {
+      stream = this.captureSource(source);
+    } catch (error) {
+      this.showToast(t('pipReloadFailed'));
+      return;
+    }
+    if (!stream) {
+      this.showToast(t('pipReloadFailed'));
+      return;
+    }
+    const previous = pipVideo.srcObject;
+    pipVideo.srcObject = stream;
+    pipVideo.muted = true;
+    if (previous && previous !== stream) this.stopStream(previous);
+    if (source.paused) pipVideo.pause();
+    else {
+      try { await pipVideo.play(); } catch (error) { /* the next source play event retries */ }
+    }
+    try { this.pipWindow?.focus(); } catch (error) { /* focus is best-effort */ }
+    this.showToast(t('pipReloaded'));
+  }
+
+  openSettings() {
+    try { window.focus(); } catch (error) { /* opener focus can fail */ }
+    try { this.sourceVideo?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (error) { /* not laid out */ }
+    this.onOpenSettings?.();
+    this.showToast(t('pipSettingsHint'));
+  }
+
+  showToast(message) {
+    const toast = this.nodes?.toast;
+    if (!toast) return;
+    toast.textContent = message || '';
+    toast.classList.add('is-show');
+    clearTimeout(this.toastTimer);
+    this.toastTimer = setTimeout(() => toast.classList.remove('is-show'), 2000);
+  }
+
+  showPageToast(message) {
+    let toast = document.getElementById('tbc-pip-page-toast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'tbc-pip-page-toast';
+      toast.className = 'tbc-pip-page-toast';
+      (document.body || document.documentElement).appendChild(toast);
+    }
+    toast.textContent = message || '';
+    toast.classList.add('is-show');
+    clearTimeout(this.pageToastTimer);
+    this.pageToastTimer = setTimeout(() => toast.classList.remove('is-show'), 2800);
+  }
+
+  clearPageToast() {
+    clearTimeout(this.pageToastTimer);
+    document.getElementById('tbc-pip-page-toast')?.remove();
+  }
+
+  listFavoriteItems() {
+    if (this.favoritesPanel?.visibleItems) {
+      this.favoritesPanel.state = loadFavoritesState();
+      return this.favoritesPanel.visibleItems();
+    }
+    return listFavoritesForChannel(loadFavoritesState(), currentChannelLogin?.() || '');
+  }
+
+  toggleFavorites() {
+    if (this.favOpen) this.closeFavorites();
+    else this.openFavorites();
+  }
+
+  openFavorites() {
+    const list = this.nodes?.favList;
+    const button = this.nodes?.favBtn;
+    if (!list || !button) return;
+    this.renderFavorites();
+    list.hidden = false;
+    button.setAttribute('aria-expanded', 'true');
+    this.favOpen = true;
+  }
+
+  closeFavorites() {
+    const list = this.nodes?.favList;
+    const button = this.nodes?.favBtn;
+    if (list) {
+      list.hidden = true;
+      list.replaceChildren();
+    }
+    button?.setAttribute('aria-expanded', 'false');
+    this.favOpen = false;
+  }
+
+  renderFavorites() {
+    const list = this.nodes?.favList;
+    if (!list) return;
+    const doc = this.pipWindow.document;
+    list.replaceChildren();
+    const items = this.listFavoriteItems();
+    if (!items.length) {
+      const empty = doc.createElement('div');
+      empty.className = 'tbc-pip-fav-empty';
+      empty.textContent = t('fsChatFavoritesEmpty');
+      list.appendChild(empty);
+      return;
+    }
+    items.forEach((item) => {
+      const button = doc.createElement('button');
+      button.type = 'button';
+      button.className = 'tbc-pip-fav-item';
+      button.title = item.text;
+      button.textContent = item.text;
+      button.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const field = this.nodes?.field;
+        if (field) {
+          field.value = item.text;
+          field.focus();
+          const len = field.value.length;
+          field.setSelectionRange(len, len);
+        }
+        this.closeFavorites();
+      });
+      list.appendChild(button);
+    });
+  }
+
+  setStatus(message, ok = false) {
+    const status = this.nodes?.status;
+    if (!status) return;
+    status.textContent = message || '';
+    status.classList.toggle('is-ok', !!ok && !!message);
+  }
+
+  async submit() {
+    const field = this.nodes?.field;
+    if (!field || this.sending) return;
+    const text = field.value.trim();
+    if (!text) {
+      this.setStatus('');
+      return;
+    }
+    if (currentVodId()) {
+      this.setStatus(t('pipVodNoSend'), false);
+      return;
+    }
+
+    this.sending = true;
+    if (this.nodes.submit) this.nodes.submit.disabled = true;
+    this.closeFavorites();
+    this.setStatus('');
+    try {
+      await sendTwitchChatMessage(text);
+      field.value = '';
+      this.setStatus(t('fsChatSent'), true);
+      clearTimeout(this.statusTimer);
+      this.statusTimer = setTimeout(() => {
+        if (this.nodes?.status?.textContent === t('fsChatSent')) this.setStatus('');
+      }, 1200);
+    } catch (error) {
+      this.setStatus(chatSendErrorMessage(error), false);
+    } finally {
+      this.sending = false;
+      if (this.nodes?.submit) this.nodes.submit.disabled = false;
+      field.focus();
+    }
+  }
+}
+
+class ControlButton {
+  constructor({
+    onToggleDanmaku,
+    onToggleTranslate,
+    onTogglePanel,
+    onToggleSpeech,
+    onToggleHistory,
+    onTogglePip,
+    getSettings,
+    isPanelOpen,
+    isSpeechPanelOpen,
+    isHistoryPanelOpen,
+    isPipOpen,
+  }) {
+    this.onToggleDanmaku = onToggleDanmaku;
+    this.onToggleTranslate = onToggleTranslate;
     this.onTogglePanel = onTogglePanel;
     this.onToggleSpeech = onToggleSpeech;
     this.onToggleHistory = onToggleHistory;
+    this.onTogglePip = onTogglePip;
     this.getSettings = getSettings;
     this.isPanelOpen = isPanelOpen;
     this.isSpeechPanelOpen = isSpeechPanelOpen;
     this.isHistoryPanelOpen = isHistoryPanelOpen;
+    this.isPipOpen = isPipOpen;
     this.wrap = null;
     this.danmakuBtn = null;
+    this.translateBtn = null;
     this.speechBtn = null;
     this.historyBtn = null;
     this.settingsBtn = null;
+    this.pipBtn = null;
     this.controlsGroup = null;
     this.retryTimer = null;
   }
@@ -10099,6 +11384,15 @@ class ControlButton {
       this.onToggleDanmaku();
     });
 
+    this.translateBtn = this.createBtn('tbc-translate-btn', t('translateToggle'), `
+      <span class="tbc-icon tbc-icon-on">${ICON_TRANSLATE_ON}</span>
+      <span class="tbc-icon tbc-icon-off">${ICON_TRANSLATE_OFF}</span>
+    `);
+    this.translateBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.onToggleTranslate?.();
+    });
+
     this.speechBtn = this.createBtn('tbc-speech-btn', t('speechToggle'), `
       <span class="tbc-icon tbc-icon-on">${ICON_SPEECH_ON}</span>
       <span class="tbc-icon tbc-icon-mute">${ICON_SPEECH_MUTE}</span>
@@ -10121,21 +11415,31 @@ class ControlButton {
       this.onToggleHistory(this.historyBtn);
     });
 
-    this.wrap.append(this.danmakuBtn, this.settingsBtn, this.speechBtn, this.historyBtn);
+    this.pipBtn = this.createBtn('tbc-pip-btn', t('pipOpen'), ICON_PIP);
+    this.pipBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.onTogglePip?.();
+    });
+
+    this.wrap.append(this.danmakuBtn, this.translateBtn, this.settingsBtn, this.speechBtn, this.historyBtn, this.pipBtn);
     this.controlsGroup.appendChild(this.wrap);
     this.updateDanmakuState();
+    this.updateTranslateState();
     this.updateSpeechState();
     this.updatePanelState();
+    this.updatePipState();
   }
 
   remount() {
-    if (this.wrap?.isConnected && this.wrap.querySelector('.tbc-speech-btn') && this.wrap.querySelector('.tbc-history-btn')) return;
+    if (this.wrap?.isConnected && this.wrap.querySelector('.tbc-translate-btn') && this.wrap.querySelector('.tbc-speech-btn') && this.wrap.querySelector('.tbc-history-btn') && this.wrap.querySelector('.tbc-pip-btn')) return;
     this.wrap?.remove();
     this.wrap = null;
     this.danmakuBtn = null;
+    this.translateBtn = null;
     this.speechBtn = null;
     this.historyBtn = null;
     this.settingsBtn = null;
+    this.pipBtn = null;
     clearTimeout(this.retryTimer);
     this.retryTimer = setTimeout(() => this.mount(), 500);
   }
@@ -10146,6 +11450,15 @@ class ControlButton {
     this.danmakuBtn.classList.toggle('tbc-danmaku-enabled', enabled);
     this.danmakuBtn.classList.toggle('tbc-danmaku-disabled', !enabled);
     this.danmakuBtn.title = enabled ? t('danmakuOn') : t('danmakuOff');
+  }
+
+  updateTranslateState() {
+    if (!this.translateBtn) return;
+    const enabled = !!this.getSettings().translateEnabled;
+    this.translateBtn.classList.toggle('tbc-translate-on', enabled);
+    this.translateBtn.classList.toggle('tbc-translate-off', !enabled);
+    this.translateBtn.title = enabled ? t('translateOn') : t('translateOff');
+    this.translateBtn.setAttribute('aria-pressed', enabled ? 'true' : 'false');
   }
 
   updateSpeechState() {
@@ -10172,10 +11485,19 @@ class ControlButton {
     this.historyBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
   }
 
+  updatePipState() {
+    if (!this.pipBtn) return;
+    const open = !!this.isPipOpen?.();
+    this.pipBtn.classList.toggle('tbc-active', open);
+    this.pipBtn.title = open ? t('pipClose') : t('pipOpen');
+    this.pipBtn.setAttribute('aria-pressed', open ? 'true' : 'false');
+  }
+
   updatePanelState() {
     if (!this.settingsBtn) return;
     this.settingsBtn.classList.toggle('tbc-active', this.isPanelOpen());
     this.settingsBtn.setAttribute('aria-expanded', this.isPanelOpen() ? 'true' : 'false');
+    this.updateTranslateState();
     this.updateSpeechState();
     this.updateHistoryState();
   }
@@ -10185,9 +11507,11 @@ class ControlButton {
     this.wrap?.remove();
     this.wrap = null;
     this.danmakuBtn = null;
+    this.translateBtn = null;
     this.speechBtn = null;
     this.historyBtn = null;
     this.settingsBtn = null;
+    this.pipBtn = null;
   }
 }
 
@@ -10200,6 +11524,7 @@ let chatContextMenu = null;
 let chatClearButton = null;
 let favoritesPanel = null;
 let fullscreenChat = null;
+let enhancedPip = null;
 let settingsPanel = null;
 let speechPanel = null;
 let historyPanel = null;
@@ -10212,16 +11537,43 @@ function getSettings() {
   return settings;
 }
 
-function isActive() {
+function isBackgroundChatKept() {
   if (document.documentElement.dataset.tbcPreview === 'true') return true;
+  if (enhancedPip?.isOpen()) return true;
+  if (settings.tabAntiFreeze) return true;
+  return false;
+}
+
+function isActive() {
+  if (isBackgroundChatKept()) return true;
   return pageActive;
+}
+
+function syncBackgroundChat() {
+  syncTabAntiFreeze(getSettings, () => enhancedPip?.isOpen());
+  if (isBackgroundChatKept()) {
+    chatObserver?.ensureBackgroundIrc?.();
+  } else {
+    chatObserver?.maybeStopBackgroundIrc?.();
+  }
+  if (isBackgroundChatKept() && !pageActive) {
+    pageActive = true;
+  }
 }
 
 function onSettingsChange(newSettings) {
   settings = newSettings;
   danmaku?.updateLayout();
   controlButton?.updateDanmakuState();
+  controlButton?.updateTranslateState();
   controlButton?.updateSpeechState();
+  settingsPanel?.syncFromSettings();
+  speechPanel?.syncFromSettings();
+  enhancedPip?.syncSettings();
+  syncBackgroundChat();
+  if (document.documentElement.dataset.tbcPreview === 'true') {
+    window.dispatchEvent(new CustomEvent('tbc-settings-updated', { detail: settings }));
+  }
   if (!settings.translateEnabled) {
     translateQueue?.clear();
     clearChatTranslations();
@@ -10239,15 +11591,29 @@ function toggleDanmaku() {
   onSettingsChange(settings);
 }
 
+function toggleTranslate() {
+  settings.translateEnabled = !settings.translateEnabled;
+  saveSettings(settings);
+  onSettingsChange(settings);
+}
+
+function toggleSpeechEnabled() {
+  settings.speechEnabled = !settings.speechEnabled;
+  saveSettings(settings);
+  onSettingsChange(settings);
+}
+
 function handleVisibilityChange() {
   if (document.documentElement.dataset.tbcPreview === 'true') {
     pageActive = true;
     return;
   }
-  const wasActive = pageActive;
+  const wasChatActive = isActive();
   pageActive = isPageActive();
+  syncBackgroundChat();
+  const nowChatActive = isActive();
 
-  if (wasActive && !pageActive) {
+  if (wasChatActive && !nowChatActive) {
     danmakuEmitter?.clear();
     translateQueue?.clear();
     cancelSpeech();
@@ -10260,6 +11626,7 @@ function teardown() {
   chatClearButton?.destroy();
   favoritesPanel?.destroy();
   fullscreenChat?.destroy();
+  enhancedPip?.destroy();
   danmaku?.destroy();
   controlButton?.destroy();
   danmakuEmitter?.clear();
@@ -10269,11 +11636,13 @@ function teardown() {
   speechPanel?.close();
   historyPanel?.close();
   cancelSpeech();
+  tabAntiFreezeDisable();
   chatObserver = null;
   chatContextMenu = null;
   chatClearButton = null;
   favoritesPanel = null;
   fullscreenChat = null;
+  enhancedPip = null;
   danmaku = null;
   danmakuEmitter = null;
   translateQueue = null;
@@ -10319,6 +11688,24 @@ async function boot() {
   fullscreenChat = new FullscreenChatInput({ favoritesPanel });
   fullscreenChat.attach();
 
+  enhancedPip = new EnhancedPip({
+    getSettings,
+    danmaku,
+    favoritesPanel,
+    onToggleDanmaku: toggleDanmaku,
+    onOpenSettings: () => {
+      speechPanel?.close();
+      historyPanel?.close();
+      const anchor = controlButton?.settingsBtn || controlButton?.wrap;
+      if (anchor && !settingsPanel?.isOpen) settingsPanel.open(anchor);
+      controlButton?.updatePanelState();
+    },
+    onStateChange: () => {
+      syncBackgroundChat();
+      controlButton?.updatePipState();
+    },
+  });
+
   if (!settingsPanel) {
     settingsPanel = new SettingsPanel({
       settings,
@@ -10354,6 +11741,7 @@ async function boot() {
 
   controlButton = new ControlButton({
     onToggleDanmaku: toggleDanmaku,
+    onToggleTranslate: toggleTranslate,
     onTogglePanel: (anchor) => {
       speechPanel.close();
       historyPanel.close();
@@ -10376,6 +11764,8 @@ async function boot() {
     isPanelOpen: () => settingsPanel.isOpen,
     isSpeechPanelOpen: () => speechPanel.isOpen,
     isHistoryPanelOpen: () => historyPanel.isOpen,
+    onTogglePip: () => enhancedPip?.toggle(),
+    isPipOpen: () => !!enhancedPip?.isOpen(),
   });
 
   // Mount player UI first so FFZ/chat delays cannot block controls.
@@ -10386,6 +11776,13 @@ async function boot() {
   ]);
   await chatClearButton.mount();
   await chatObserver.start();
+
+  window.__tbcApplySettings = onSettingsChange;
+  window.__tbcGetSettings = getSettings;
+  window.__tbcToggleTranslate = toggleTranslate;
+  window.__tbcToggleSpeech = toggleSpeechEnabled;
+
+  syncBackgroundChat();
 
   console.log(`[TBC] Twitch Danmaku initialized${chatObserver.ffzActive ? ' (FFZ compat)' : ''}`);
 }
