@@ -4,7 +4,7 @@
 // @name:zh-TW   Twitch 彈幕 | 即時翻譯
 // @name:ja      Twitch 弾幕 | リアルタイム翻訳
 // @namespace    https://github.com/saka1zum1/twitch-danmaku
-// @version      2.0.0
+// @version      2.0.1
 // @description  Convert Twitch live chat to video danmaku with real-time translation
 // @description:zh-CN  将 Twitch 直播评论转换为视频弹幕，支持实时翻译
 // @description:zh-TW  將聊天室中的新訊息轉換成影片上的滾動彈幕，支援即時翻譯
@@ -1752,9 +1752,9 @@ class DanmakuEngine {
   estimatePinnedItemHeight() {
     const settings = this.getSettings();
     if (settings.superchatCompact) {
-      return Math.max(40, settings.fontSize + 18);
+      return Math.max(32, settings.fontSize + 10);
     }
-    return Math.max(44, settings.fontSize + 28);
+    return Math.max(48, settings.fontSize + 20);
   }
 
   getPinnedBandHeight() {
@@ -1791,7 +1791,7 @@ class DanmakuEngine {
       const maxTopBand = playerHeight - bottomReserve - top - 4;
       bandHeight = Math.min(bandHeight, maxTopBand);
     }
-    return { ...placement, top, height: bandHeight, contentHeight };
+    return { ...placement, top, height: bandHeight, contentHeight, maxBand };
   }
 
   getScrollAreaRect(playerRect) {
@@ -1962,13 +1962,16 @@ class DanmakuEngine {
     this.superchatLayer.classList.toggle('tbc-sc-align-right', band.horizontal === 'right');
     const needsPinScroll = band.contentHeight > band.height + 2;
     this.superchatLayer.classList.toggle('tbc-sc-scrollable', needsPinScroll);
+    const layerSize = needsPinScroll
+      ? { height: `${band.height}px`, maxHeight: '' }
+      : { height: 'auto', maxHeight: `${band.maxBand}px` };
     Object.assign(this.superchatLayer.style, fullscreen ? {
       display: 'flex',
       position: 'fixed',
       top: `${playerRect.top + band.top}px`,
       left: `${playerRect.left}px`,
       width: `${playerRect.width}px`,
-      height: `${band.height}px`,
+      ...layerSize,
       zIndex: '10000',
     } : {
       display: 'flex',
@@ -1976,7 +1979,7 @@ class DanmakuEngine {
       top: `${band.top}px`,
       left: '0',
       width: '100%',
-      height: `${band.height}px`,
+      ...layerSize,
       zIndex: settings.superchatOverlayDanmaku === false ? '4' : '5',
     });
   }
@@ -2078,7 +2081,10 @@ class DanmakuEngine {
     item.style.setProperty('--tbc-sc-accent', safeCssColor(style.accent, '#bf94ff'));
     item.style.background = style.background || safeCssColor(style.background, '#9147ff');
     item.style.color = safeCssColor(style.color, '#ffffff');
-    item.style.fontSize = `${Math.max(14, settings.fontSize - 2)}px`;
+    const baseFont = Math.max(14, settings.fontSize - 2);
+    item.style.fontSize = compact
+      ? `${Math.max(12, settings.fontSize - 5)}px`
+      : `${baseFont}px`;
     item.style.fontFamily = settings.fontFamily;
 
     const avatar = document.createElement('img');
@@ -2097,7 +2103,7 @@ class DanmakuEngine {
       const nameEl = document.createElement('span');
       nameEl.className = 'tbc-sc-compact-name';
       const displayName = username || login || 'User';
-      nameEl.textContent = this.truncateName(displayName, 14);
+      nameEl.textContent = this.truncateName(displayName, 10);
       nameEl.title = displayName;
       const metaRow = this.buildSuperchatMetaRow(meta, { badgeBeforeAmount: true });
       compactMain.append(nameEl, metaRow);
@@ -2111,9 +2117,11 @@ class DanmakuEngine {
       head.className = 'tbc-sc-head';
       const nameEl = document.createElement('span');
       nameEl.className = 'tbc-sc-name';
-      nameEl.textContent = this.truncateName(username || login || 'User');
-      nameEl.title = username || login || '';
+      const displayName = username || login || 'User';
+      nameEl.textContent = this.truncateName(displayName, 18);
+      nameEl.title = displayName;
       head.appendChild(nameEl);
+      if (metaRow.childElementCount) head.appendChild(metaRow);
 
       body = document.createElement('div');
       body.className = 'tbc-sc-body';
@@ -2121,7 +2129,7 @@ class DanmakuEngine {
       track.className = 'tbc-sc-body-track';
       this.appendParts(track, parts?.length ? parts : [{ type: 'text', value: message }]);
       body.appendChild(track);
-      main.append(head, metaRow, body);
+      main.append(head, body);
       item.append(avatar, main);
     }
 
@@ -6953,10 +6961,12 @@ function injectStyles() {
       flex-direction: column;
       align-items: center;
       justify-content: flex-start;
+      align-content: flex-start;
       gap: 6px;
       overflow: visible;
       padding: 6px 0 4px;
       box-sizing: border-box;
+      min-height: 0;
     }
 
     .tbc-superchat-layer.tbc-sc-scrollable {
@@ -6984,10 +6994,11 @@ function injectStyles() {
     .tbc-superchat-item {
       position: relative;
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       gap: 10px;
+      flex-shrink: 0;
       min-width: min(280px, calc(100% - 24px));
-      padding: 8px 28px 8px 8px;
+      padding: 7px 28px 7px 8px;
       border-radius: 12px;
       border: 1px solid rgba(255, 255, 255, 0.18);
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
@@ -7048,13 +7059,14 @@ function injectStyles() {
     }
 
     .tbc-sc-avatar {
-      width: 36px;
-      height: 36px;
+      width: 32px;
+      height: 32px;
       border-radius: 50%;
       object-fit: cover;
       flex-shrink: 0;
       background: rgba(0, 0, 0, 0.25);
       border: 2px solid rgba(255, 255, 255, 0.35);
+      margin-top: 1px;
     }
 
     .tbc-sc-main {
@@ -7062,7 +7074,7 @@ function injectStyles() {
       flex: 1;
       display: flex;
       flex-direction: column;
-      gap: 2px;
+      gap: 3px;
     }
 
     .tbc-sc-head {
@@ -7070,15 +7082,16 @@ function injectStyles() {
       align-items: center;
       gap: 8px;
       min-width: 0;
+      flex-wrap: nowrap;
     }
 
     .tbc-sc-meta {
-      display: flex;
+      display: inline-flex;
       align-items: center;
       flex-wrap: nowrap;
       gap: 6px;
       flex-shrink: 0;
-      align-self: flex-start;
+      margin-left: auto;
     }
 
     .tbc-sc-amount {
@@ -7101,10 +7114,21 @@ function injectStyles() {
 
     .tbc-superchat-item.tbc-sc-compact {
       min-width: unset;
-      padding: 6px 44px 6px 6px;
-      gap: 8px;
+      max-width: min(360px, calc(100% - 24px));
+      padding: 4px 34px 4px 5px;
+      gap: 6px;
+      line-height: 1.2;
+      border-radius: 10px;
       cursor: pointer;
       flex-shrink: 0;
+      align-items: center;
+    }
+
+    .tbc-superchat-item.tbc-sc-compact .tbc-sc-avatar {
+      width: 24px;
+      height: 24px;
+      border-width: 1px;
+      margin-top: 0;
     }
 
     .tbc-sc-compact-main {
@@ -7112,17 +7136,17 @@ function injectStyles() {
       flex: 1;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }
 
     .tbc-sc-compact-name {
       min-width: 0;
-      flex: 1 1 4em;
-      max-width: 9em;
+      flex: 0 1 auto;
+      max-width: 6.5em;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      font-size: 0.9em;
+      font-size: 0.88em;
       font-weight: 800;
       opacity: 0.96;
     }
@@ -7130,12 +7154,31 @@ function injectStyles() {
     .tbc-superchat-item.tbc-sc-compact .tbc-sc-meta {
       margin-left: 0;
       flex-shrink: 0;
+      gap: 4px;
+    }
+
+    .tbc-superchat-item.tbc-sc-compact .tbc-sc-badge,
+    .tbc-superchat-item.tbc-sc-compact .tbc-sc-amount {
+      padding: 0 5px;
+      font-size: 0.68em;
+      line-height: 1.35;
+    }
+
+    .tbc-superchat-item.tbc-sc-compact .tbc-sc-tier {
+      min-width: 1.8em;
     }
 
     .tbc-superchat-item.tbc-sc-compact .tbc-sc-close {
       top: 50%;
-      right: 6px;
+      right: 3px;
+      width: 22px;
+      height: 22px;
       transform: translateY(-50%);
+    }
+
+    .tbc-superchat-item.tbc-sc-compact .tbc-sc-close svg {
+      width: 14px;
+      height: 14px;
     }
 
     .tbc-sc-name {
@@ -7144,7 +7187,8 @@ function injectStyles() {
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      max-width: 10em;
+      min-width: 0;
+      flex: 1 1 auto;
       opacity: 0.95;
     }
 
@@ -7165,6 +7209,8 @@ function injectStyles() {
       min-width: 0;
       overflow: hidden;
       max-width: 100%;
+      line-height: 1.3;
+      min-height: 1.3em;
     }
 
     .tbc-sc-body-track {

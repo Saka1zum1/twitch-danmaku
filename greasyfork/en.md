@@ -54,6 +54,7 @@ No more constantly glancing at the chat panel. Messages flow across the screen s
 - Adjustable max width. Compact mode shows avatar, name, and amount only — tap it for a detail card (translate, speak, favorite, profile, block)
 - Subscription pins can be hidden. Pin time can grow with the amount
 - Multiple pins at once. Animations: fade, slide, pop, or shine. Dismiss closes early
+- Compact pins take less space; full pins put name and badges on one row; multiple pins stack more neatly
 
 ### Enhanced Picture-in-Picture
 - Resizable mini window from the player bar

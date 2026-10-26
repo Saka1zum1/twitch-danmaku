@@ -556,10 +556,12 @@ function injectStyles() {
       flex-direction: column;
       align-items: center;
       justify-content: flex-start;
+      align-content: flex-start;
       gap: 6px;
       overflow: visible;
       padding: 6px 0 4px;
       box-sizing: border-box;
+      min-height: 0;
     }
 
     .tbc-superchat-layer.tbc-sc-scrollable {
@@ -587,10 +589,11 @@ function injectStyles() {
     .tbc-superchat-item {
       position: relative;
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       gap: 10px;
+      flex-shrink: 0;
       min-width: min(280px, calc(100% - 24px));
-      padding: 8px 28px 8px 8px;
+      padding: 7px 28px 7px 8px;
       border-radius: 12px;
       border: 1px solid rgba(255, 255, 255, 0.18);
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
@@ -651,13 +654,14 @@ function injectStyles() {
     }
 
     .tbc-sc-avatar {
-      width: 36px;
-      height: 36px;
+      width: 32px;
+      height: 32px;
       border-radius: 50%;
       object-fit: cover;
       flex-shrink: 0;
       background: rgba(0, 0, 0, 0.25);
       border: 2px solid rgba(255, 255, 255, 0.35);
+      margin-top: 1px;
     }
 
     .tbc-sc-main {
@@ -665,7 +669,7 @@ function injectStyles() {
       flex: 1;
       display: flex;
       flex-direction: column;
-      gap: 2px;
+      gap: 3px;
     }
 
     .tbc-sc-head {
@@ -673,15 +677,16 @@ function injectStyles() {
       align-items: center;
       gap: 8px;
       min-width: 0;
+      flex-wrap: nowrap;
     }
 
     .tbc-sc-meta {
-      display: flex;
+      display: inline-flex;
       align-items: center;
       flex-wrap: nowrap;
       gap: 6px;
       flex-shrink: 0;
-      align-self: flex-start;
+      margin-left: auto;
     }
 
     .tbc-sc-amount {
@@ -704,10 +709,21 @@ function injectStyles() {
 
     .tbc-superchat-item.tbc-sc-compact {
       min-width: unset;
-      padding: 6px 44px 6px 6px;
-      gap: 8px;
+      max-width: min(360px, calc(100% - 24px));
+      padding: 4px 34px 4px 5px;
+      gap: 6px;
+      line-height: 1.2;
+      border-radius: 10px;
       cursor: pointer;
       flex-shrink: 0;
+      align-items: center;
+    }
+
+    .tbc-superchat-item.tbc-sc-compact .tbc-sc-avatar {
+      width: 24px;
+      height: 24px;
+      border-width: 1px;
+      margin-top: 0;
     }
 
     .tbc-sc-compact-main {
@@ -715,17 +731,17 @@ function injectStyles() {
       flex: 1;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }
 
     .tbc-sc-compact-name {
       min-width: 0;
-      flex: 1 1 4em;
-      max-width: 9em;
+      flex: 0 1 auto;
+      max-width: 6.5em;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      font-size: 0.9em;
+      font-size: 0.88em;
       font-weight: 800;
       opacity: 0.96;
     }
@@ -733,12 +749,31 @@ function injectStyles() {
     .tbc-superchat-item.tbc-sc-compact .tbc-sc-meta {
       margin-left: 0;
       flex-shrink: 0;
+      gap: 4px;
+    }
+
+    .tbc-superchat-item.tbc-sc-compact .tbc-sc-badge,
+    .tbc-superchat-item.tbc-sc-compact .tbc-sc-amount {
+      padding: 0 5px;
+      font-size: 0.68em;
+      line-height: 1.35;
+    }
+
+    .tbc-superchat-item.tbc-sc-compact .tbc-sc-tier {
+      min-width: 1.8em;
     }
 
     .tbc-superchat-item.tbc-sc-compact .tbc-sc-close {
       top: 50%;
-      right: 6px;
+      right: 3px;
+      width: 22px;
+      height: 22px;
       transform: translateY(-50%);
+    }
+
+    .tbc-superchat-item.tbc-sc-compact .tbc-sc-close svg {
+      width: 14px;
+      height: 14px;
     }
 
     .tbc-sc-name {
@@ -747,7 +782,8 @@ function injectStyles() {
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      max-width: 10em;
+      min-width: 0;
+      flex: 1 1 auto;
       opacity: 0.95;
     }
 
@@ -768,6 +804,8 @@ function injectStyles() {
       min-width: 0;
       overflow: hidden;
       max-width: 100%;
+      line-height: 1.3;
+      min-height: 1.3em;
     }
 
     .tbc-sc-body-track {

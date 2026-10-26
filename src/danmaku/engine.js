@@ -85,9 +85,9 @@ class DanmakuEngine {
   estimatePinnedItemHeight() {
     const settings = this.getSettings();
     if (settings.superchatCompact) {
-      return Math.max(40, settings.fontSize + 18);
+      return Math.max(32, settings.fontSize + 10);
     }
-    return Math.max(44, settings.fontSize + 28);
+    return Math.max(48, settings.fontSize + 20);
   }
 
   getPinnedBandHeight() {
@@ -124,7 +124,7 @@ class DanmakuEngine {
       const maxTopBand = playerHeight - bottomReserve - top - 4;
       bandHeight = Math.min(bandHeight, maxTopBand);
     }
-    return { ...placement, top, height: bandHeight, contentHeight };
+    return { ...placement, top, height: bandHeight, contentHeight, maxBand };
   }
 
   getScrollAreaRect(playerRect) {
@@ -295,13 +295,16 @@ class DanmakuEngine {
     this.superchatLayer.classList.toggle('tbc-sc-align-right', band.horizontal === 'right');
     const needsPinScroll = band.contentHeight > band.height + 2;
     this.superchatLayer.classList.toggle('tbc-sc-scrollable', needsPinScroll);
+    const layerSize = needsPinScroll
+      ? { height: `${band.height}px`, maxHeight: '' }
+      : { height: 'auto', maxHeight: `${band.maxBand}px` };
     Object.assign(this.superchatLayer.style, fullscreen ? {
       display: 'flex',
       position: 'fixed',
       top: `${playerRect.top + band.top}px`,
       left: `${playerRect.left}px`,
       width: `${playerRect.width}px`,
-      height: `${band.height}px`,
+      ...layerSize,
       zIndex: '10000',
     } : {
       display: 'flex',
@@ -309,7 +312,7 @@ class DanmakuEngine {
       top: `${band.top}px`,
       left: '0',
       width: '100%',
-      height: `${band.height}px`,
+      ...layerSize,
       zIndex: settings.superchatOverlayDanmaku === false ? '4' : '5',
     });
   }
@@ -411,7 +414,10 @@ class DanmakuEngine {
     item.style.setProperty('--tbc-sc-accent', safeCssColor(style.accent, '#bf94ff'));
     item.style.background = style.background || safeCssColor(style.background, '#9147ff');
     item.style.color = safeCssColor(style.color, '#ffffff');
-    item.style.fontSize = `${Math.max(14, settings.fontSize - 2)}px`;
+    const baseFont = Math.max(14, settings.fontSize - 2);
+    item.style.fontSize = compact
+      ? `${Math.max(12, settings.fontSize - 5)}px`
+      : `${baseFont}px`;
     item.style.fontFamily = settings.fontFamily;
 
     const avatar = document.createElement('img');
@@ -430,7 +436,7 @@ class DanmakuEngine {
       const nameEl = document.createElement('span');
       nameEl.className = 'tbc-sc-compact-name';
       const displayName = username || login || 'User';
-      nameEl.textContent = this.truncateName(displayName, 14);
+      nameEl.textContent = this.truncateName(displayName, 10);
       nameEl.title = displayName;
       const metaRow = this.buildSuperchatMetaRow(meta, { badgeBeforeAmount: true });
       compactMain.append(nameEl, metaRow);
@@ -444,9 +450,11 @@ class DanmakuEngine {
       head.className = 'tbc-sc-head';
       const nameEl = document.createElement('span');
       nameEl.className = 'tbc-sc-name';
-      nameEl.textContent = this.truncateName(username || login || 'User');
-      nameEl.title = username || login || '';
+      const displayName = username || login || 'User';
+      nameEl.textContent = this.truncateName(displayName, 18);
+      nameEl.title = displayName;
       head.appendChild(nameEl);
+      if (metaRow.childElementCount) head.appendChild(metaRow);
 
       body = document.createElement('div');
       body.className = 'tbc-sc-body';
@@ -454,7 +462,7 @@ class DanmakuEngine {
       track.className = 'tbc-sc-body-track';
       this.appendParts(track, parts?.length ? parts : [{ type: 'text', value: message }]);
       body.appendChild(track);
-      main.append(head, metaRow, body);
+      main.append(head, body);
       item.append(avatar, main);
     }
 
