@@ -88,6 +88,8 @@ function buildIrcPayload({ channel, login, displayName, color, message, tags, bi
       kind: 'cheer',
       bits,
       amountLabel: `${bits} Bits`,
+      tierLabel: cheerTierBadgeLabel(bits),
+      tierIconUrl: cheerTierIconUrl(bits),
       avatarUrl: '',
       style,
     };

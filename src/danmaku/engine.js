@@ -337,18 +337,11 @@ class DanmakuEngine {
       const amount = document.createElement('span');
       amount.className = 'tbc-sc-amount';
       amount.textContent = meta.amountLabel || `${meta.bits} Bits`;
-      const tierText = meta.tierLabel || cheerTierBadgeLabel(meta.bits);
-      const tier = tierText ? document.createElement('span') : null;
-      if (tier) {
-        tier.className = 'tbc-sc-badge tbc-sc-tier';
-        tier.textContent = tierText;
-      }
-      if (badgeBeforeAmount && tier) {
+      const tier = createCheerTierBadgeEl(meta);
+      if (badgeBeforeAmount) {
         metaRow.append(tier, amount);
-      } else if (tier) {
-        metaRow.append(amount, tier);
       } else {
-        metaRow.appendChild(amount);
+        metaRow.append(amount, tier);
       }
     } else if (meta.amountLabel) {
       const badge = document.createElement('span');

@@ -4,7 +4,7 @@
 // @name:zh-TW   Twitch 彈幕 | 即時翻譯
 // @name:ja      Twitch 弾幕 | リアルタイム翻訳
 // @namespace    https://github.com/saka1zum1/twitch-danmaku
-// @version      2.0.1
+// @version      2.0.2
 // @description  Convert Twitch live chat to video danmaku with real-time translation
 // @description:zh-CN  将 Twitch 直播评论转换为视频弹幕，支持实时翻译
 // @description:zh-TW  將聊天室中的新訊息轉換成影片上的滾動彈幕，支援即時翻譯
@@ -1504,15 +1504,7 @@ function openSuperchatDetailCard(mount, payload, helpers = {}) {
       const amount = document.createElement('span');
       amount.className = 'tbc-sc-amount';
       amount.textContent = meta.amountLabel || `${meta.bits} Bits`;
-      const tierText = meta.tierLabel || cheerTierBadgeLabel(meta.bits);
-      if (tierText) {
-        const tier = document.createElement('span');
-        tier.className = 'tbc-sc-badge tbc-sc-tier';
-        tier.textContent = tierText;
-        metaRow.append(tier, amount);
-      } else {
-        metaRow.appendChild(amount);
-      }
+      metaRow.append(createCheerTierBadgeEl(meta), amount);
     } else if (meta.amountLabel) {
       const badge = document.createElement('span');
       badge.className = 'tbc-sc-badge';
@@ -2004,18 +1996,11 @@ class DanmakuEngine {
       const amount = document.createElement('span');
       amount.className = 'tbc-sc-amount';
       amount.textContent = meta.amountLabel || `${meta.bits} Bits`;
-      const tierText = meta.tierLabel || cheerTierBadgeLabel(meta.bits);
-      const tier = tierText ? document.createElement('span') : null;
-      if (tier) {
-        tier.className = 'tbc-sc-badge tbc-sc-tier';
-        tier.textContent = tierText;
-      }
-      if (badgeBeforeAmount && tier) {
+      const tier = createCheerTierBadgeEl(meta);
+      if (badgeBeforeAmount) {
         metaRow.append(tier, amount);
-      } else if (tier) {
-        metaRow.append(amount, tier);
       } else {
-        metaRow.appendChild(amount);
+        metaRow.append(amount, tier);
       }
     } else if (meta.amountLabel) {
       const badge = document.createElement('span');
@@ -3936,6 +3921,7 @@ function extractMessageParts(msgEl) {
   const pushEmote = (img) => {
     const name = extractEmoteName(img).trim();
     const src = pickEmoteSrc(img);
+    if (bitsFromImageAsset(img) > 0 || isCheerTierImageSrc(src)) return;
     if (!name && !src) return;
     parts.push({ type: 'emote', name, src });
   };
@@ -3959,6 +3945,7 @@ function extractMessageParts(msgEl) {
 
     if (node.tagName === 'IMG') {
       if (node.classList.contains('chat-badge') || node.closest('[data-a-target="chat-badge"]')) return;
+      if (bitsFromImageAsset(node) > 0) return;
       pushEmote(node);
       return;
     }
@@ -3996,6 +3983,35 @@ function bitsFromText(text) {
     match = matcher.exec(source);
   }
   return total;
+}
+
+function bitsFromPlainSuffix(text) {
+  const match = String(text || '').match(/(?:^|\s)([1-9]\d{0,6})\s+bits\s*$/i);
+  return match ? (Number(match[1]) || 0) : 0;
+}
+
+function stripCheerAmountSuffixText(text) {
+  return String(text || '').replace(/(?:\s*[·•\-–—]\s*|\s+)([1-9]\d{0,6})\s+bits\s*$/i, '').trim();
+}
+
+function stripCheerAmountSuffixParts(parts) {
+  const list = Array.isArray(parts) ? parts.slice() : [];
+  for (let i = list.length - 1; i >= 0; i -= 1) {
+    if (list[i].type !== 'text') continue;
+    const next = stripCheerAmountSuffixText(list[i].value);
+    if (next === list[i].value) return list;
+    if (!next) list.splice(i, 1);
+    else list[i] = { ...list[i], value: next };
+    break;
+  }
+  return list;
+}
+
+function isCheerTierImageSrc(src) {
+  const value = String(src || '');
+  if (!value) return false;
+  return /\/actions\/[^/\s]+\/(?:dark|light)\/(?:animated|static)\/\d+\//i.test(value)
+    || /\/bits\/(?:dark|light)\/(?:animated|static)\/[^/\s]+\/\d+(?:\/|[.?#]|$)/i.test(value);
 }
 
 function bitsFromImageAsset(img) {
@@ -4082,6 +4098,44 @@ function cheerTierBadgeLabel(bits) {
   return '1';
 }
 
+function cheerTierIconAmount(bits) {
+  const amount = Math.max(0, Number(bits) || 0);
+  if (amount >= 100000) return 100000;
+  if (amount >= 10000) return 10000;
+  if (amount >= 5000) return 5000;
+  if (amount >= 1000) return 1000;
+  if (amount >= 100) return 100;
+  return 1;
+}
+
+function cheerTierIconUrl(bits) {
+  const tier = cheerTierIconAmount(bits);
+  return `https://d3aqoihi2n8ty8.cloudfront.net/actions/cheer/dark/animated/${tier}/1.gif`;
+}
+
+function readCheerTierIconFromMessage(msgEl) {
+  if (!msgEl) return '';
+  const root = msgEl.querySelector(SELECTORS.chatMessageBody) || msgEl;
+  for (const img of root.querySelectorAll('img')) {
+    if (bitsFromImageAsset(img) <= 0) continue;
+    const src = pickEmoteSrc(img);
+    if (src) return src;
+  }
+  return '';
+}
+
+function createCheerTierBadgeEl(meta) {
+  const tierWrap = document.createElement('span');
+  tierWrap.className = 'tbc-sc-badge tbc-sc-tier';
+  const img = document.createElement('img');
+  img.className = 'tbc-sc-tier-img';
+  img.src = meta?.tierIconUrl || cheerTierIconUrl(meta?.bits || 1);
+  img.alt = meta?.tierLabel || cheerTierBadgeLabel(meta?.bits || 1);
+  img.draggable = false;
+  tierWrap.appendChild(img);
+  return tierWrap;
+}
+
 function readUserNoticeSystemText(msgEl) {
   if (!msgEl) return '';
   const clone = msgEl.cloneNode(true);
@@ -4100,24 +4154,38 @@ function readUserNoticeCustomParts(msgEl) {
   return extractMessageParts(line);
 }
 
-function extractBitsAmount(msgEl, message = '', parts = []) {
-  let total = bitsFromText(message);
-  if (total > 0) return total;
+function bitsFromCheerImageLabels(msgEl) {
+  if (!msgEl) return 0;
+  const root = msgEl.querySelector(SELECTORS.chatMessageBody) || msgEl;
+  let total = 0;
+  for (const img of root.querySelectorAll('img')) {
+    const src = pickEmoteSrc(img);
+    if (bitsFromImageAsset(img) <= 0 && !isCheerTierImageSrc(src)) continue;
+    const label = extractEmoteName(img).trim();
+    const fromLabel = bitsFromText(label) || bitsFromText(` ${label}`);
+    if (fromLabel > 0) total += fromLabel;
+  }
+  return total;
+}
 
-  // Emote names in parsed parts (Cheer300 / Kappa100 / partnerFooCheer1000).
-  total = bitsFromText(
+function extractBitsAmount(msgEl, message = '', parts = []) {
+  const fromParts = bitsFromText(
     (Array.isArray(parts) ? parts : [])
       .map((part) => (part?.type === 'emote' ? part.name : part?.value) || '')
       .join(' '),
   );
-  if (total > 0) return total;
+  if (fromParts > 0) return fromParts;
 
-  if (!msgEl) return 0;
-  const root = msgEl.querySelector(SELECTORS.chatMessageBody) || msgEl;
-  for (const img of root.querySelectorAll('img')) {
-    total += bitsFromImageAsset(img);
-  }
-  return total;
+  const fromMessage = bitsFromText(message);
+  if (fromMessage > 0) return fromMessage;
+
+  const fromSuffix = bitsFromPlainSuffix(message);
+  if (fromSuffix > 0) return fromSuffix;
+
+  const fromCheerLabels = bitsFromCheerImageLabels(msgEl);
+  if (fromCheerLabels > 0) return fromCheerLabels;
+
+  return 0;
 }
 
 function isSubscribeNotice(msgEl, textHint = '') {
@@ -4198,12 +4266,16 @@ function readSuperchatMeta(msgEl, message = '', parts = []) {
   const tierLabel = kind === 'cheer'
     ? cheerTierBadgeLabel(bits || 1)
     : (kind === 'sub' ? amountLabel : '');
+  const tierIconUrl = kind === 'cheer'
+    ? (readCheerTierIconFromMessage(msgEl) || cheerTierIconUrl(bits || 1))
+    : '';
 
   return {
     kind,
     bits: bits || 0,
     amountLabel,
     tierLabel,
+    tierIconUrl,
     avatarUrl: readChatAvatarUrl(msgEl),
     style: {
       background: style.background,
@@ -4272,8 +4344,12 @@ function snapshotChatMessage(msgEl) {
     message = noticeBody;
   }
 
-  const finalParts = parts.length ? parts : (message ? [{ type: 'text', value: message }] : []);
+  let finalParts = parts.length ? parts : (message ? [{ type: 'text', value: message }] : []);
   const meta = readSuperchatMeta(msgEl, systemText || message, finalParts);
+  if (meta?.kind === 'cheer') {
+    message = stripCheerAmountSuffixText(message);
+    finalParts = stripCheerAmountSuffixParts(finalParts);
+  }
   return {
     message,
     parts: finalParts.length ? finalParts : (message ? [{ type: 'text', value: message }] : []),
@@ -5016,6 +5092,8 @@ function buildIrcPayload({ channel, login, displayName, color, message, tags, bi
       kind: 'cheer',
       bits,
       amountLabel: `${bits} Bits`,
+      tierLabel: cheerTierBadgeLabel(bits),
+      tierIconUrl: cheerTierIconUrl(bits),
       avatarUrl: '',
       style,
     };
@@ -7164,8 +7242,14 @@ function injectStyles() {
       line-height: 1.35;
     }
 
-    .tbc-superchat-item.tbc-sc-compact .tbc-sc-tier {
-      min-width: 1.8em;
+    .tbc-superchat-item.tbc-sc-compact .tbc-sc-badge.tbc-sc-tier {
+      padding: 0;
+      min-width: 0;
+    }
+
+    .tbc-superchat-item.tbc-sc-compact .tbc-sc-tier-img {
+      height: 1.1em;
+      max-width: 2.35em;
     }
 
     .tbc-superchat-item.tbc-sc-compact .tbc-sc-close {
@@ -7203,6 +7287,21 @@ function injectStyles() {
       font-weight: 800;
       letter-spacing: 0.02em;
       line-height: 1.4;
+    }
+
+    .tbc-sc-badge.tbc-sc-tier {
+      padding: 0;
+      background: transparent;
+      border: none;
+      line-height: 0;
+    }
+
+    .tbc-sc-tier-img {
+      display: block;
+      height: 1.45em;
+      width: auto;
+      max-width: 2.85em;
+      object-fit: contain;
     }
 
     .tbc-sc-body {

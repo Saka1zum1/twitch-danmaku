@@ -113,6 +113,7 @@ function extractMessageParts(msgEl) {
   const pushEmote = (img) => {
     const name = extractEmoteName(img).trim();
     const src = pickEmoteSrc(img);
+    if (bitsFromImageAsset(img) > 0 || isCheerTierImageSrc(src)) return;
     if (!name && !src) return;
     parts.push({ type: 'emote', name, src });
   };
@@ -136,6 +137,7 @@ function extractMessageParts(msgEl) {
 
     if (node.tagName === 'IMG') {
       if (node.classList.contains('chat-badge') || node.closest('[data-a-target="chat-badge"]')) return;
+      if (bitsFromImageAsset(node) > 0) return;
       pushEmote(node);
       return;
     }
@@ -173,6 +175,35 @@ function bitsFromText(text) {
     match = matcher.exec(source);
   }
   return total;
+}
+
+function bitsFromPlainSuffix(text) {
+  const match = String(text || '').match(/(?:^|\s)([1-9]\d{0,6})\s+bits\s*$/i);
+  return match ? (Number(match[1]) || 0) : 0;
+}
+
+function stripCheerAmountSuffixText(text) {
+  return String(text || '').replace(/(?:\s*[·•\-–—]\s*|\s+)([1-9]\d{0,6})\s+bits\s*$/i, '').trim();
+}
+
+function stripCheerAmountSuffixParts(parts) {
+  const list = Array.isArray(parts) ? parts.slice() : [];
+  for (let i = list.length - 1; i >= 0; i -= 1) {
+    if (list[i].type !== 'text') continue;
+    const next = stripCheerAmountSuffixText(list[i].value);
+    if (next === list[i].value) return list;
+    if (!next) list.splice(i, 1);
+    else list[i] = { ...list[i], value: next };
+    break;
+  }
+  return list;
+}
+
+function isCheerTierImageSrc(src) {
+  const value = String(src || '');
+  if (!value) return false;
+  return /\/actions\/[^/\s]+\/(?:dark|light)\/(?:animated|static)\/\d+\//i.test(value)
+    || /\/bits\/(?:dark|light)\/(?:animated|static)\/[^/\s]+\/\d+(?:\/|[.?#]|$)/i.test(value);
 }
 
 function bitsFromImageAsset(img) {
@@ -259,6 +290,44 @@ function cheerTierBadgeLabel(bits) {
   return '1';
 }
 
+function cheerTierIconAmount(bits) {
+  const amount = Math.max(0, Number(bits) || 0);
+  if (amount >= 100000) return 100000;
+  if (amount >= 10000) return 10000;
+  if (amount >= 5000) return 5000;
+  if (amount >= 1000) return 1000;
+  if (amount >= 100) return 100;
+  return 1;
+}
+
+function cheerTierIconUrl(bits) {
+  const tier = cheerTierIconAmount(bits);
+  return `https://d3aqoihi2n8ty8.cloudfront.net/actions/cheer/dark/animated/${tier}/1.gif`;
+}
+
+function readCheerTierIconFromMessage(msgEl) {
+  if (!msgEl) return '';
+  const root = msgEl.querySelector(SELECTORS.chatMessageBody) || msgEl;
+  for (const img of root.querySelectorAll('img')) {
+    if (bitsFromImageAsset(img) <= 0) continue;
+    const src = pickEmoteSrc(img);
+    if (src) return src;
+  }
+  return '';
+}
+
+function createCheerTierBadgeEl(meta) {
+  const tierWrap = document.createElement('span');
+  tierWrap.className = 'tbc-sc-badge tbc-sc-tier';
+  const img = document.createElement('img');
+  img.className = 'tbc-sc-tier-img';
+  img.src = meta?.tierIconUrl || cheerTierIconUrl(meta?.bits || 1);
+  img.alt = meta?.tierLabel || cheerTierBadgeLabel(meta?.bits || 1);
+  img.draggable = false;
+  tierWrap.appendChild(img);
+  return tierWrap;
+}
+
 function readUserNoticeSystemText(msgEl) {
   if (!msgEl) return '';
   const clone = msgEl.cloneNode(true);
@@ -277,24 +346,38 @@ function readUserNoticeCustomParts(msgEl) {
   return extractMessageParts(line);
 }
 
-function extractBitsAmount(msgEl, message = '', parts = []) {
-  let total = bitsFromText(message);
-  if (total > 0) return total;
+function bitsFromCheerImageLabels(msgEl) {
+  if (!msgEl) return 0;
+  const root = msgEl.querySelector(SELECTORS.chatMessageBody) || msgEl;
+  let total = 0;
+  for (const img of root.querySelectorAll('img')) {
+    const src = pickEmoteSrc(img);
+    if (bitsFromImageAsset(img) <= 0 && !isCheerTierImageSrc(src)) continue;
+    const label = extractEmoteName(img).trim();
+    const fromLabel = bitsFromText(label) || bitsFromText(` ${label}`);
+    if (fromLabel > 0) total += fromLabel;
+  }
+  return total;
+}
 
-  // Emote names in parsed parts (Cheer300 / Kappa100 / partnerFooCheer1000).
-  total = bitsFromText(
+function extractBitsAmount(msgEl, message = '', parts = []) {
+  const fromParts = bitsFromText(
     (Array.isArray(parts) ? parts : [])
       .map((part) => (part?.type === 'emote' ? part.name : part?.value) || '')
       .join(' '),
   );
-  if (total > 0) return total;
+  if (fromParts > 0) return fromParts;
 
-  if (!msgEl) return 0;
-  const root = msgEl.querySelector(SELECTORS.chatMessageBody) || msgEl;
-  for (const img of root.querySelectorAll('img')) {
-    total += bitsFromImageAsset(img);
-  }
-  return total;
+  const fromMessage = bitsFromText(message);
+  if (fromMessage > 0) return fromMessage;
+
+  const fromSuffix = bitsFromPlainSuffix(message);
+  if (fromSuffix > 0) return fromSuffix;
+
+  const fromCheerLabels = bitsFromCheerImageLabels(msgEl);
+  if (fromCheerLabels > 0) return fromCheerLabels;
+
+  return 0;
 }
 
 function isSubscribeNotice(msgEl, textHint = '') {
@@ -375,12 +458,16 @@ function readSuperchatMeta(msgEl, message = '', parts = []) {
   const tierLabel = kind === 'cheer'
     ? cheerTierBadgeLabel(bits || 1)
     : (kind === 'sub' ? amountLabel : '');
+  const tierIconUrl = kind === 'cheer'
+    ? (readCheerTierIconFromMessage(msgEl) || cheerTierIconUrl(bits || 1))
+    : '';
 
   return {
     kind,
     bits: bits || 0,
     amountLabel,
     tierLabel,
+    tierIconUrl,
     avatarUrl: readChatAvatarUrl(msgEl),
     style: {
       background: style.background,
@@ -449,8 +536,12 @@ function snapshotChatMessage(msgEl) {
     message = noticeBody;
   }
 
-  const finalParts = parts.length ? parts : (message ? [{ type: 'text', value: message }] : []);
+  let finalParts = parts.length ? parts : (message ? [{ type: 'text', value: message }] : []);
   const meta = readSuperchatMeta(msgEl, systemText || message, finalParts);
+  if (meta?.kind === 'cheer') {
+    message = stripCheerAmountSuffixText(message);
+    finalParts = stripCheerAmountSuffixParts(finalParts);
+  }
   return {
     message,
     parts: finalParts.length ? finalParts : (message ? [{ type: 'text', value: message }] : []),

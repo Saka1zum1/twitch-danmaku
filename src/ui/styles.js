@@ -759,8 +759,14 @@ function injectStyles() {
       line-height: 1.35;
     }
 
-    .tbc-superchat-item.tbc-sc-compact .tbc-sc-tier {
-      min-width: 1.8em;
+    .tbc-superchat-item.tbc-sc-compact .tbc-sc-badge.tbc-sc-tier {
+      padding: 0;
+      min-width: 0;
+    }
+
+    .tbc-superchat-item.tbc-sc-compact .tbc-sc-tier-img {
+      height: 1.1em;
+      max-width: 2.35em;
     }
 
     .tbc-superchat-item.tbc-sc-compact .tbc-sc-close {
@@ -798,6 +804,21 @@ function injectStyles() {
       font-weight: 800;
       letter-spacing: 0.02em;
       line-height: 1.4;
+    }
+
+    .tbc-sc-badge.tbc-sc-tier {
+      padding: 0;
+      background: transparent;
+      border: none;
+      line-height: 0;
+    }
+
+    .tbc-sc-tier-img {
+      display: block;
+      height: 1.45em;
+      width: auto;
+      max-width: 2.85em;
+      object-fit: contain;
     }
 
     .tbc-sc-body {

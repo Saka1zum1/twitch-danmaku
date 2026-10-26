@@ -100,15 +100,7 @@ function openSuperchatDetailCard(mount, payload, helpers = {}) {
       const amount = document.createElement('span');
       amount.className = 'tbc-sc-amount';
       amount.textContent = meta.amountLabel || `${meta.bits} Bits`;
-      const tierText = meta.tierLabel || cheerTierBadgeLabel(meta.bits);
-      if (tierText) {
-        const tier = document.createElement('span');
-        tier.className = 'tbc-sc-badge tbc-sc-tier';
-        tier.textContent = tierText;
-        metaRow.append(tier, amount);
-      } else {
-        metaRow.appendChild(amount);
-      }
+      metaRow.append(createCheerTierBadgeEl(meta), amount);
     } else if (meta.amountLabel) {
       const badge = document.createElement('span');
       badge.className = 'tbc-sc-badge';
