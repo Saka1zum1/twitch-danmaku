@@ -49,15 +49,17 @@ No more constantly glancing at the chat panel. Messages flow across the screen s
 
 ### Super Chat Pin
 - Recognizes Bits cheers, Prime / tier subscriptions (including resub messages), highlighted paid messages, and pinned chat
-- Pin at top/bottom center or any corner; pins can sit on top of scrolling danmaku
-- Shows real avatars, truncated usernames, badges, and Twitch cheer-tier colors
-- Multiple pins at once; long text marquees inside the bubble
-- Animations: fade, slide, pop, or shine. Hover pauses; dismiss closes early
+- Pin at top/bottom center or any corner; choose whether pins cover scrolling danmaku
+- Shows real avatars, names, amount / Prime / Tier badges, and Twitch cheer-tier colors
+- Adjustable max width. Compact mode shows avatar, name, and amount only — tap it for a detail card (translate, speak, favorite, profile, block)
+- Subscription pins can be hidden. Pin time can grow with the amount
+- Multiple pins at once. Animations: fade, slide, pop, or shine. Dismiss closes early
 
 ### Enhanced Picture-in-Picture
-- Resizable mini window from the player bar, video fills the frame
-- Danmaku stays in sync with the live page; sidebar for danmaku toggle and settings
-- Chat input with favorites; helps keep chat active when the tab is in the background
+- Resizable mini window from the player bar
+- Switch between stretch-to-fill and locked aspect ratio
+- Danmaku stays in sync with the live page; sidebar for refresh, danmaku, and settings
+- Chat input with favorites; opening the window helps keep the page active in the background
 
 ### Favorites & Wheel Mode
 - Star button next to the chat input opens favorites: save frequent lines and send them with one click
@@ -105,12 +107,11 @@ No more constantly glancing at the chat panel. Messages flow across the screen s
 - No burst of queued messages when returning to the tab
 - Skips common bots, dividers, link-only lines, and system notices without real user chat (watch streaks, channel-point redemptions, etc.)
 - Translation and speech toggles stay in sync across the player bar, settings, and demo page
-- Optional anti tab-freeze for smoother background viewing
 - UI auto-detects browser language (Chinese / English)
 - Zero external dependencies — lightweight and fast
 
 ### Demo
-Open the demo in your browser. No install or build step is required. Header toggles for translation and speech. Try scroll area, Super Chat positions, favorites, enhanced PiP, the context menu, and in-chat translations:
+Open the demo in your browser. No install or build step is required. Header toggles for translation and speech. Try scroll area, Super Chat (including the compact detail card), favorites, enhanced PiP, the context menu, and in-chat translations:
 
 [Twitch Danmaku demo](https://saka1zum1.github.io/twitch-danmaku/)
 

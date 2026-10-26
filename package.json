@@ -1,6 +1,6 @@
 {
   "name": "twitch-danmaku",
-  "version": "1.9.9",
+  "version": "2.0.0",
   "description": "Convert Twitch live chat to video danmaku with real-time translation",
   "private": true,
   "scripts": {

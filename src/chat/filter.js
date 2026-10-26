@@ -113,8 +113,15 @@ function isChatDividerMessage(msgEl, snapshot = null) {
   return !!text && CHAT_DIVIDER_TEXT_RE.test(text);
 }
 
-function shouldIgnoreChatPayload(snapshot, msgEl = null) {
+function shouldSuppressSubscribeSuperchat(settings, snapshot) {
+  if (!settings?.superchatHideSubscribe) return false;
+  const meta = snapshot?.superchatMeta;
+  return !!snapshot?.superchat && meta?.kind === 'sub';
+}
+
+function shouldIgnoreChatPayload(snapshot, msgEl = null, settings = null) {
   if (!snapshot) return true;
+  if (shouldSuppressSubscribeSuperchat(settings, snapshot)) return true;
   if (isIgnoredChatBot(snapshot.login, snapshot.username)) return true;
   if (isPaidSuperChatNotice(snapshot)) {
     if (isPureLinkMessage(snapshot.message)) return true;

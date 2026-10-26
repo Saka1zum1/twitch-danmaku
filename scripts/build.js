@@ -17,6 +17,7 @@ const MODULES = [
   'utils/tab-antifreeze.js',
   'speech/speaker.js',
   'danmaku/lanes.js',
+  'danmaku/superchat-card.js',
   'danmaku/engine.js',
   'danmaku/interaction.js',
   'danmaku/emitter.js',

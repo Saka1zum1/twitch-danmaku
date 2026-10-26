@@ -4,10 +4,10 @@
 // @name:zh-TW   Twitch 彈幕 | 即時翻譯
 // @name:ja      Twitch 弾幕 | リアルタイム翻訳
 // @namespace    https://github.com/saka1zum1/twitch-danmaku
-// @version      1.9.9
+// @version      2.0.0
 // @description  Convert Twitch live chat to video danmaku with real-time translation
 // @description:zh-CN  将 Twitch 直播评论转换为视频弹幕，支持实时翻译
-// @description:zh-TW  將聊天室中的新訊息轉換成影片上的滾動彈幕，支持即時翻譯
+// @description:zh-TW  將聊天室中的新訊息轉換成影片上的滾動彈幕，支援即時翻譯
 // @description:ja      Twitch のチャットをリアルタイム翻訳付きで動画の弾幕に変換します
 // @author       KaKa
 // @license      MIT
@@ -192,6 +192,12 @@ const LOCALES = {
     superchatPop: '弹出',
     superchatShine: '闪光',
     superchatClose: '关闭悬停弹幕',
+    superchatHideSubscribe: '屏蔽订阅悬停',
+    superchatCompact: '精简悬停显示',
+    superchatMaxWidth: '悬停最大宽度',
+    superchatCardClose: '关闭 Super Chat 卡片',
+    superchatOverlayDanmaku: '悬停遮挡滚动弹幕',
+    superchatDurationByAmount: '悬停时长随金额调整',
     fsChatPlaceholder: '发送聊天消息…',
     fsChatSend: '发送',
     fsChatClose: '关闭',
@@ -262,8 +268,8 @@ const LOCALES = {
     pipSend: '发送消息',
     pipBack: '回到直播页',
     pipVodNoSend: '回放页不能发送聊天',
-    tabAntiFreeze: '防页签冻结',
-    tabAntiFreezeHint: '伪造页面始终可见，减轻后台时聊天与播放器被挂起（增强 PiP 打开时自动启用）',
+    pipAspectLock: '锁定纵横比',
+    pipAspectUnlock: '拉伸铺满',
   },
   en: {
     danmakuToggle: 'Danmaku toggle',
@@ -424,6 +430,12 @@ const LOCALES = {
     superchatPop: 'Pop',
     superchatShine: 'Shine',
     superchatClose: 'Dismiss Super Chat',
+    superchatHideSubscribe: 'Hide subscription pins',
+    superchatCompact: 'Compact pin layout',
+    superchatMaxWidth: 'Pin max width',
+    superchatCardClose: 'Close Super Chat card',
+    superchatOverlayDanmaku: 'Pin over scrolling danmaku',
+    superchatDurationByAmount: 'Pin time scales with amount',
     fsChatPlaceholder: 'Send a message…',
     fsChatSend: 'Chat',
     fsChatClose: 'Close',
@@ -494,8 +506,8 @@ const LOCALES = {
     pipSend: 'Send a message',
     pipBack: 'Back to stream',
     pipVodNoSend: 'Chat cannot be sent on a VOD page',
-    tabAntiFreeze: 'Anti tab freeze',
-    tabAntiFreezeHint: 'Pretend the page stays visible to reduce chat/player throttling when backgrounded (auto on while enhanced PiP is open)',
+    pipAspectLock: 'Lock aspect ratio',
+    pipAspectUnlock: 'Stretch to fill',
   },
 };
 
@@ -632,7 +644,11 @@ const DEFAULT_SETTINGS = {
   superchatPosition: 'top',
   superchatDuration: 15,
   superchatAnimation: 'slide',
-  tabAntiFreeze: false,
+  superchatHideSubscribe: false,
+  superchatCompact: false,
+  superchatMaxWidth: 420,
+  superchatOverlayDanmaku: true,
+  superchatDurationByAmount: false,
 };
 
 const SELECTORS = {
@@ -690,6 +706,24 @@ function resolveSuperchatPlacement(value) {
   return map[key] || map.top;
 }
 
+function resolveSuperchatDuration(settings, meta) {
+  const base = clamp(finiteNumber(settings?.superchatDuration, DEFAULT_SETTINGS.superchatDuration), 2, 300);
+  if (!settings?.superchatDurationByAmount || !meta) return base;
+
+  let bonus = 0;
+  if (meta.kind === 'cheer' && meta.bits) {
+    const bits = Math.max(1, Number(meta.bits) || 1);
+    bonus = Math.log10(bits) * 6;
+  } else if (meta.kind === 'sub') {
+    bonus = 8;
+  } else if (meta.kind === 'pin') {
+    bonus = 5;
+  }
+  return clamp(Math.round(base + bonus), 2, 300);
+}
+
+const SUPERCHAT_MAX_PINS = 10;
+
 const STORAGE_KEY = 'tbc_settings_v1';
 
 const LIVE_MESSAGE_TAIL = 8;
@@ -730,7 +764,15 @@ function loadSettings() {
       merged.superchatPosition = SUPERCHAT_POSITIONS.includes(scPos) ? scPos : 'top';
       if (!['fade', 'slide', 'pop', 'shine'].includes(merged.superchatAnimation)) merged.superchatAnimation = 'slide';
       merged.superchatDuration = clamp(finiteNumber(merged.superchatDuration, DEFAULT_SETTINGS.superchatDuration), 2, 300);
-      merged.tabAntiFreeze = !!merged.tabAntiFreeze;
+      merged.superchatHideSubscribe = !!merged.superchatHideSubscribe;
+      merged.superchatCompact = !!merged.superchatCompact;
+      merged.superchatMaxWidth = clamp(
+        finiteNumber(merged.superchatMaxWidth, DEFAULT_SETTINGS.superchatMaxWidth),
+        240,
+        720,
+      );
+      merged.superchatOverlayDanmaku = merged.superchatOverlayDanmaku !== false;
+      merged.superchatDurationByAmount = !!merged.superchatDurationByAmount;
       return merged;
     }
   } catch (_) {
@@ -1085,13 +1127,8 @@ function tabAntiFreezeIsEnabled() {
   return TabAntiFreeze.active;
 }
 
-function tabAntiFreezeShouldEnable(getSettings, isPipOpen) {
-  if (getSettings?.().tabAntiFreeze) return true;
-  return !!isPipOpen?.();
-}
-
-function syncTabAntiFreeze(getSettings, isPipOpen) {
-  if (tabAntiFreezeShouldEnable(getSettings, isPipOpen)) tabAntiFreezeEnable();
+function syncTabAntiFreeze(isPipOpen) {
+  if (isPipOpen?.()) tabAntiFreezeEnable();
   else tabAntiFreezeDisable();
 }
 
@@ -1365,6 +1402,269 @@ class LaneManager {
   }
 }
 
+let activeSuperchatCard = null;
+
+function appendSuperchatCardParts(container, parts) {
+  for (const part of parts) {
+    if (part.type === 'emote' && part.src) {
+      const img = document.createElement('img');
+      img.className = 'tbc-emote';
+      img.src = part.src;
+      img.alt = part.name || '';
+      img.title = part.name || '';
+      img.draggable = false;
+      container.appendChild(img);
+      continue;
+    }
+    const text = part.type === 'emote' ? (part.name || '') : (part.value || '');
+    if (text) container.appendChild(document.createTextNode(text));
+  }
+}
+
+function closeSuperchatDetailCard() {
+  const card = activeSuperchatCard;
+  activeSuperchatCard = null;
+  if (!card) return;
+  card.onDismiss?.();
+  card.root?.remove();
+}
+
+function openSuperchatDetailCard(mount, payload, helpers = {}) {
+  if (!mount || !payload) return;
+  closeSuperchatDetailCard();
+
+  const {
+    getSettings,
+    favoritesPanel,
+    chatContextMenu,
+    onDismiss,
+  } = helpers;
+
+  const settings = getSettings?.() || {};
+  const {
+    username,
+    message,
+    parts,
+    usernameColor,
+    originalMessage,
+    superchatMeta,
+    avatarUrl,
+    login,
+    profileUrl,
+  } = payload;
+  const meta = superchatMeta || null;
+  const style = meta?.style || payload.superchatStyle || {
+    background: 'linear-gradient(135deg, #9147ff 0%, #772ce8 100%)',
+    color: '#ffffff',
+    accent: '#bf94ff',
+  };
+  const displayParts = parts?.length ? parts : (message ? [{ type: 'text', value: message }] : []);
+
+  if (getComputedStyle(mount).position === 'static') {
+    mount.style.position = 'relative';
+  }
+
+  const root = document.createElement('div');
+  root.className = 'tbc-sc-card-root';
+  root.setAttribute('role', 'dialog');
+  root.setAttribute('aria-modal', 'true');
+
+  const backdrop = document.createElement('button');
+  backdrop.type = 'button';
+  backdrop.className = 'tbc-sc-card-backdrop';
+  backdrop.setAttribute('aria-label', t('superchatCardClose'));
+
+  const card = document.createElement('div');
+  card.className = 'tbc-sc-card';
+  card.style.background = style.background || '#9147ff';
+  card.style.color = safeCssColor(style.color, '#ffffff');
+  card.style.setProperty('--tbc-sc-accent', safeCssColor(style.accent, '#bf94ff'));
+  card.style.fontFamily = settings.fontFamily || 'system-ui, sans-serif';
+
+  const header = document.createElement('div');
+  header.className = 'tbc-sc-card-header';
+
+  const avatar = document.createElement('img');
+  avatar.className = 'tbc-sc-card-avatar';
+  avatar.alt = '';
+  avatar.draggable = false;
+  avatar.src = avatarUrl || cachedAvatar(login || username, username, usernameColor);
+
+  const headText = document.createElement('div');
+  headText.className = 'tbc-sc-card-headtext';
+  const nameEl = document.createElement('div');
+  nameEl.className = 'tbc-sc-card-name';
+  nameEl.textContent = username || login || 'User';
+  headText.appendChild(nameEl);
+
+  if (meta) {
+    const metaRow = document.createElement('div');
+    metaRow.className = 'tbc-sc-meta tbc-sc-card-meta';
+    if (meta.kind === 'cheer' && meta.bits) {
+      const amount = document.createElement('span');
+      amount.className = 'tbc-sc-amount';
+      amount.textContent = meta.amountLabel || `${meta.bits} Bits`;
+      const tierText = meta.tierLabel || cheerTierBadgeLabel(meta.bits);
+      if (tierText) {
+        const tier = document.createElement('span');
+        tier.className = 'tbc-sc-badge tbc-sc-tier';
+        tier.textContent = tierText;
+        metaRow.append(tier, amount);
+      } else {
+        metaRow.appendChild(amount);
+      }
+    } else if (meta.amountLabel) {
+      const badge = document.createElement('span');
+      badge.className = 'tbc-sc-badge';
+      badge.textContent = meta.amountLabel;
+      metaRow.appendChild(badge);
+    }
+    headText.appendChild(metaRow);
+  }
+
+  const closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.className = 'tbc-sc-card-close';
+  closeBtn.setAttribute('aria-label', t('superchatCardClose'));
+  closeBtn.innerHTML = typeof ICON_CLOSE === 'string' ? ICON_CLOSE : '×';
+
+  header.append(avatar, headText, closeBtn);
+
+  const body = document.createElement('div');
+  body.className = 'tbc-sc-card-body';
+  appendSuperchatCardParts(body, displayParts);
+
+  const translation = document.createElement('div');
+  translation.className = 'tbc-sc-card-translation';
+  translation.hidden = true;
+
+  const actions = document.createElement('div');
+  actions.className = 'tbc-sc-card-actions';
+
+  const translateBtn = document.createElement('button');
+  translateBtn.type = 'button';
+  translateBtn.className = 'tbc-sc-card-action';
+  translateBtn.textContent = t('chatMenuTranslate');
+
+  const speakBtn = document.createElement('button');
+  speakBtn.type = 'button';
+  speakBtn.className = 'tbc-sc-card-action';
+  speakBtn.textContent = t('chatMenuSpeak');
+  if (!speechSupported()) speakBtn.disabled = true;
+
+  const favoriteBtn = document.createElement('button');
+  favoriteBtn.type = 'button';
+  favoriteBtn.className = 'tbc-sc-card-action';
+  favoriteBtn.textContent = t('chatMenuFavorite');
+
+  const profileBtn = document.createElement('button');
+  profileBtn.type = 'button';
+  profileBtn.className = 'tbc-sc-card-action';
+  profileBtn.textContent = t('tooltipOpenProfile');
+
+  const blockBtn = document.createElement('button');
+  blockBtn.type = 'button';
+  blockBtn.className = 'tbc-sc-card-action';
+  blockBtn.textContent = t('chatMenuBlockUser');
+  const blockLogin = String(login || username || '').trim().replace(/^@+/, '').toLowerCase();
+  if (!blockLogin) blockBtn.disabled = true;
+
+  actions.append(profileBtn, blockBtn, translateBtn, speakBtn, favoriteBtn);
+  card.append(header, body, translation, actions);
+  root.append(backdrop, card);
+  mount.appendChild(root);
+
+  const loginKey = String(login || username || '').toLowerCase().replace(/^@+/, '');
+  if (loginKey && (!avatarUrl || String(avatarUrl).startsWith('data:'))) {
+    fetchTwitchAvatar(loginKey).then((url) => {
+      if (!url || !root.isConnected) return;
+      avatar.src = url;
+    });
+  }
+
+  const snapshot = {
+    message: originalMessage || message,
+    parts: displayParts.map((part) => ({ ...part })),
+    username,
+    login,
+  };
+
+  let translatedOnce = false;
+
+  translateBtn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!chatContextMenu?.translateParts) return;
+    translateBtn.disabled = true;
+    const result = await chatContextMenu.translateParts(snapshot, translatedOnce);
+    translateBtn.disabled = false;
+    if (result.failed) return;
+    translatedOnce = true;
+    translateBtn.textContent = t('chatMenuRetranslate');
+    if (result.translated) {
+      translation.hidden = false;
+      translation.textContent = result.message;
+      snapshot.message = result.message;
+      snapshot.parts = result.parts;
+    }
+  });
+
+  speakBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!speechSupported() || Number(settings.speechVolume) <= 0) return;
+    const source = translation.hidden
+      ? speechSourceText(snapshot.message, snapshot.parts)
+      : (translation.textContent || snapshot.message);
+    speakTextNow(source);
+  });
+
+  profileBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const url = profileUrl || (blockLogin ? `https://www.twitch.tv/${encodeURIComponent(blockLogin)}` : '');
+    if (url) window.open(url, '_blank', 'noopener,noreferrer');
+  });
+
+  blockBtn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!blockLogin || !chatContextMenu?.runBlockUser) return;
+    await chatContextMenu.runBlockUser(blockLogin);
+  });
+
+  favoriteBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const text = String(originalMessage || message || '').trim();
+    if (!text) return;
+    if (favoritesPanel?.addFromText) {
+      favoritesPanel.addFromText(text);
+      if (!favoritesPanel.isOpen && favoritesPanel.btn) {
+        favoritesPanel.open(favoritesPanel.btn);
+      }
+      return;
+    }
+    const result = addFavoriteText(text);
+    if (result.full) console.warn(`[TBC] ${t('favoritesFull')}`);
+    else if (result.added) console.info(`[TBC] ${t('favoritesAdded')}`);
+  });
+
+  const dismiss = () => closeSuperchatDetailCard();
+  backdrop.addEventListener('click', dismiss);
+  closeBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dismiss();
+  });
+  card.addEventListener('click', (e) => e.stopPropagation());
+
+  activeSuperchatCard = {
+    root,
+    onDismiss: typeof onDismiss === 'function' ? onDismiss : null,
+  };
+}
+
 function safeCssColor(value, fallback) {
   const color = String(value || '').trim();
   if (!color || /[;{}]|url\s*\(/i.test(color)) return fallback;
@@ -1374,17 +1674,22 @@ function safeCssColor(value, fallback) {
 class DanmakuEngine {
   constructor(getSettings) {
     this.getSettings = getSettings;
+    this._superchatHelpers = () => ({ getSettings: this.getSettings });
     this.laneManager = new LaneManager();
     this.layer = null;
     this.superchatLayer = null;
     this.pinnedItems = [];
     this.superchatQueue = [];
-    this.maxPinned = 4;
+    this.maxPinned = SUPERCHAT_MAX_PINS;
     this.playerEl = null;
     this.overlayEl = null;
     this.controlsObserver = null;
     this.resizeObserver = null;
     this.boundUpdate = () => this.updateLayout();
+  }
+
+  setSuperchatHelpers(factory) {
+    if (typeof factory === 'function') this._superchatHelpers = factory;
   }
 
   async mount() {
@@ -1426,6 +1731,7 @@ class DanmakuEngine {
     this.resizeObserver?.disconnect();
     this.controlsObserver?.disconnect();
     hideDanmakuTooltip();
+    closeSuperchatDetailCard();
     this.layer?.remove();
     this.superchatLayer?.remove();
     this.layer = null;
@@ -1443,26 +1749,49 @@ class DanmakuEngine {
     return SCROLL_AREA_BOTTOM_RESERVE;
   }
 
-  getPinnedItemHeight() {
-    return Math.max(44, this.getSettings().fontSize + 28);
+  estimatePinnedItemHeight() {
+    const settings = this.getSettings();
+    if (settings.superchatCompact) {
+      return Math.max(40, settings.fontSize + 18);
+    }
+    return Math.max(44, settings.fontSize + 28);
   }
 
   getPinnedBandHeight() {
-    const count = Math.max(1, this.pinnedItems.filter((item) => item?.isConnected).length);
+    const live = this.pinnedItems.filter((item) => item?.isConnected);
     const gap = 6;
-    return count * this.getPinnedItemHeight() + (count - 1) * gap + 8;
+    const layerPad = 10;
+    if (!live.length) {
+      return this.estimatePinnedItemHeight() + layerPad;
+    }
+    let total = layerPad;
+    live.forEach((item, index) => {
+      const h = item.offsetHeight || this.estimatePinnedItemHeight();
+      total += h + (index > 0 ? gap : 0);
+    });
+    return total;
   }
 
   getPinnedBandRect(playerHeight) {
     const live = this.pinnedItems.filter((item) => item?.isConnected);
     this.pinnedItems = live;
     if (!live.length || !this.getSettings().superchatPinned || !this.getSettings().enabled) return null;
-    const band = this.getPinnedBandHeight();
     const placement = resolveSuperchatPlacement(this.getSettings().superchatPosition);
-    const top = placement.vertical === 'bottom'
-      ? Math.max(0, playerHeight - this.getBottomReserve() - band)
-      : 8;
-    return { ...placement, top, height: band };
+    const bottomReserve = this.getBottomReserve();
+    const contentHeight = this.getPinnedBandHeight();
+    let bandHeight = contentHeight;
+    const maxBand = Math.max(this.estimatePinnedItemHeight(), playerHeight - bottomReserve - 12);
+    bandHeight = Math.min(bandHeight, maxBand);
+
+    let top;
+    if (placement.vertical === 'bottom') {
+      top = Math.max(0, playerHeight - bottomReserve - bandHeight);
+    } else {
+      top = 4;
+      const maxTopBand = playerHeight - bottomReserve - top - 4;
+      bandHeight = Math.min(bandHeight, maxTopBand);
+    }
+    return { ...placement, top, height: bandHeight, contentHeight };
   }
 
   getScrollAreaRect(playerRect) {
@@ -1488,6 +1817,18 @@ class DanmakuEngine {
       default:
         area = { top: 0, height: Math.max(laneHeight, h - bottomReserve) };
         break;
+    }
+
+    if (settings.superchatOverlayDanmaku === false && settings.superchatPinned && settings.enabled) {
+      const band = this.getPinnedBandRect(h);
+      if (band?.height) {
+        if (band.vertical === 'top') {
+          area.top += band.height;
+          area.height = Math.max(laneHeight, area.height - band.height);
+        } else if (band.vertical === 'bottom') {
+          area.height = Math.max(laneHeight, area.height - band.height);
+        }
+      }
     }
 
     return area;
@@ -1608,6 +1949,7 @@ class DanmakuEngine {
 
   layoutSuperchat(playerRect, fullscreen) {
     if (!this.superchatLayer) return;
+    const settings = this.getSettings();
     const parent = fullscreen ? (getFullscreenElement() || this.overlayEl) : this.overlayEl;
     if (parent && this.superchatLayer.parentElement !== parent) parent.appendChild(this.superchatLayer);
     const band = this.getPinnedBandRect(playerRect.height);
@@ -1618,6 +1960,8 @@ class DanmakuEngine {
     this.superchatLayer.classList.toggle('tbc-sc-bottom', band.vertical === 'bottom');
     this.superchatLayer.classList.toggle('tbc-sc-align-left', band.horizontal === 'left');
     this.superchatLayer.classList.toggle('tbc-sc-align-right', band.horizontal === 'right');
+    const needsPinScroll = band.contentHeight > band.height + 2;
+    this.superchatLayer.classList.toggle('tbc-sc-scrollable', needsPinScroll);
     Object.assign(this.superchatLayer.style, fullscreen ? {
       display: 'flex',
       position: 'fixed',
@@ -1633,12 +1977,13 @@ class DanmakuEngine {
       left: '0',
       width: '100%',
       height: `${band.height}px`,
-      zIndex: '5',
+      zIndex: settings.superchatOverlayDanmaku === false ? '4' : '5',
     });
   }
 
   render(payload) {
     const settings = this.getSettings();
+    if (payload.superchat && shouldSuppressSubscribeSuperchat(settings, payload)) return;
     if (payload.superchat && settings.superchatPinned) {
       this.queueSuperchat(payload);
       return;
@@ -1646,12 +1991,44 @@ class DanmakuEngine {
     this.renderScrolling(payload);
   }
 
+  buildSuperchatMetaRow(meta, options = {}) {
+    const badgeBeforeAmount = !!options.badgeBeforeAmount;
+    const metaRow = document.createElement('div');
+    metaRow.className = 'tbc-sc-meta';
+    if (!meta) return metaRow;
+
+    if (meta.kind === 'cheer' && meta.bits) {
+      const amount = document.createElement('span');
+      amount.className = 'tbc-sc-amount';
+      amount.textContent = meta.amountLabel || `${meta.bits} Bits`;
+      const tierText = meta.tierLabel || cheerTierBadgeLabel(meta.bits);
+      const tier = tierText ? document.createElement('span') : null;
+      if (tier) {
+        tier.className = 'tbc-sc-badge tbc-sc-tier';
+        tier.textContent = tierText;
+      }
+      if (badgeBeforeAmount && tier) {
+        metaRow.append(tier, amount);
+      } else if (tier) {
+        metaRow.append(amount, tier);
+      } else {
+        metaRow.appendChild(amount);
+      }
+    } else if (meta.amountLabel) {
+      const badge = document.createElement('span');
+      badge.className = 'tbc-sc-badge';
+      badge.textContent = meta.amountLabel;
+      metaRow.appendChild(badge);
+    }
+    return metaRow;
+  }
+
   queueSuperchat(payload) {
     if (!this.superchatLayer || !this.getSettings().enabled) return;
     this.pinnedItems = this.pinnedItems.filter((item) => item?.isConnected);
     if (this.pinnedItems.length >= this.maxPinned) {
       this.superchatQueue.push(payload);
-      if (this.superchatQueue.length > 8) this.superchatQueue.shift();
+      if (this.superchatQueue.length > this.maxPinned * 2) this.superchatQueue.shift();
       return;
     }
     this.mountSuperchat(payload);
@@ -1684,16 +2061,20 @@ class DanmakuEngine {
     const animation = ['fade', 'slide', 'pop', 'shine'].includes(settings.superchatAnimation)
       ? settings.superchatAnimation
       : 'slide';
-    const duration = clamp(Number(settings.superchatDuration) || 15, 2, 300);
     const meta = superchatMeta || null;
+    const duration = resolveSuperchatDuration(settings, meta);
+    const compact = !!settings.superchatCompact;
+    const maxWidth = clamp(Number(settings.superchatMaxWidth) || 420, 240, 720);
     const style = meta?.style || superchatStyle || {
       background: 'linear-gradient(135deg, #9147ff 0%, #772ce8 100%)',
       color: '#ffffff',
       accent: '#bf94ff',
     };
     const item = document.createElement('div');
-    item.className = `tbc-superchat-item tbc-sc-${animation}`;
+    item.className = `tbc-superchat-item tbc-sc-${animation}${compact ? ' tbc-sc-compact' : ''}`;
     item.style.setProperty('--tbc-sc-duration', `${duration}s`);
+    item.style.maxWidth = `min(${maxWidth}px, calc(100% - 24px))`;
+    if (compact) item.style.minWidth = 'unset';
     item.style.setProperty('--tbc-sc-accent', safeCssColor(style.accent, '#bf94ff'));
     item.style.background = style.background || safeCssColor(style.background, '#9147ff');
     item.style.color = safeCssColor(style.color, '#ffffff');
@@ -1706,30 +2087,43 @@ class DanmakuEngine {
     avatar.draggable = false;
     avatar.src = avatarUrl || cachedAvatar(login || username, username, usernameColor);
 
-    const main = document.createElement('div');
-    main.className = 'tbc-sc-main';
+    let main = null;
+    let body = null;
+    let track = null;
 
-    const head = document.createElement('div');
-    head.className = 'tbc-sc-head';
-    const nameEl = document.createElement('span');
-    nameEl.className = 'tbc-sc-name';
-    nameEl.textContent = this.truncateName(username || login || 'User');
-    nameEl.title = username || login || '';
-    head.appendChild(nameEl);
-    if (meta?.amountLabel) {
-      const badge = document.createElement('span');
-      badge.className = 'tbc-sc-badge';
-      badge.textContent = meta.amountLabel;
-      head.appendChild(badge);
+    if (compact) {
+      const compactMain = document.createElement('div');
+      compactMain.className = 'tbc-sc-compact-main';
+      const nameEl = document.createElement('span');
+      nameEl.className = 'tbc-sc-compact-name';
+      const displayName = username || login || 'User';
+      nameEl.textContent = this.truncateName(displayName, 14);
+      nameEl.title = displayName;
+      const metaRow = this.buildSuperchatMetaRow(meta, { badgeBeforeAmount: true });
+      compactMain.append(nameEl, metaRow);
+      item.append(avatar, compactMain);
+    } else {
+      const metaRow = this.buildSuperchatMetaRow(meta);
+      main = document.createElement('div');
+      main.className = 'tbc-sc-main';
+
+      const head = document.createElement('div');
+      head.className = 'tbc-sc-head';
+      const nameEl = document.createElement('span');
+      nameEl.className = 'tbc-sc-name';
+      nameEl.textContent = this.truncateName(username || login || 'User');
+      nameEl.title = username || login || '';
+      head.appendChild(nameEl);
+
+      body = document.createElement('div');
+      body.className = 'tbc-sc-body';
+      track = document.createElement('div');
+      track.className = 'tbc-sc-body-track';
+      this.appendParts(track, parts?.length ? parts : [{ type: 'text', value: message }]);
+      body.appendChild(track);
+      main.append(head, metaRow, body);
+      item.append(avatar, main);
     }
-
-    const body = document.createElement('div');
-    body.className = 'tbc-sc-body';
-    const track = document.createElement('div');
-    track.className = 'tbc-sc-body-track';
-    this.appendParts(track, parts?.length ? parts : [{ type: 'text', value: message }]);
-    body.appendChild(track);
-    main.append(head, body);
 
     const closeBtn = document.createElement('button');
     closeBtn.type = 'button';
@@ -1737,12 +2131,16 @@ class DanmakuEngine {
     closeBtn.setAttribute('aria-label', t('superchatClose'));
     closeBtn.innerHTML = ICON_CLOSE;
 
-    item.append(avatar, main, closeBtn);
+    item.appendChild(closeBtn);
+    item._tbcPayload = payload;
     this.superchatLayer.appendChild(item);
     this.pinnedItems.push(item);
     this.updateLayout();
-    requestAnimationFrame(() => this.armSuperchatMarquee(body, track));
-    requestSpeech(speechSourceText(message, parts));
+    requestAnimationFrame(() => this.updateLayout());
+    if (!compact && body && track) {
+      requestAnimationFrame(() => this.armSuperchatMarquee(body, track));
+    }
+    if (!compact) requestSpeech(speechSourceText(message, parts));
 
     const loginKey = String(login || username || '').toLowerCase().replace(/^@+/, '');
     // Always resolve a real profile image via ViewerCard when possible (letter avatars are fallback only).
@@ -1776,15 +2174,36 @@ class DanmakuEngine {
       this.finishSuperchat(item);
     });
 
-    attachDanmakuInteraction(item, {
-      username,
-      usernameColor,
-      profileUrl,
-      originalMessage,
-      translated,
-      onPause: () => clearTimeout(fallback),
-      onResume: () => armFallback(20000),
-    });
+    const pausePin = () => clearTimeout(fallback);
+    const resumePin = () => armFallback(20000);
+
+    if (compact) {
+      item.addEventListener('click', (e) => {
+        if (e.target.closest('.tbc-sc-close')) return;
+        e.preventDefault();
+        e.stopPropagation();
+        pausePin();
+        item.classList.add('tbc-paused');
+        const mount = getDanmakuMount(item) || this.overlayEl || this.playerEl;
+        openSuperchatDetailCard(mount, payload, {
+          ...this._superchatHelpers(),
+          onDismiss: () => {
+            item.classList.remove('tbc-paused');
+            resumePin();
+          },
+        });
+      });
+    } else {
+      attachDanmakuInteraction(item, {
+        username,
+        usernameColor,
+        profileUrl,
+        originalMessage,
+        translated,
+        onPause: pausePin,
+        onResume: resumePin,
+      });
+    }
   }
 
   armSuperchatMarquee(body, track) {
@@ -2328,7 +2747,7 @@ const TWITCH_DICTIONARY = {
   EZ: dictEntry('轻松', '輕鬆', 'EZ'),
   Clap: dictEntry('（鼓掌）', '（鼓掌）', 'Clap'),
   NPC: dictEntry('工具人', '工具人', 'NPC'),
-  ICANT: dictEntry('我做不到', '我做不到', 'ICANT'),
+  ICANT: dictEntry('笑不活了', '笑翻了', 'ICANT'),
   W: dictEntry('神', '神', 'W'),
   L: dictEntry('拉胯', '拉胯', 'L'),
   F: dictEntry('F', 'F', 'F'),
@@ -2368,6 +2787,8 @@ const TWITCH_DICTIONARY = {
   rip: dictEntry('RIP', 'RIP', 'rip'),
   ez: dictEntry('轻松', '輕鬆', 'ez'),
   diff: dictEntry('差距', '差距', 'diff'),
+  www: dictEntry('笑死', '笑死', 'www'),
+  stream: dictEntry('直播', '直播', 'stream'),
 };
 
 const PLACEHOLDER_PREFIX = '⟦T';
@@ -3643,6 +4064,16 @@ function subscribeAmountLabel(text) {
   return 'Sub';
 }
 
+function cheerTierBadgeLabel(bits) {
+  const amount = Math.max(0, Number(bits) || 0);
+  if (amount >= 100000) return '100K';
+  if (amount >= 10000) return '10K';
+  if (amount >= 5000) return '5K';
+  if (amount >= 1000) return '1K';
+  if (amount >= 100) return '100';
+  return '1';
+}
+
 function readUserNoticeSystemText(msgEl) {
   if (!msgEl) return '';
   const clone = msgEl.cloneNode(true);
@@ -3756,10 +4187,15 @@ function readSuperchatMeta(msgEl, message = '', parts = []) {
 
   const textNode = msgEl.querySelector('[data-a-target="chat-message-text"], .text-fragment');
   const color = usableCssColor(textNode && getComputedStyle(textNode).color) || style.color;
+  const tierLabel = kind === 'cheer'
+    ? cheerTierBadgeLabel(bits || 1)
+    : (kind === 'sub' ? amountLabel : '');
+
   return {
     kind,
     bits: bits || 0,
     amountLabel,
+    tierLabel,
     avatarUrl: readChatAvatarUrl(msgEl),
     style: {
       background: style.background,
@@ -5493,8 +5929,15 @@ function isChatDividerMessage(msgEl, snapshot = null) {
   return !!text && CHAT_DIVIDER_TEXT_RE.test(text);
 }
 
-function shouldIgnoreChatPayload(snapshot, msgEl = null) {
+function shouldSuppressSubscribeSuperchat(settings, snapshot) {
+  if (!settings?.superchatHideSubscribe) return false;
+  const meta = snapshot?.superchatMeta;
+  return !!snapshot?.superchat && meta?.kind === 'sub';
+}
+
+function shouldIgnoreChatPayload(snapshot, msgEl = null, settings = null) {
   if (!snapshot) return true;
+  if (shouldSuppressSubscribeSuperchat(settings, snapshot)) return true;
   if (isIgnoredChatBot(snapshot.login, snapshot.username)) return true;
   if (isPaidSuperChatNotice(snapshot)) {
     if (isPureLinkMessage(snapshot.message)) return true;
@@ -5811,7 +6254,6 @@ class ChatObserver {
   maybeStopBackgroundIrc() {
     if (!this.ircSource || !this.ircBackgroundOnly) return;
     if (enhancedPip?.isOpen?.()) return;
-    if (this.getSettings?.().tabAntiFreeze) return;
     if (document.hidden) return;
     this.ircSource.stop();
     this.ircSource = null;
@@ -5843,7 +6285,7 @@ class ChatObserver {
       if (!this.shouldEmit(msgEl)) continue;
       const parsed = parseChatMessage(msgEl);
       if (!parsed) continue;
-      if (shouldIgnoreChatPayload(parsed, msgEl)) continue;
+      if (shouldIgnoreChatPayload(parsed, msgEl, this.getSettings())) continue;
       this.emitDanmaku(parsed, msgEl);
     }
   }
@@ -5866,7 +6308,7 @@ class ChatObserver {
       superchatStyle: parsed.superchatStyle || null,
       superchatMeta: parsed.superchatMeta || null,
     };
-    if (shouldIgnoreChatPayload(payload, null)) return;
+    if (shouldIgnoreChatPayload(payload, null, this.getSettings())) return;
     this.emitDanmaku(payload, null);
   }
 
@@ -6513,8 +6955,16 @@ function injectStyles() {
       justify-content: flex-start;
       gap: 6px;
       overflow: visible;
-      padding: 4px 0;
+      padding: 6px 0 4px;
       box-sizing: border-box;
+    }
+
+    .tbc-superchat-layer.tbc-sc-scrollable {
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      pointer-events: auto;
+      scrollbar-width: thin;
     }
 
     .tbc-superchat-layer.tbc-sc-bottom {
@@ -6536,7 +6986,6 @@ function injectStyles() {
       display: flex;
       align-items: center;
       gap: 10px;
-      max-width: min(720px, calc(100% - 24px));
       min-width: min(280px, calc(100% - 24px));
       padding: 8px 28px 8px 8px;
       border-radius: 12px;
@@ -6621,6 +7070,72 @@ function injectStyles() {
       align-items: center;
       gap: 8px;
       min-width: 0;
+    }
+
+    .tbc-sc-meta {
+      display: flex;
+      align-items: center;
+      flex-wrap: nowrap;
+      gap: 6px;
+      flex-shrink: 0;
+      align-self: flex-start;
+    }
+
+    .tbc-sc-amount {
+      flex-shrink: 0;
+      padding: 1px 7px;
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.28);
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      font-size: 0.72em;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      line-height: 1.4;
+      white-space: nowrap;
+    }
+
+    .tbc-sc-tier {
+      min-width: 2.2em;
+      text-align: center;
+    }
+
+    .tbc-superchat-item.tbc-sc-compact {
+      min-width: unset;
+      padding: 6px 44px 6px 6px;
+      gap: 8px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .tbc-sc-compact-main {
+      min-width: 0;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tbc-sc-compact-name {
+      min-width: 0;
+      flex: 1 1 4em;
+      max-width: 9em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 0.9em;
+      font-weight: 800;
+      opacity: 0.96;
+    }
+
+    .tbc-superchat-item.tbc-sc-compact .tbc-sc-meta {
+      margin-left: 0;
+      flex-shrink: 0;
+    }
+
+    .tbc-superchat-item.tbc-sc-compact .tbc-sc-close {
+      top: 50%;
+      right: 6px;
+      transform: translateY(-50%);
     }
 
     .tbc-sc-name {
@@ -6745,6 +7260,149 @@ function injectStyles() {
     .tbc-superchat-item.tbc-paused,
     .tbc-superchat-item.tbc-paused.tbc-click-locked {
       z-index: 20;
+    }
+
+    .tbc-sc-card-root {
+      position: absolute;
+      inset: 0;
+      z-index: 10020;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      box-sizing: border-box;
+      pointer-events: auto;
+    }
+
+    .tbc-sc-card-backdrop {
+      position: absolute;
+      inset: 0;
+      margin: 0;
+      padding: 0;
+      border: none;
+      background: rgba(0, 0, 0, 0.55);
+      cursor: pointer;
+    }
+
+    .tbc-sc-card {
+      position: relative;
+      z-index: 1;
+      width: min(520px, calc(100% - 24px));
+      max-height: min(70vh, 420px);
+      overflow: auto;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+      padding: 14px 14px 12px;
+      box-sizing: border-box;
+    }
+
+    .tbc-sc-card-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .tbc-sc-card-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      object-fit: cover;
+      flex-shrink: 0;
+      border: 2px solid rgba(255, 255, 255, 0.35);
+    }
+
+    .tbc-sc-card-headtext {
+      min-width: 0;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .tbc-sc-card-name {
+      font-size: 15px;
+      font-weight: 800;
+      line-height: 1.25;
+      word-break: break-word;
+    }
+
+    .tbc-sc-card-meta {
+      align-self: flex-start;
+    }
+
+    .tbc-sc-card-close {
+      flex-shrink: 0;
+      width: 32px;
+      height: 32px;
+      margin: 0;
+      padding: 0;
+      border: none;
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.25);
+      color: inherit;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .tbc-sc-card-close:hover {
+      background: rgba(255, 255, 255, 0.18);
+    }
+
+    .tbc-sc-card-close svg {
+      width: 18px;
+      height: 18px;
+      fill: currentColor;
+    }
+
+    .tbc-sc-card-body {
+      font-size: 15px;
+      font-weight: 600;
+      line-height: 1.45;
+      word-break: break-word;
+      white-space: pre-wrap;
+    }
+
+    .tbc-sc-card-translation {
+      margin-top: 10px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.22);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      font-size: 14px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+    }
+
+    .tbc-sc-card-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .tbc-sc-card-action {
+      appearance: none;
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      background: rgba(0, 0, 0, 0.22);
+      color: inherit;
+      border-radius: 8px;
+      padding: 7px 12px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .tbc-sc-card-action:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.16);
+    }
+
+    .tbc-sc-card-action:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
     }
 
     @keyframes tbc-sc-fade {
@@ -7603,6 +8261,10 @@ const ICON_FAVORITE = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height
 
 const ICON_PIP = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 5.5A2.5 2.5 0 0 1 5.5 3h13A2.5 2.5 0 0 1 21 5.5v13a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 18.5v-13Zm2.5-.5a.5.5 0 0 0-.5.5v13a.5.5 0 0 0 .5.5H11V13.5A1.5 1.5 0 0 1 12.5 12H19V5.5a.5.5 0 0 0-.5-.5h-13ZM19 14h-6.5a.5.5 0 0 0-.5.5V19H19v-5Z"/></svg>`;
 
+const ICON_PIP_ASPECT_UNLOCK = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 17c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm6-9h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v1h2V6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2z"/></svg>`;
+
+const ICON_PIP_ASPECT_LOCK = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1s3.1 1.39 3.1 3.1v2z"/></svg>`;
+
 class SettingsPanel {
   constructor({ settings, onChange, onClose }) {
     this.settings = settings;
@@ -8155,12 +8817,14 @@ class SettingsPanel {
       this.createSelect(t('fontFamily'), 'fontFamily', getFontOptions()),
       this.createSelect(t('scrollArea'), 'scrollArea', getScrollAreaOptions()),
       this.createDivider(),
-      this.createToggle(t('tabAntiFreeze'), 'tabAntiFreeze'),
-      this.createHint(t('tabAntiFreezeHint')),
-      this.createDivider(),
       this.createToggle(t('superchatPinned'), 'superchatPinned'),
+      this.createToggle(t('superchatOverlayDanmaku'), 'superchatOverlayDanmaku'),
+      this.createToggle(t('superchatHideSubscribe'), 'superchatHideSubscribe'),
+      this.createToggle(t('superchatCompact'), 'superchatCompact'),
+      this.createRange(t('superchatMaxWidth'), 'superchatMaxWidth', 240, 720, 10, (v) => `${v}px`),
       this.createSelect(t('superchatPosition'), 'superchatPosition', getSuperchatPositionOptions()),
       this.createRange(t('superchatDuration'), 'superchatDuration', 2, 300, 1, (v) => `${v} ${t('speechSeconds')}`),
+      this.createToggle(t('superchatDurationByAmount'), 'superchatDurationByAmount'),
       this.createSelect(t('superchatAnimation'), 'superchatAnimation', getSuperchatAnimationOptions()),
       this.createDivider(),
       this.createToggle(t('translateEnable'), 'translateEnabled', {
@@ -10459,6 +11123,8 @@ class FullscreenChatInput {
   }
 }
 
+const PIP_ASPECT_LOCKED_KEY = 'tbcPipAspectLocked';
+
 class EnhancedPip {
   constructor({ getSettings, danmaku, favoritesPanel, onToggleDanmaku, onOpenSettings, onStateChange } = {}) {
     this.getSettings = getSettings;
@@ -10489,6 +11155,40 @@ class EnhancedPip {
     this.boundPageHide = () => this.cleanup();
     this.boundKeyDown = (event) => this.onKeyDown(event);
     this.boundComment = (payload) => this.renderComment(payload);
+    this.aspectLocked = this.loadAspectLocked();
+  }
+
+  loadAspectLocked() {
+    try {
+      return !!GM_getValue(PIP_ASPECT_LOCKED_KEY, false);
+    } catch (error) {
+      return false;
+    }
+  }
+
+  saveAspectLocked() {
+    try {
+      GM_setValue(PIP_ASPECT_LOCKED_KEY, this.aspectLocked);
+    } catch (error) {
+      /* storage unavailable */
+    }
+  }
+
+  toggleAspectLock() {
+    this.aspectLocked = !this.aspectLocked;
+    this.saveAspectLocked();
+    this.applyAspectLock();
+  }
+
+  applyAspectLock() {
+    const wrap = this.nodes?.wrap;
+    if (wrap) wrap.classList.toggle('is-aspect-locked', this.aspectLocked);
+    const btn = this.nodes?.aspectBtn;
+    if (!btn) return;
+    btn.innerHTML = this.aspectLocked ? ICON_PIP_ASPECT_LOCK : ICON_PIP_ASPECT_UNLOCK;
+    const label = t(this.aspectLocked ? 'pipAspectUnlock' : 'pipAspectLock');
+    btn.title = label;
+    btn.setAttribute('aria-label', label);
   }
 
   pageWindow() {
@@ -10879,10 +11579,6 @@ class EnhancedPip {
     doc.documentElement.lang = document.documentElement.lang || 'zh-CN';
     doc.head.replaceChildren();
     doc.body.replaceChildren();
-    const title = doc.createElement('title');
-    title.textContent = t('pipTitle');
-    doc.head.appendChild(title);
-    doc.title = t('pipTitle');
 
     const style = doc.createElement('style');
     style.textContent = this.windowCss();
@@ -10899,10 +11595,17 @@ class EnhancedPip {
     const buttons = doc.createElement('div');
     buttons.id = 'tbc-pip-btns';
     const reloadBtn = this.makeButton(doc, 'tbc-pip-reload', t('pipReload'), t('pipReload'), this.iconReload());
+    const aspectBtn = this.makeButton(
+      doc,
+      'tbc-pip-aspect',
+      t('pipAspectLock'),
+      t('pipAspectLock'),
+      ICON_PIP_ASPECT_UNLOCK,
+    );
     const danmakuBtn = this.makeButton(doc, 'tbc-pip-danmaku-btn', t('pipDanmaku'), t('pipDanmaku'), ICON_DANMAKU_ON);
     const settingsBtn = this.makeButton(doc, 'tbc-pip-settings', t('pipSettings'), t('pipSettings'), ICON_SETTINGS);
     const sendBtn = this.makeButton(doc, 'tbc-pip-send', t('pipSend'), t('pipSend'), ICON_CHAT_SEND);
-    buttons.append(reloadBtn, danmakuBtn, settingsBtn, sendBtn);
+    buttons.append(reloadBtn, aspectBtn, danmakuBtn, settingsBtn, sendBtn);
 
     const video = doc.createElement('video');
     video.id = 'tbc-pip-video';
@@ -10947,7 +11650,7 @@ class EnhancedPip {
     doc.body.appendChild(wrap);
 
     this.nodes = {
-      wrap, main, back, reloadBtn, danmakuBtn, settingsBtn, sendBtn,
+      wrap, main, back, reloadBtn, aspectBtn, danmakuBtn, settingsBtn, sendBtn,
       video, layer, toast, input, field, favBtn, favList, submit, status,
     };
 
@@ -10955,6 +11658,10 @@ class EnhancedPip {
     reloadBtn.addEventListener('click', (event) => {
       stop(event);
       this.reloadVideo();
+    });
+    aspectBtn.addEventListener('click', (event) => {
+      stop(event);
+      this.toggleAspectLock();
     });
     danmakuBtn.addEventListener('click', (event) => {
       stop(event);
@@ -10988,6 +11695,7 @@ class EnhancedPip {
     });
     pipWindow.addEventListener('resize', this.boundResize);
     doc.addEventListener('keydown', this.boundKeyDown, true);
+    this.applyAspectLock();
     this.resetLanes();
     pipWindow.requestAnimationFrame(() => this.resetLanes());
   }
@@ -11020,6 +11728,7 @@ class EnhancedPip {
         position: absolute; inset: 0; width: 100%; height: 100%;
         object-fit: fill; background: #000; z-index: 1;
       }
+      #tbc-pip-wrap.is-aspect-locked #tbc-pip-video { object-fit: contain; }
       #tbc-pip-danmaku { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 2; }
       .tbc-pip-dm {
         position: absolute; white-space: nowrap; font-weight: 700; line-height: 1.2;
@@ -11540,7 +12249,6 @@ function getSettings() {
 function isBackgroundChatKept() {
   if (document.documentElement.dataset.tbcPreview === 'true') return true;
   if (enhancedPip?.isOpen()) return true;
-  if (settings.tabAntiFreeze) return true;
   return false;
 }
 
@@ -11550,7 +12258,7 @@ function isActive() {
 }
 
 function syncBackgroundChat() {
-  syncTabAntiFreeze(getSettings, () => enhancedPip?.isOpen());
+  syncTabAntiFreeze(() => enhancedPip?.isOpen());
   if (isBackgroundChatKept()) {
     chatObserver?.ensureBackgroundIrc?.();
   } else {
@@ -11680,6 +12388,12 @@ async function boot() {
     favoritesPanel,
   });
   chatContextMenu.attach(document);
+
+  danmaku.setSuperchatHelpers(() => ({
+    getSettings,
+    favoritesPanel,
+    chatContextMenu,
+  }));
 
   chatClearButton = new ChatClearButton({
     onClear: () => chatObserver?.clearIrcHistory?.(),

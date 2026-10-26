@@ -7,17 +7,22 @@ function safeCssColor(value, fallback) {
 class DanmakuEngine {
   constructor(getSettings) {
     this.getSettings = getSettings;
+    this._superchatHelpers = () => ({ getSettings: this.getSettings });
     this.laneManager = new LaneManager();
     this.layer = null;
     this.superchatLayer = null;
     this.pinnedItems = [];
     this.superchatQueue = [];
-    this.maxPinned = 4;
+    this.maxPinned = SUPERCHAT_MAX_PINS;
     this.playerEl = null;
     this.overlayEl = null;
     this.controlsObserver = null;
     this.resizeObserver = null;
     this.boundUpdate = () => this.updateLayout();
+  }
+
+  setSuperchatHelpers(factory) {
+    if (typeof factory === 'function') this._superchatHelpers = factory;
   }
 
   async mount() {
@@ -59,6 +64,7 @@ class DanmakuEngine {
     this.resizeObserver?.disconnect();
     this.controlsObserver?.disconnect();
     hideDanmakuTooltip();
+    closeSuperchatDetailCard();
     this.layer?.remove();
     this.superchatLayer?.remove();
     this.layer = null;
@@ -76,26 +82,49 @@ class DanmakuEngine {
     return SCROLL_AREA_BOTTOM_RESERVE;
   }
 
-  getPinnedItemHeight() {
-    return Math.max(44, this.getSettings().fontSize + 28);
+  estimatePinnedItemHeight() {
+    const settings = this.getSettings();
+    if (settings.superchatCompact) {
+      return Math.max(40, settings.fontSize + 18);
+    }
+    return Math.max(44, settings.fontSize + 28);
   }
 
   getPinnedBandHeight() {
-    const count = Math.max(1, this.pinnedItems.filter((item) => item?.isConnected).length);
+    const live = this.pinnedItems.filter((item) => item?.isConnected);
     const gap = 6;
-    return count * this.getPinnedItemHeight() + (count - 1) * gap + 8;
+    const layerPad = 10;
+    if (!live.length) {
+      return this.estimatePinnedItemHeight() + layerPad;
+    }
+    let total = layerPad;
+    live.forEach((item, index) => {
+      const h = item.offsetHeight || this.estimatePinnedItemHeight();
+      total += h + (index > 0 ? gap : 0);
+    });
+    return total;
   }
 
   getPinnedBandRect(playerHeight) {
     const live = this.pinnedItems.filter((item) => item?.isConnected);
     this.pinnedItems = live;
     if (!live.length || !this.getSettings().superchatPinned || !this.getSettings().enabled) return null;
-    const band = this.getPinnedBandHeight();
     const placement = resolveSuperchatPlacement(this.getSettings().superchatPosition);
-    const top = placement.vertical === 'bottom'
-      ? Math.max(0, playerHeight - this.getBottomReserve() - band)
-      : 8;
-    return { ...placement, top, height: band };
+    const bottomReserve = this.getBottomReserve();
+    const contentHeight = this.getPinnedBandHeight();
+    let bandHeight = contentHeight;
+    const maxBand = Math.max(this.estimatePinnedItemHeight(), playerHeight - bottomReserve - 12);
+    bandHeight = Math.min(bandHeight, maxBand);
+
+    let top;
+    if (placement.vertical === 'bottom') {
+      top = Math.max(0, playerHeight - bottomReserve - bandHeight);
+    } else {
+      top = 4;
+      const maxTopBand = playerHeight - bottomReserve - top - 4;
+      bandHeight = Math.min(bandHeight, maxTopBand);
+    }
+    return { ...placement, top, height: bandHeight, contentHeight };
   }
 
   getScrollAreaRect(playerRect) {
@@ -121,6 +150,18 @@ class DanmakuEngine {
       default:
         area = { top: 0, height: Math.max(laneHeight, h - bottomReserve) };
         break;
+    }
+
+    if (settings.superchatOverlayDanmaku === false && settings.superchatPinned && settings.enabled) {
+      const band = this.getPinnedBandRect(h);
+      if (band?.height) {
+        if (band.vertical === 'top') {
+          area.top += band.height;
+          area.height = Math.max(laneHeight, area.height - band.height);
+        } else if (band.vertical === 'bottom') {
+          area.height = Math.max(laneHeight, area.height - band.height);
+        }
+      }
     }
 
     return area;
@@ -241,6 +282,7 @@ class DanmakuEngine {
 
   layoutSuperchat(playerRect, fullscreen) {
     if (!this.superchatLayer) return;
+    const settings = this.getSettings();
     const parent = fullscreen ? (getFullscreenElement() || this.overlayEl) : this.overlayEl;
     if (parent && this.superchatLayer.parentElement !== parent) parent.appendChild(this.superchatLayer);
     const band = this.getPinnedBandRect(playerRect.height);
@@ -251,6 +293,8 @@ class DanmakuEngine {
     this.superchatLayer.classList.toggle('tbc-sc-bottom', band.vertical === 'bottom');
     this.superchatLayer.classList.toggle('tbc-sc-align-left', band.horizontal === 'left');
     this.superchatLayer.classList.toggle('tbc-sc-align-right', band.horizontal === 'right');
+    const needsPinScroll = band.contentHeight > band.height + 2;
+    this.superchatLayer.classList.toggle('tbc-sc-scrollable', needsPinScroll);
     Object.assign(this.superchatLayer.style, fullscreen ? {
       display: 'flex',
       position: 'fixed',
@@ -266,12 +310,13 @@ class DanmakuEngine {
       left: '0',
       width: '100%',
       height: `${band.height}px`,
-      zIndex: '5',
+      zIndex: settings.superchatOverlayDanmaku === false ? '4' : '5',
     });
   }
 
   render(payload) {
     const settings = this.getSettings();
+    if (payload.superchat && shouldSuppressSubscribeSuperchat(settings, payload)) return;
     if (payload.superchat && settings.superchatPinned) {
       this.queueSuperchat(payload);
       return;
@@ -279,12 +324,44 @@ class DanmakuEngine {
     this.renderScrolling(payload);
   }
 
+  buildSuperchatMetaRow(meta, options = {}) {
+    const badgeBeforeAmount = !!options.badgeBeforeAmount;
+    const metaRow = document.createElement('div');
+    metaRow.className = 'tbc-sc-meta';
+    if (!meta) return metaRow;
+
+    if (meta.kind === 'cheer' && meta.bits) {
+      const amount = document.createElement('span');
+      amount.className = 'tbc-sc-amount';
+      amount.textContent = meta.amountLabel || `${meta.bits} Bits`;
+      const tierText = meta.tierLabel || cheerTierBadgeLabel(meta.bits);
+      const tier = tierText ? document.createElement('span') : null;
+      if (tier) {
+        tier.className = 'tbc-sc-badge tbc-sc-tier';
+        tier.textContent = tierText;
+      }
+      if (badgeBeforeAmount && tier) {
+        metaRow.append(tier, amount);
+      } else if (tier) {
+        metaRow.append(amount, tier);
+      } else {
+        metaRow.appendChild(amount);
+      }
+    } else if (meta.amountLabel) {
+      const badge = document.createElement('span');
+      badge.className = 'tbc-sc-badge';
+      badge.textContent = meta.amountLabel;
+      metaRow.appendChild(badge);
+    }
+    return metaRow;
+  }
+
   queueSuperchat(payload) {
     if (!this.superchatLayer || !this.getSettings().enabled) return;
     this.pinnedItems = this.pinnedItems.filter((item) => item?.isConnected);
     if (this.pinnedItems.length >= this.maxPinned) {
       this.superchatQueue.push(payload);
-      if (this.superchatQueue.length > 8) this.superchatQueue.shift();
+      if (this.superchatQueue.length > this.maxPinned * 2) this.superchatQueue.shift();
       return;
     }
     this.mountSuperchat(payload);
@@ -317,16 +394,20 @@ class DanmakuEngine {
     const animation = ['fade', 'slide', 'pop', 'shine'].includes(settings.superchatAnimation)
       ? settings.superchatAnimation
       : 'slide';
-    const duration = clamp(Number(settings.superchatDuration) || 15, 2, 300);
     const meta = superchatMeta || null;
+    const duration = resolveSuperchatDuration(settings, meta);
+    const compact = !!settings.superchatCompact;
+    const maxWidth = clamp(Number(settings.superchatMaxWidth) || 420, 240, 720);
     const style = meta?.style || superchatStyle || {
       background: 'linear-gradient(135deg, #9147ff 0%, #772ce8 100%)',
       color: '#ffffff',
       accent: '#bf94ff',
     };
     const item = document.createElement('div');
-    item.className = `tbc-superchat-item tbc-sc-${animation}`;
+    item.className = `tbc-superchat-item tbc-sc-${animation}${compact ? ' tbc-sc-compact' : ''}`;
     item.style.setProperty('--tbc-sc-duration', `${duration}s`);
+    item.style.maxWidth = `min(${maxWidth}px, calc(100% - 24px))`;
+    if (compact) item.style.minWidth = 'unset';
     item.style.setProperty('--tbc-sc-accent', safeCssColor(style.accent, '#bf94ff'));
     item.style.background = style.background || safeCssColor(style.background, '#9147ff');
     item.style.color = safeCssColor(style.color, '#ffffff');
@@ -339,30 +420,43 @@ class DanmakuEngine {
     avatar.draggable = false;
     avatar.src = avatarUrl || cachedAvatar(login || username, username, usernameColor);
 
-    const main = document.createElement('div');
-    main.className = 'tbc-sc-main';
+    let main = null;
+    let body = null;
+    let track = null;
 
-    const head = document.createElement('div');
-    head.className = 'tbc-sc-head';
-    const nameEl = document.createElement('span');
-    nameEl.className = 'tbc-sc-name';
-    nameEl.textContent = this.truncateName(username || login || 'User');
-    nameEl.title = username || login || '';
-    head.appendChild(nameEl);
-    if (meta?.amountLabel) {
-      const badge = document.createElement('span');
-      badge.className = 'tbc-sc-badge';
-      badge.textContent = meta.amountLabel;
-      head.appendChild(badge);
+    if (compact) {
+      const compactMain = document.createElement('div');
+      compactMain.className = 'tbc-sc-compact-main';
+      const nameEl = document.createElement('span');
+      nameEl.className = 'tbc-sc-compact-name';
+      const displayName = username || login || 'User';
+      nameEl.textContent = this.truncateName(displayName, 14);
+      nameEl.title = displayName;
+      const metaRow = this.buildSuperchatMetaRow(meta, { badgeBeforeAmount: true });
+      compactMain.append(nameEl, metaRow);
+      item.append(avatar, compactMain);
+    } else {
+      const metaRow = this.buildSuperchatMetaRow(meta);
+      main = document.createElement('div');
+      main.className = 'tbc-sc-main';
+
+      const head = document.createElement('div');
+      head.className = 'tbc-sc-head';
+      const nameEl = document.createElement('span');
+      nameEl.className = 'tbc-sc-name';
+      nameEl.textContent = this.truncateName(username || login || 'User');
+      nameEl.title = username || login || '';
+      head.appendChild(nameEl);
+
+      body = document.createElement('div');
+      body.className = 'tbc-sc-body';
+      track = document.createElement('div');
+      track.className = 'tbc-sc-body-track';
+      this.appendParts(track, parts?.length ? parts : [{ type: 'text', value: message }]);
+      body.appendChild(track);
+      main.append(head, metaRow, body);
+      item.append(avatar, main);
     }
-
-    const body = document.createElement('div');
-    body.className = 'tbc-sc-body';
-    const track = document.createElement('div');
-    track.className = 'tbc-sc-body-track';
-    this.appendParts(track, parts?.length ? parts : [{ type: 'text', value: message }]);
-    body.appendChild(track);
-    main.append(head, body);
 
     const closeBtn = document.createElement('button');
     closeBtn.type = 'button';
@@ -370,12 +464,16 @@ class DanmakuEngine {
     closeBtn.setAttribute('aria-label', t('superchatClose'));
     closeBtn.innerHTML = ICON_CLOSE;
 
-    item.append(avatar, main, closeBtn);
+    item.appendChild(closeBtn);
+    item._tbcPayload = payload;
     this.superchatLayer.appendChild(item);
     this.pinnedItems.push(item);
     this.updateLayout();
-    requestAnimationFrame(() => this.armSuperchatMarquee(body, track));
-    requestSpeech(speechSourceText(message, parts));
+    requestAnimationFrame(() => this.updateLayout());
+    if (!compact && body && track) {
+      requestAnimationFrame(() => this.armSuperchatMarquee(body, track));
+    }
+    if (!compact) requestSpeech(speechSourceText(message, parts));
 
     const loginKey = String(login || username || '').toLowerCase().replace(/^@+/, '');
     // Always resolve a real profile image via ViewerCard when possible (letter avatars are fallback only).
@@ -409,15 +507,36 @@ class DanmakuEngine {
       this.finishSuperchat(item);
     });
 
-    attachDanmakuInteraction(item, {
-      username,
-      usernameColor,
-      profileUrl,
-      originalMessage,
-      translated,
-      onPause: () => clearTimeout(fallback),
-      onResume: () => armFallback(20000),
-    });
+    const pausePin = () => clearTimeout(fallback);
+    const resumePin = () => armFallback(20000);
+
+    if (compact) {
+      item.addEventListener('click', (e) => {
+        if (e.target.closest('.tbc-sc-close')) return;
+        e.preventDefault();
+        e.stopPropagation();
+        pausePin();
+        item.classList.add('tbc-paused');
+        const mount = getDanmakuMount(item) || this.overlayEl || this.playerEl;
+        openSuperchatDetailCard(mount, payload, {
+          ...this._superchatHelpers(),
+          onDismiss: () => {
+            item.classList.remove('tbc-paused');
+            resumePin();
+          },
+        });
+      });
+    } else {
+      attachDanmakuInteraction(item, {
+        username,
+        usernameColor,
+        profileUrl,
+        originalMessage,
+        translated,
+        onPause: pausePin,
+        onResume: resumePin,
+      });
+    }
   }
 
   armSuperchatMarquee(body, track) {

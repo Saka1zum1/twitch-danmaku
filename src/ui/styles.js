@@ -558,8 +558,16 @@ function injectStyles() {
       justify-content: flex-start;
       gap: 6px;
       overflow: visible;
-      padding: 4px 0;
+      padding: 6px 0 4px;
       box-sizing: border-box;
+    }
+
+    .tbc-superchat-layer.tbc-sc-scrollable {
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      pointer-events: auto;
+      scrollbar-width: thin;
     }
 
     .tbc-superchat-layer.tbc-sc-bottom {
@@ -581,7 +589,6 @@ function injectStyles() {
       display: flex;
       align-items: center;
       gap: 10px;
-      max-width: min(720px, calc(100% - 24px));
       min-width: min(280px, calc(100% - 24px));
       padding: 8px 28px 8px 8px;
       border-radius: 12px;
@@ -666,6 +673,72 @@ function injectStyles() {
       align-items: center;
       gap: 8px;
       min-width: 0;
+    }
+
+    .tbc-sc-meta {
+      display: flex;
+      align-items: center;
+      flex-wrap: nowrap;
+      gap: 6px;
+      flex-shrink: 0;
+      align-self: flex-start;
+    }
+
+    .tbc-sc-amount {
+      flex-shrink: 0;
+      padding: 1px 7px;
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.28);
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      font-size: 0.72em;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      line-height: 1.4;
+      white-space: nowrap;
+    }
+
+    .tbc-sc-tier {
+      min-width: 2.2em;
+      text-align: center;
+    }
+
+    .tbc-superchat-item.tbc-sc-compact {
+      min-width: unset;
+      padding: 6px 44px 6px 6px;
+      gap: 8px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .tbc-sc-compact-main {
+      min-width: 0;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tbc-sc-compact-name {
+      min-width: 0;
+      flex: 1 1 4em;
+      max-width: 9em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 0.9em;
+      font-weight: 800;
+      opacity: 0.96;
+    }
+
+    .tbc-superchat-item.tbc-sc-compact .tbc-sc-meta {
+      margin-left: 0;
+      flex-shrink: 0;
+    }
+
+    .tbc-superchat-item.tbc-sc-compact .tbc-sc-close {
+      top: 50%;
+      right: 6px;
+      transform: translateY(-50%);
     }
 
     .tbc-sc-name {
@@ -790,6 +863,149 @@ function injectStyles() {
     .tbc-superchat-item.tbc-paused,
     .tbc-superchat-item.tbc-paused.tbc-click-locked {
       z-index: 20;
+    }
+
+    .tbc-sc-card-root {
+      position: absolute;
+      inset: 0;
+      z-index: 10020;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      box-sizing: border-box;
+      pointer-events: auto;
+    }
+
+    .tbc-sc-card-backdrop {
+      position: absolute;
+      inset: 0;
+      margin: 0;
+      padding: 0;
+      border: none;
+      background: rgba(0, 0, 0, 0.55);
+      cursor: pointer;
+    }
+
+    .tbc-sc-card {
+      position: relative;
+      z-index: 1;
+      width: min(520px, calc(100% - 24px));
+      max-height: min(70vh, 420px);
+      overflow: auto;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+      padding: 14px 14px 12px;
+      box-sizing: border-box;
+    }
+
+    .tbc-sc-card-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .tbc-sc-card-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      object-fit: cover;
+      flex-shrink: 0;
+      border: 2px solid rgba(255, 255, 255, 0.35);
+    }
+
+    .tbc-sc-card-headtext {
+      min-width: 0;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .tbc-sc-card-name {
+      font-size: 15px;
+      font-weight: 800;
+      line-height: 1.25;
+      word-break: break-word;
+    }
+
+    .tbc-sc-card-meta {
+      align-self: flex-start;
+    }
+
+    .tbc-sc-card-close {
+      flex-shrink: 0;
+      width: 32px;
+      height: 32px;
+      margin: 0;
+      padding: 0;
+      border: none;
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.25);
+      color: inherit;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .tbc-sc-card-close:hover {
+      background: rgba(255, 255, 255, 0.18);
+    }
+
+    .tbc-sc-card-close svg {
+      width: 18px;
+      height: 18px;
+      fill: currentColor;
+    }
+
+    .tbc-sc-card-body {
+      font-size: 15px;
+      font-weight: 600;
+      line-height: 1.45;
+      word-break: break-word;
+      white-space: pre-wrap;
+    }
+
+    .tbc-sc-card-translation {
+      margin-top: 10px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.22);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      font-size: 14px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+    }
+
+    .tbc-sc-card-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .tbc-sc-card-action {
+      appearance: none;
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      background: rgba(0, 0, 0, 0.22);
+      color: inherit;
+      border-radius: 8px;
+      padding: 7px 12px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .tbc-sc-card-action:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.16);
+    }
+
+    .tbc-sc-card-action:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
     }
 
     @keyframes tbc-sc-fade {

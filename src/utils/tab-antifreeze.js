@@ -95,12 +95,7 @@ function tabAntiFreezeIsEnabled() {
   return TabAntiFreeze.active;
 }
 
-function tabAntiFreezeShouldEnable(getSettings, isPipOpen) {
-  if (getSettings?.().tabAntiFreeze) return true;
-  return !!isPipOpen?.();
-}
-
-function syncTabAntiFreeze(getSettings, isPipOpen) {
-  if (tabAntiFreezeShouldEnable(getSettings, isPipOpen)) tabAntiFreezeEnable();
+function syncTabAntiFreeze(isPipOpen) {
+  if (isPipOpen?.()) tabAntiFreezeEnable();
   else tabAntiFreezeDisable();
 }

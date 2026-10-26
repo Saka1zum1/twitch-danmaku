@@ -26,7 +26,11 @@ const DEFAULT_SETTINGS = {
   superchatPosition: 'top',
   superchatDuration: 15,
   superchatAnimation: 'slide',
-  tabAntiFreeze: false,
+  superchatHideSubscribe: false,
+  superchatCompact: false,
+  superchatMaxWidth: 420,
+  superchatOverlayDanmaku: true,
+  superchatDurationByAmount: false,
 };
 
 const SELECTORS = {
@@ -83,6 +87,24 @@ function resolveSuperchatPlacement(value) {
   };
   return map[key] || map.top;
 }
+
+function resolveSuperchatDuration(settings, meta) {
+  const base = clamp(finiteNumber(settings?.superchatDuration, DEFAULT_SETTINGS.superchatDuration), 2, 300);
+  if (!settings?.superchatDurationByAmount || !meta) return base;
+
+  let bonus = 0;
+  if (meta.kind === 'cheer' && meta.bits) {
+    const bits = Math.max(1, Number(meta.bits) || 1);
+    bonus = Math.log10(bits) * 6;
+  } else if (meta.kind === 'sub') {
+    bonus = 8;
+  } else if (meta.kind === 'pin') {
+    bonus = 5;
+  }
+  return clamp(Math.round(base + bonus), 2, 300);
+}
+
+const SUPERCHAT_MAX_PINS = 10;
 
 const STORAGE_KEY = 'tbc_settings_v1';
 

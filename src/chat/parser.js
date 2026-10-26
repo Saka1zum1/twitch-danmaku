@@ -249,6 +249,16 @@ function subscribeAmountLabel(text) {
   return 'Sub';
 }
 
+function cheerTierBadgeLabel(bits) {
+  const amount = Math.max(0, Number(bits) || 0);
+  if (amount >= 100000) return '100K';
+  if (amount >= 10000) return '10K';
+  if (amount >= 5000) return '5K';
+  if (amount >= 1000) return '1K';
+  if (amount >= 100) return '100';
+  return '1';
+}
+
 function readUserNoticeSystemText(msgEl) {
   if (!msgEl) return '';
   const clone = msgEl.cloneNode(true);
@@ -362,10 +372,15 @@ function readSuperchatMeta(msgEl, message = '', parts = []) {
 
   const textNode = msgEl.querySelector('[data-a-target="chat-message-text"], .text-fragment');
   const color = usableCssColor(textNode && getComputedStyle(textNode).color) || style.color;
+  const tierLabel = kind === 'cheer'
+    ? cheerTierBadgeLabel(bits || 1)
+    : (kind === 'sub' ? amountLabel : '');
+
   return {
     kind,
     bits: bits || 0,
     amountLabel,
+    tierLabel,
     avatarUrl: readChatAvatarUrl(msgEl),
     style: {
       background: style.background,

@@ -31,7 +31,15 @@ function loadSettings() {
       merged.superchatPosition = SUPERCHAT_POSITIONS.includes(scPos) ? scPos : 'top';
       if (!['fade', 'slide', 'pop', 'shine'].includes(merged.superchatAnimation)) merged.superchatAnimation = 'slide';
       merged.superchatDuration = clamp(finiteNumber(merged.superchatDuration, DEFAULT_SETTINGS.superchatDuration), 2, 300);
-      merged.tabAntiFreeze = !!merged.tabAntiFreeze;
+      merged.superchatHideSubscribe = !!merged.superchatHideSubscribe;
+      merged.superchatCompact = !!merged.superchatCompact;
+      merged.superchatMaxWidth = clamp(
+        finiteNumber(merged.superchatMaxWidth, DEFAULT_SETTINGS.superchatMaxWidth),
+        240,
+        720,
+      );
+      merged.superchatOverlayDanmaku = merged.superchatOverlayDanmaku !== false;
+      merged.superchatDurationByAmount = !!merged.superchatDurationByAmount;
       return merged;
     }
   } catch (_) {

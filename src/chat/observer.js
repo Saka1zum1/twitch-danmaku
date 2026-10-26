@@ -117,7 +117,6 @@ class ChatObserver {
   maybeStopBackgroundIrc() {
     if (!this.ircSource || !this.ircBackgroundOnly) return;
     if (enhancedPip?.isOpen?.()) return;
-    if (this.getSettings?.().tabAntiFreeze) return;
     if (document.hidden) return;
     this.ircSource.stop();
     this.ircSource = null;
@@ -149,7 +148,7 @@ class ChatObserver {
       if (!this.shouldEmit(msgEl)) continue;
       const parsed = parseChatMessage(msgEl);
       if (!parsed) continue;
-      if (shouldIgnoreChatPayload(parsed, msgEl)) continue;
+      if (shouldIgnoreChatPayload(parsed, msgEl, this.getSettings())) continue;
       this.emitDanmaku(parsed, msgEl);
     }
   }
@@ -172,7 +171,7 @@ class ChatObserver {
       superchatStyle: parsed.superchatStyle || null,
       superchatMeta: parsed.superchatMeta || null,
     };
-    if (shouldIgnoreChatPayload(payload, null)) return;
+    if (shouldIgnoreChatPayload(payload, null, this.getSettings())) return;
     this.emitDanmaku(payload, null);
   }
 

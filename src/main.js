@@ -23,7 +23,6 @@ function getSettings() {
 function isBackgroundChatKept() {
   if (document.documentElement.dataset.tbcPreview === 'true') return true;
   if (enhancedPip?.isOpen()) return true;
-  if (settings.tabAntiFreeze) return true;
   return false;
 }
 
@@ -33,7 +32,7 @@ function isActive() {
 }
 
 function syncBackgroundChat() {
-  syncTabAntiFreeze(getSettings, () => enhancedPip?.isOpen());
+  syncTabAntiFreeze(() => enhancedPip?.isOpen());
   if (isBackgroundChatKept()) {
     chatObserver?.ensureBackgroundIrc?.();
   } else {
@@ -163,6 +162,12 @@ async function boot() {
     favoritesPanel,
   });
   chatContextMenu.attach(document);
+
+  danmaku.setSuperchatHelpers(() => ({
+    getSettings,
+    favoritesPanel,
+    chatContextMenu,
+  }));
 
   chatClearButton = new ChatClearButton({
     onClear: () => chatObserver?.clearIrcHistory?.(),

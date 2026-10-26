@@ -1,3 +1,5 @@
+const PIP_ASPECT_LOCKED_KEY = 'tbcPipAspectLocked';
+
 class EnhancedPip {
   constructor({ getSettings, danmaku, favoritesPanel, onToggleDanmaku, onOpenSettings, onStateChange } = {}) {
     this.getSettings = getSettings;
@@ -28,6 +30,40 @@ class EnhancedPip {
     this.boundPageHide = () => this.cleanup();
     this.boundKeyDown = (event) => this.onKeyDown(event);
     this.boundComment = (payload) => this.renderComment(payload);
+    this.aspectLocked = this.loadAspectLocked();
+  }
+
+  loadAspectLocked() {
+    try {
+      return !!GM_getValue(PIP_ASPECT_LOCKED_KEY, false);
+    } catch (error) {
+      return false;
+    }
+  }
+
+  saveAspectLocked() {
+    try {
+      GM_setValue(PIP_ASPECT_LOCKED_KEY, this.aspectLocked);
+    } catch (error) {
+      /* storage unavailable */
+    }
+  }
+
+  toggleAspectLock() {
+    this.aspectLocked = !this.aspectLocked;
+    this.saveAspectLocked();
+    this.applyAspectLock();
+  }
+
+  applyAspectLock() {
+    const wrap = this.nodes?.wrap;
+    if (wrap) wrap.classList.toggle('is-aspect-locked', this.aspectLocked);
+    const btn = this.nodes?.aspectBtn;
+    if (!btn) return;
+    btn.innerHTML = this.aspectLocked ? ICON_PIP_ASPECT_LOCK : ICON_PIP_ASPECT_UNLOCK;
+    const label = t(this.aspectLocked ? 'pipAspectUnlock' : 'pipAspectLock');
+    btn.title = label;
+    btn.setAttribute('aria-label', label);
   }
 
   pageWindow() {
@@ -418,10 +454,6 @@ class EnhancedPip {
     doc.documentElement.lang = document.documentElement.lang || 'zh-CN';
     doc.head.replaceChildren();
     doc.body.replaceChildren();
-    const title = doc.createElement('title');
-    title.textContent = t('pipTitle');
-    doc.head.appendChild(title);
-    doc.title = t('pipTitle');
 
     const style = doc.createElement('style');
     style.textContent = this.windowCss();
@@ -438,10 +470,17 @@ class EnhancedPip {
     const buttons = doc.createElement('div');
     buttons.id = 'tbc-pip-btns';
     const reloadBtn = this.makeButton(doc, 'tbc-pip-reload', t('pipReload'), t('pipReload'), this.iconReload());
+    const aspectBtn = this.makeButton(
+      doc,
+      'tbc-pip-aspect',
+      t('pipAspectLock'),
+      t('pipAspectLock'),
+      ICON_PIP_ASPECT_UNLOCK,
+    );
     const danmakuBtn = this.makeButton(doc, 'tbc-pip-danmaku-btn', t('pipDanmaku'), t('pipDanmaku'), ICON_DANMAKU_ON);
     const settingsBtn = this.makeButton(doc, 'tbc-pip-settings', t('pipSettings'), t('pipSettings'), ICON_SETTINGS);
     const sendBtn = this.makeButton(doc, 'tbc-pip-send', t('pipSend'), t('pipSend'), ICON_CHAT_SEND);
-    buttons.append(reloadBtn, danmakuBtn, settingsBtn, sendBtn);
+    buttons.append(reloadBtn, aspectBtn, danmakuBtn, settingsBtn, sendBtn);
 
     const video = doc.createElement('video');
     video.id = 'tbc-pip-video';
@@ -486,7 +525,7 @@ class EnhancedPip {
     doc.body.appendChild(wrap);
 
     this.nodes = {
-      wrap, main, back, reloadBtn, danmakuBtn, settingsBtn, sendBtn,
+      wrap, main, back, reloadBtn, aspectBtn, danmakuBtn, settingsBtn, sendBtn,
       video, layer, toast, input, field, favBtn, favList, submit, status,
     };
 
@@ -494,6 +533,10 @@ class EnhancedPip {
     reloadBtn.addEventListener('click', (event) => {
       stop(event);
       this.reloadVideo();
+    });
+    aspectBtn.addEventListener('click', (event) => {
+      stop(event);
+      this.toggleAspectLock();
     });
     danmakuBtn.addEventListener('click', (event) => {
       stop(event);
@@ -527,6 +570,7 @@ class EnhancedPip {
     });
     pipWindow.addEventListener('resize', this.boundResize);
     doc.addEventListener('keydown', this.boundKeyDown, true);
+    this.applyAspectLock();
     this.resetLanes();
     pipWindow.requestAnimationFrame(() => this.resetLanes());
   }
@@ -559,6 +603,7 @@ class EnhancedPip {
         position: absolute; inset: 0; width: 100%; height: 100%;
         object-fit: fill; background: #000; z-index: 1;
       }
+      #tbc-pip-wrap.is-aspect-locked #tbc-pip-video { object-fit: contain; }
       #tbc-pip-danmaku { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 2; }
       .tbc-pip-dm {
         position: absolute; white-space: nowrap; font-weight: 700; line-height: 1.2;
