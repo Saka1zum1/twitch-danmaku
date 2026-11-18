@@ -406,7 +406,7 @@ class EnhancedPip {
     item.className = 'tbc-pip-dm';
     this.appendParts(doc, item, parts);
     const opacity = clamp(Number(settings.danmakuOpacity) || 100, 10, 100) / 100;
-    item.style.color = payload.usernameColor || '#efeff1';
+    item.style.color = resolveDanmakuTextColor(settings, payload.usernameColor);
     item.style.fontSize = `${settings.fontSize || 22}px`;
     item.style.fontFamily = settings.fontFamily || 'sans-serif';
     item.style.opacity = String(opacity);

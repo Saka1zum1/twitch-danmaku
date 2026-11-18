@@ -726,26 +726,6 @@ function injectStyles() {
       margin-top: 0;
     }
 
-    .tbc-sc-compact-main {
-      min-width: 0;
-      flex: 1;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .tbc-sc-compact-name {
-      min-width: 0;
-      flex: 0 1 auto;
-      max-width: 6.5em;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      font-size: 0.88em;
-      font-weight: 800;
-      opacity: 0.96;
-    }
-
     .tbc-superchat-item.tbc-sc-compact .tbc-sc-meta {
       margin-left: 0;
       flex-shrink: 0;
@@ -1221,6 +1201,32 @@ function injectStyles() {
       width: 100%;
       accent-color: #9147ff;
       height: 4px;
+    }
+
+    .tbc-balloon-row--color {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .tbc-balloon-color {
+      width: 48px;
+      height: 32px;
+      padding: 0;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 6px;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .tbc-balloon-color::-webkit-color-swatch-wrapper {
+      padding: 2px;
+    }
+
+    .tbc-balloon-color::-webkit-color-swatch {
+      border: none;
+      border-radius: 4px;
     }
 
     .tbc-balloon-select {

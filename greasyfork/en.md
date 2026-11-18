@@ -32,12 +32,13 @@ No more constantly glancing at the chat panel. Messages flow across the screen s
 ### Live Danmaku
 - Automatically captures new chat messages and displays them on the video
 - Works on live streams and VOD pages (synced video chat / `.vod-message`)
-- Shows message content only — each sender gets a unique color
+- Shows message content only — use Twitch username colors, one uniform color, or a custom color you pick
 - Hover or click any danmaku to pause it
 - Click to reveal a bubble shows sender, use the copy button in the bubble to paste the message into the live chat input
 
 ### Customization
 - Adjust scroll speed, font size, and choose from 18 system fonts
+- **Scrolling danmaku color** — Twitch nickname colors (default), a single neutral color, or any custom color
 - **Danmaku opacity** — 10–100% (default 100%). Changes apply to danmaku already on screen
 - Scroll area: full screen / top half / bottom half / top quarter
 - Auto-adapts to fullscreen and window resize
@@ -51,7 +52,7 @@ No more constantly glancing at the chat panel. Messages flow across the screen s
 - Recognizes Bits cheers, Prime / tier subscriptions (including resub messages), highlighted paid messages, and pinned chat
 - Pin at top/bottom center or any corner; choose whether pins cover scrolling danmaku
 - Shows real avatars, names, amount / Prime / Tier badges, and Twitch cheer-tier colors
-- Adjustable max width. Compact mode shows avatar, name, and amount only — tap it for a detail card (translate, speak, favorite, profile, block)
+- Adjustable max width. Compact mode shows avatar, amount, and tier badge only — tap for a detail card (full text, translate, speak, favorite, profile, block)
 - Subscription pins can be hidden. Pin time can grow with the amount
 - Multiple pins at once. Animations: fade, slide, pop, or shine. Dismiss closes early
 - Compact pins take less space; full pins put name and badges on one row; multiple pins stack more neatly

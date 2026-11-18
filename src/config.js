@@ -5,6 +5,8 @@ const DEFAULT_SETTINGS = {
   speed: 5,
   fontSize: 22,
   danmakuOpacity: 100,
+  danmakuColorMode: 'twitch',
+  danmakuFixedColor: '#ffffff',
   fontFamily: 'system-ui, sans-serif',
   scrollArea: 'full',
   translateEnabled: false,
@@ -69,7 +71,35 @@ const CHEER_PREFIX_PATTERN = CHEER_EMOTE_PREFIXES.map((prefix) => prefix.replace
 const BITS_TOKEN_PATTERN = `(?:^|\\s)(?:[A-Za-z][\\w]*?(?:Cheer|cheer)|(?:${CHEER_PREFIX_PATTERN}))([1-9]\\d{0,6})(?=\\s|$)`;
 
 const SCROLL_AREAS = ['full', 'top-half', 'bottom-half', 'top-quarter'];
+const DANMAKU_COLOR_MODES = ['twitch', 'mono', 'fixed'];
+const DANMAKU_MONO_COLOR = '#efeff1';
 const SUPERCHAT_POSITIONS = ['top', 'bottom', 'top-left', 'top-right', 'bottom-left', 'bottom-right'];
+
+function normalizeDanmakuHexColor(value, fallback = '#ffffff') {
+  const raw = String(value || '').trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(raw)) return raw;
+  if (/^#[0-9a-fA-F]{3}$/.test(raw)) {
+    const [, r, g, b] = raw.match(/^#(.)(.)(.)$/) || [];
+    if (r && g && b) return `#${r}${r}${g}${g}${b}${b}`;
+  }
+  return fallback;
+}
+
+function resolveDanmakuTextColor(settings, usernameColor) {
+  const mode = DANMAKU_COLOR_MODES.includes(settings?.danmakuColorMode)
+    ? settings.danmakuColorMode
+    : DEFAULT_SETTINGS.danmakuColorMode;
+  if (mode === 'mono') return DANMAKU_MONO_COLOR;
+  if (mode === 'fixed') {
+    return normalizeDanmakuHexColor(
+      settings.danmakuFixedColor,
+      DEFAULT_SETTINGS.danmakuFixedColor,
+    );
+  }
+  const fromChat = String(usernameColor || '').trim();
+  if (fromChat && !/[;{}]|url\s*\(/i.test(fromChat)) return fromChat;
+  return DANMAKU_MONO_COLOR;
+}
 
 function resolveSuperchatPlacement(value) {
   const key = String(value || 'top').toLowerCase().replace(/_/g, '-');

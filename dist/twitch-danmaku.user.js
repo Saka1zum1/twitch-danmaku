@@ -4,7 +4,7 @@
 // @name:zh-TW   Twitch 彈幕 | 即時翻譯
 // @name:ja      Twitch 弾幕 | リアルタイム翻訳
 // @namespace    https://github.com/saka1zum1/twitch-danmaku
-// @version      2.0.2
+// @version      2.0.3
 // @description  Convert Twitch live chat to video danmaku with real-time translation
 // @description:zh-CN  将 Twitch 直播评论转换为视频弹幕，支持实时翻译
 // @description:zh-TW  將聊天室中的新訊息轉換成影片上的滾動彈幕，支援即時翻譯
@@ -43,6 +43,11 @@ const LOCALES = {
     scrollSpeed: '滚动速度',
     fontSize: '字体大小',
     danmakuOpacity: '弹幕透明度',
+    danmakuColorMode: '滚动弹幕颜色',
+    danmakuColorTwitch: '跟随 Twitch 昵称色',
+    danmakuColorMono: '统一颜色（关闭昵称色）',
+    danmakuColorFixed: '固定颜色',
+    danmakuFixedColor: '固定弹幕颜色',
     fontFamily: '字体',
     scrollArea: '滚动区域',
     translateEnable: '启用翻译',
@@ -281,6 +286,11 @@ const LOCALES = {
     scrollSpeed: 'Scroll speed',
     fontSize: 'Font size',
     danmakuOpacity: 'Danmaku opacity',
+    danmakuColorMode: 'Scrolling danmaku color',
+    danmakuColorTwitch: 'Use Twitch username colors',
+    danmakuColorMono: 'Single color (no username colors)',
+    danmakuColorFixed: 'Custom color',
+    danmakuFixedColor: 'Custom danmaku color',
     fontFamily: 'Font',
     scrollArea: 'Scroll area',
     translateEnable: 'Enable translation',
@@ -557,6 +567,14 @@ function getFontOptions() {
   ];
 }
 
+function getDanmakuColorModeOptions() {
+  return [
+    { label: t('danmakuColorTwitch'), value: 'twitch' },
+    { label: t('danmakuColorMono'), value: 'mono' },
+    { label: t('danmakuColorFixed'), value: 'fixed' },
+  ];
+}
+
 function getScrollAreaOptions() {
   return [
     { label: t('scrollAreaFull'), value: 'full' },
@@ -623,6 +641,8 @@ const DEFAULT_SETTINGS = {
   speed: 5,
   fontSize: 22,
   danmakuOpacity: 100,
+  danmakuColorMode: 'twitch',
+  danmakuFixedColor: '#ffffff',
   fontFamily: 'system-ui, sans-serif',
   scrollArea: 'full',
   translateEnabled: false,
@@ -687,7 +707,35 @@ const CHEER_PREFIX_PATTERN = CHEER_EMOTE_PREFIXES.map((prefix) => prefix.replace
 const BITS_TOKEN_PATTERN = `(?:^|\\s)(?:[A-Za-z][\\w]*?(?:Cheer|cheer)|(?:${CHEER_PREFIX_PATTERN}))([1-9]\\d{0,6})(?=\\s|$)`;
 
 const SCROLL_AREAS = ['full', 'top-half', 'bottom-half', 'top-quarter'];
+const DANMAKU_COLOR_MODES = ['twitch', 'mono', 'fixed'];
+const DANMAKU_MONO_COLOR = '#efeff1';
 const SUPERCHAT_POSITIONS = ['top', 'bottom', 'top-left', 'top-right', 'bottom-left', 'bottom-right'];
+
+function normalizeDanmakuHexColor(value, fallback = '#ffffff') {
+  const raw = String(value || '').trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(raw)) return raw;
+  if (/^#[0-9a-fA-F]{3}$/.test(raw)) {
+    const [, r, g, b] = raw.match(/^#(.)(.)(.)$/) || [];
+    if (r && g && b) return `#${r}${r}${g}${g}${b}${b}`;
+  }
+  return fallback;
+}
+
+function resolveDanmakuTextColor(settings, usernameColor) {
+  const mode = DANMAKU_COLOR_MODES.includes(settings?.danmakuColorMode)
+    ? settings.danmakuColorMode
+    : DEFAULT_SETTINGS.danmakuColorMode;
+  if (mode === 'mono') return DANMAKU_MONO_COLOR;
+  if (mode === 'fixed') {
+    return normalizeDanmakuHexColor(
+      settings.danmakuFixedColor,
+      DEFAULT_SETTINGS.danmakuFixedColor,
+    );
+  }
+  const fromChat = String(usernameColor || '').trim();
+  if (fromChat && !/[;{}]|url\s*\(/i.test(fromChat)) return fromChat;
+  return DANMAKU_MONO_COLOR;
+}
 
 function resolveSuperchatPlacement(value) {
   const key = String(value || 'top').toLowerCase().replace(/_/g, '-');
@@ -750,6 +798,13 @@ function loadSettings() {
       merged.translateEnabled = !!merged.translateEnabled;
       merged.translateInChat = merged.translateInChat !== false;
       merged.danmakuOpacity = clamp(Number(merged.danmakuOpacity) || DEFAULT_SETTINGS.danmakuOpacity, 10, 100);
+      merged.danmakuColorMode = DANMAKU_COLOR_MODES.includes(merged.danmakuColorMode)
+        ? merged.danmakuColorMode
+        : DEFAULT_SETTINGS.danmakuColorMode;
+      merged.danmakuFixedColor = normalizeDanmakuHexColor(
+        merged.danmakuFixedColor,
+        DEFAULT_SETTINGS.danmakuFixedColor,
+      );
       merged.speechEnabled = !!merged.speechEnabled;
       merged.speechVolume = clamp(finiteNumber(merged.speechVolume, DEFAULT_SETTINGS.speechVolume), 0, 100);
       merged.speechPitch = clamp(finiteNumber(merged.speechPitch, DEFAULT_SETTINGS.speechPitch), 0, 200);
@@ -2083,16 +2138,7 @@ class DanmakuEngine {
     let track = null;
 
     if (compact) {
-      const compactMain = document.createElement('div');
-      compactMain.className = 'tbc-sc-compact-main';
-      const nameEl = document.createElement('span');
-      nameEl.className = 'tbc-sc-compact-name';
-      const displayName = username || login || 'User';
-      nameEl.textContent = this.truncateName(displayName, 10);
-      nameEl.title = displayName;
-      const metaRow = this.buildSuperchatMetaRow(meta, { badgeBeforeAmount: true });
-      compactMain.append(nameEl, metaRow);
-      item.append(avatar, compactMain);
+      item.append(avatar, this.buildSuperchatMetaRow(meta, { badgeBeforeAmount: true }));
     } else {
       const metaRow = this.buildSuperchatMetaRow(meta);
       main = document.createElement('div');
@@ -2275,7 +2321,7 @@ class DanmakuEngine {
     this.appendParts(item, displayParts);
     item.style.cssText = `
       top: 0;
-      color: ${usernameColor || '#efeff1'};
+      color: ${resolveDanmakuTextColor(settings, usernameColor)};
       font-size: ${settings.fontSize}px;
       font-family: ${settings.fontFamily};
       visibility: hidden;
@@ -7209,26 +7255,6 @@ function injectStyles() {
       margin-top: 0;
     }
 
-    .tbc-sc-compact-main {
-      min-width: 0;
-      flex: 1;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .tbc-sc-compact-name {
-      min-width: 0;
-      flex: 0 1 auto;
-      max-width: 6.5em;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      font-size: 0.88em;
-      font-weight: 800;
-      opacity: 0.96;
-    }
-
     .tbc-superchat-item.tbc-sc-compact .tbc-sc-meta {
       margin-left: 0;
       flex-shrink: 0;
@@ -7704,6 +7730,32 @@ function injectStyles() {
       width: 100%;
       accent-color: #9147ff;
       height: 4px;
+    }
+
+    .tbc-balloon-row--color {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .tbc-balloon-color {
+      width: 48px;
+      height: 32px;
+      padding: 0;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 6px;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .tbc-balloon-color::-webkit-color-swatch-wrapper {
+      padding: 2px;
+    }
+
+    .tbc-balloon-color::-webkit-color-swatch {
+      border: none;
+      border-radius: 4px;
     }
 
     .tbc-balloon-select {
@@ -8434,9 +8486,13 @@ class SettingsPanel {
         if (binding.format) binding.valueEl.textContent = binding.format(value);
       } else if (binding.type === 'select') {
         binding.el.value = String(value);
+      } else if (binding.type === 'color') {
+        binding.el.value = normalizeDanmakuHexColor(value, '#ffffff');
       }
     }
     this.syncTranslateDependentRows();
+    this.syncDanmakuColorRows();
+    this.syncDanmakuColorRows();
   }
 
   toggle(anchor) {
@@ -8566,6 +8622,11 @@ class SettingsPanel {
     if (this.translateInChatRow) this.translateInChatRow.hidden = !enabled;
   }
 
+  syncDanmakuColorRows() {
+    const fixed = this.settings.danmakuColorMode === 'fixed';
+    if (this.danmakuFixedColorRow) this.danmakuFixedColorRow.hidden = !fixed;
+  }
+
   createRange(label, key, min, max, step, format) {
     const row = document.createElement('div');
     row.className = 'tbc-balloon-row tbc-balloon-row--field';
@@ -8602,7 +8663,7 @@ class SettingsPanel {
     return row;
   }
 
-  createSelect(label, key, options) {
+  createSelect(label, key, options, handlers = {}) {
     const row = document.createElement('div');
     row.className = 'tbc-balloon-row tbc-balloon-row--field';
 
@@ -8622,10 +8683,33 @@ class SettingsPanel {
 
     select.addEventListener('change', () => {
       this.updateSetting(key, select.value);
+      handlers.onChange?.(select.value);
     });
 
     this.uiBindings[key] = { type: 'select', el: select };
     row.append(labelEl, select);
+    return row;
+  }
+
+  createColor(label, key) {
+    const row = document.createElement('div');
+    row.className = 'tbc-balloon-row tbc-balloon-row--field tbc-balloon-row--color';
+
+    const labelEl = document.createElement('span');
+    labelEl.className = 'tbc-balloon-label';
+    labelEl.textContent = label;
+
+    const input = document.createElement('input');
+    input.type = 'color';
+    input.className = 'tbc-balloon-color';
+    input.value = normalizeDanmakuHexColor(this.settings[key], '#ffffff');
+
+    input.addEventListener('input', () => {
+      this.updateSetting(key, input.value);
+    });
+
+    this.uiBindings[key] = { type: 'color', el: input };
+    row.append(labelEl, input);
     return row;
   }
 
@@ -8959,6 +9043,13 @@ class SettingsPanel {
       this.createRange(t('scrollSpeed'), 'speed', 1, 10, 1, (v) => String(v)),
       this.createRange(t('fontSize'), 'fontSize', 14, 40, 1, (v) => `${v}px`),
       this.createRange(t('danmakuOpacity'), 'danmakuOpacity', 10, 100, 5, (v) => `${v}%`),
+      this.createSelect(t('danmakuColorMode'), 'danmakuColorMode', getDanmakuColorModeOptions(), {
+        onChange: () => this.syncDanmakuColorRows(),
+      }),
+    );
+    this.danmakuFixedColorRow = this.createColor(t('danmakuFixedColor'), 'danmakuFixedColor');
+    body.append(
+      this.danmakuFixedColorRow,
       this.createSelect(t('fontFamily'), 'fontFamily', getFontOptions()),
       this.createSelect(t('scrollArea'), 'scrollArea', getScrollAreaOptions()),
       this.createDivider(),
@@ -8989,6 +9080,7 @@ class SettingsPanel {
       this.createTwitchBlockUsersRow(),
     );
     this.syncTranslateDependentRows();
+    this.syncDanmakuColorRows();
 
     this.balloon.append(header, body);
     this.balloon.addEventListener('click', (e) => e.stopPropagation());
@@ -11676,7 +11768,7 @@ class EnhancedPip {
     item.className = 'tbc-pip-dm';
     this.appendParts(doc, item, parts);
     const opacity = clamp(Number(settings.danmakuOpacity) || 100, 10, 100) / 100;
-    item.style.color = payload.usernameColor || '#efeff1';
+    item.style.color = resolveDanmakuTextColor(settings, payload.usernameColor);
     item.style.fontSize = `${settings.fontSize || 22}px`;
     item.style.fontFamily = settings.fontFamily || 'sans-serif';
     item.style.opacity = String(opacity);

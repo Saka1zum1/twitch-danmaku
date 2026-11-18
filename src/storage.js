@@ -17,6 +17,13 @@ function loadSettings() {
       merged.translateEnabled = !!merged.translateEnabled;
       merged.translateInChat = merged.translateInChat !== false;
       merged.danmakuOpacity = clamp(Number(merged.danmakuOpacity) || DEFAULT_SETTINGS.danmakuOpacity, 10, 100);
+      merged.danmakuColorMode = DANMAKU_COLOR_MODES.includes(merged.danmakuColorMode)
+        ? merged.danmakuColorMode
+        : DEFAULT_SETTINGS.danmakuColorMode;
+      merged.danmakuFixedColor = normalizeDanmakuHexColor(
+        merged.danmakuFixedColor,
+        DEFAULT_SETTINGS.danmakuFixedColor,
+      );
       merged.speechEnabled = !!merged.speechEnabled;
       merged.speechVolume = clamp(finiteNumber(merged.speechVolume, DEFAULT_SETTINGS.speechVolume), 0, 100);
       merged.speechPitch = clamp(finiteNumber(merged.speechPitch, DEFAULT_SETTINGS.speechPitch), 0, 200);

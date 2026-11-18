@@ -9,6 +9,11 @@ const LOCALES = {
     scrollSpeed: '滚动速度',
     fontSize: '字体大小',
     danmakuOpacity: '弹幕透明度',
+    danmakuColorMode: '滚动弹幕颜色',
+    danmakuColorTwitch: '跟随 Twitch 昵称色',
+    danmakuColorMono: '统一颜色（关闭昵称色）',
+    danmakuColorFixed: '固定颜色',
+    danmakuFixedColor: '固定弹幕颜色',
     fontFamily: '字体',
     scrollArea: '滚动区域',
     translateEnable: '启用翻译',
@@ -247,6 +252,11 @@ const LOCALES = {
     scrollSpeed: 'Scroll speed',
     fontSize: 'Font size',
     danmakuOpacity: 'Danmaku opacity',
+    danmakuColorMode: 'Scrolling danmaku color',
+    danmakuColorTwitch: 'Use Twitch username colors',
+    danmakuColorMono: 'Single color (no username colors)',
+    danmakuColorFixed: 'Custom color',
+    danmakuFixedColor: 'Custom danmaku color',
     fontFamily: 'Font',
     scrollArea: 'Scroll area',
     translateEnable: 'Enable translation',
@@ -520,6 +530,14 @@ function getFontOptions() {
     { label: t('fontSerif'), value: 'serif' },
     { label: t('fontSansSerif'), value: 'sans-serif' },
     { label: t('fontMonospace'), value: 'monospace' },
+  ];
+}
+
+function getDanmakuColorModeOptions() {
+  return [
+    { label: t('danmakuColorTwitch'), value: 'twitch' },
+    { label: t('danmakuColorMono'), value: 'mono' },
+    { label: t('danmakuColorFixed'), value: 'fixed' },
   ];
 }
 

@@ -7,12 +7,12 @@ A Tampermonkey userscript that turns Twitch live chat into scrolling video danma
 ## Features
 
 - **Live danmaku** — New chat messages scroll across the video player (live streams and VOD video chat)
-- **Sender colors** — Content only; each chatter gets a unique color
+- **Scrolling danmaku color** — Follow Twitch username colors (default), use one uniform color, or pick a custom color
 - **Interactive pause** — Hover or click to pause; click to reveal sender (and original text when translated)
 - **Copy to chat** — Click a danmaku, then use the copy button in the tooltip to paste the message into the live chat input
 - **Customization** — Speed, font, opacity, and scroll area (full / top half / bottom half / top quarter)
 - **Read aloud** — Optional speech for each danmaku, with voice, rate, and a pace mode that speeds up long lines
-- **Super Chat pin** — Bits cheers, Prime / tier subscriptions (including resub messages), highlighted paid messages, and pinned chat stay on screen. Position: top/bottom center or corners; optional overlay on scrolling danmaku. Real avatars, badges, cheer-tier colors, adjustable width. Compact mode shows avatar, name, and amount — click for a detail card (translate, speak, favorite, profile, block). Full pins line up name and badges on one row; compact pins and multi-pin stacks use less space. Hide subscription pins, and let pin time grow with the amount. Hover pauses; dismiss closes early
+- **Super Chat pin** — Bits cheers, Prime / tier subscriptions (including resub messages), highlighted paid messages, and pinned chat stay on screen. Position: top/bottom center or corners; optional overlay on scrolling danmaku. Real avatars, badges, cheer-tier colors, adjustable width. Compact mode shows avatar, amount, and tier badge — click for a detail card (translate, speak, favorite, profile, block). Full pins line up name and badges on one row; compact pins and multi-pin stacks use less space. Hide subscription pins, and let pin time grow with the amount. Hover pauses; dismiss closes early
 - **Enhanced picture-in-picture** — Resizable mini window from the player bar with stretch or locked aspect ratio, synced danmaku, quick controls, and chat input with favorites. Opening it helps keep the page active in the background
 - **Favorites & wheel mode** — Star button beside chat input to save lines, send with one click or number shortcuts (channel-only or site-wide). Wheel mode randomly sends favorites on a timer. Failed sends show a clear reason instead of a false success
 - **Chat context menu** — Right-click a live chat line to translate / re-translate, read aloud, resend as danmaku, add to favorites, or block the user
@@ -64,6 +64,7 @@ npm run build
 | Scroll speed | 1–10, higher = faster |
 | Font size | 14–40 px |
 | Danmaku opacity | 10–100% |
+| Scrolling danmaku color | Twitch username colors / single color / custom color |
 | Font | 18 system fonts |
 | Scroll area | Full / top half / bottom half / top quarter |
 | Translation | Replaces original text on danmaku |
@@ -98,7 +99,7 @@ npm run build
 npm run watch
 ```
 
-The public demo needs no build step: [Twitch Danmaku demo](https://saka1zum1.github.io/twitch-danmaku/). It stands in for a watch page (player, control bar, and chat list). Lines already in the list stay put; lines added after the short warm-up scroll across the video. The demo header toggles translation and speech in sync with the player bar. Try scroll area, Super Chat (compact card included), favorites, enhanced PiP, and the chat context menu. With translation on, preview translations and optional TL lines in chat appear. The preview keeps running when its browser tab is in the background.
+The public demo needs no build step: [Twitch Danmaku demo](https://saka1zum1.github.io/twitch-danmaku/). It stands in for a watch page (player, control bar, and chat list). Lines already in the list stay put; lines added after the short warm-up scroll across the video. The demo header toggles translation and speech in sync with the player bar. Try scroll area, danmaku color, Super Chat (compact card included), favorites, enhanced PiP, and the chat context menu. With translation on, preview translations and optional TL lines in chat appear. The preview keeps running when its browser tab is in the background.
 
 ## Notes
 

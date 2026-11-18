@@ -424,16 +424,7 @@ class DanmakuEngine {
     let track = null;
 
     if (compact) {
-      const compactMain = document.createElement('div');
-      compactMain.className = 'tbc-sc-compact-main';
-      const nameEl = document.createElement('span');
-      nameEl.className = 'tbc-sc-compact-name';
-      const displayName = username || login || 'User';
-      nameEl.textContent = this.truncateName(displayName, 10);
-      nameEl.title = displayName;
-      const metaRow = this.buildSuperchatMetaRow(meta, { badgeBeforeAmount: true });
-      compactMain.append(nameEl, metaRow);
-      item.append(avatar, compactMain);
+      item.append(avatar, this.buildSuperchatMetaRow(meta, { badgeBeforeAmount: true }));
     } else {
       const metaRow = this.buildSuperchatMetaRow(meta);
       main = document.createElement('div');
@@ -616,7 +607,7 @@ class DanmakuEngine {
     this.appendParts(item, displayParts);
     item.style.cssText = `
       top: 0;
-      color: ${usernameColor || '#efeff1'};
+      color: ${resolveDanmakuTextColor(settings, usernameColor)};
       font-size: ${settings.fontSize}px;
       font-family: ${settings.fontFamily};
       visibility: hidden;

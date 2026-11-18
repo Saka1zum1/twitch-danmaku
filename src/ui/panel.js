@@ -22,9 +22,13 @@ class SettingsPanel {
         if (binding.format) binding.valueEl.textContent = binding.format(value);
       } else if (binding.type === 'select') {
         binding.el.value = String(value);
+      } else if (binding.type === 'color') {
+        binding.el.value = normalizeDanmakuHexColor(value, '#ffffff');
       }
     }
     this.syncTranslateDependentRows();
+    this.syncDanmakuColorRows();
+    this.syncDanmakuColorRows();
   }
 
   toggle(anchor) {
@@ -154,6 +158,11 @@ class SettingsPanel {
     if (this.translateInChatRow) this.translateInChatRow.hidden = !enabled;
   }
 
+  syncDanmakuColorRows() {
+    const fixed = this.settings.danmakuColorMode === 'fixed';
+    if (this.danmakuFixedColorRow) this.danmakuFixedColorRow.hidden = !fixed;
+  }
+
   createRange(label, key, min, max, step, format) {
     const row = document.createElement('div');
     row.className = 'tbc-balloon-row tbc-balloon-row--field';
@@ -190,7 +199,7 @@ class SettingsPanel {
     return row;
   }
 
-  createSelect(label, key, options) {
+  createSelect(label, key, options, handlers = {}) {
     const row = document.createElement('div');
     row.className = 'tbc-balloon-row tbc-balloon-row--field';
 
@@ -210,10 +219,33 @@ class SettingsPanel {
 
     select.addEventListener('change', () => {
       this.updateSetting(key, select.value);
+      handlers.onChange?.(select.value);
     });
 
     this.uiBindings[key] = { type: 'select', el: select };
     row.append(labelEl, select);
+    return row;
+  }
+
+  createColor(label, key) {
+    const row = document.createElement('div');
+    row.className = 'tbc-balloon-row tbc-balloon-row--field tbc-balloon-row--color';
+
+    const labelEl = document.createElement('span');
+    labelEl.className = 'tbc-balloon-label';
+    labelEl.textContent = label;
+
+    const input = document.createElement('input');
+    input.type = 'color';
+    input.className = 'tbc-balloon-color';
+    input.value = normalizeDanmakuHexColor(this.settings[key], '#ffffff');
+
+    input.addEventListener('input', () => {
+      this.updateSetting(key, input.value);
+    });
+
+    this.uiBindings[key] = { type: 'color', el: input };
+    row.append(labelEl, input);
     return row;
   }
 
@@ -547,6 +579,13 @@ class SettingsPanel {
       this.createRange(t('scrollSpeed'), 'speed', 1, 10, 1, (v) => String(v)),
       this.createRange(t('fontSize'), 'fontSize', 14, 40, 1, (v) => `${v}px`),
       this.createRange(t('danmakuOpacity'), 'danmakuOpacity', 10, 100, 5, (v) => `${v}%`),
+      this.createSelect(t('danmakuColorMode'), 'danmakuColorMode', getDanmakuColorModeOptions(), {
+        onChange: () => this.syncDanmakuColorRows(),
+      }),
+    );
+    this.danmakuFixedColorRow = this.createColor(t('danmakuFixedColor'), 'danmakuFixedColor');
+    body.append(
+      this.danmakuFixedColorRow,
       this.createSelect(t('fontFamily'), 'fontFamily', getFontOptions()),
       this.createSelect(t('scrollArea'), 'scrollArea', getScrollAreaOptions()),
       this.createDivider(),
@@ -577,6 +616,7 @@ class SettingsPanel {
       this.createTwitchBlockUsersRow(),
     );
     this.syncTranslateDependentRows();
+    this.syncDanmakuColorRows();
 
     this.balloon.append(header, body);
     this.balloon.addEventListener('click', (e) => e.stopPropagation());
